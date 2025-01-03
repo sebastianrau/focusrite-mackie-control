@@ -18,6 +18,13 @@ const (
 	faderLength
 )
 
+type SpeakerType int
+
+const (
+	SpeakerNormal SpeakerType = iota
+	SubwooferNormal
+)
+
 const (
 	SpeakerAEnabled = iota
 	SpeakerBEnabled
@@ -35,6 +42,8 @@ type Speaker struct {
 	Fader        gomcu.Channel
 	SelectButton gomcu.Switch
 	EnableButton []gomcu.Switch
+	Type         SpeakerType
+	Exclusive    bool
 }
 
 type Master struct {
@@ -74,12 +83,12 @@ var (
 func DefaultMapping() *ControllerMapping {
 	m := ControllerMapping{
 		Speaker: map[int]Speaker{
-			SpeakerA: {Name: SpeakerNames[SpeakerA], Fader: gomcu.Channel1, SelectButton: gomcu.Select1, EnableButton: []gomcu.Switch{gomcu.AssignTrack}},
-			SpeakerB: {Name: SpeakerNames[SpeakerB], Fader: gomcu.Channel2, SelectButton: gomcu.Select2, EnableButton: []gomcu.Switch{gomcu.AssignSend}},
-			SpeakerC: {Name: SpeakerNames[SpeakerC], Fader: gomcu.Channel3, SelectButton: gomcu.Select3, EnableButton: []gomcu.Switch{gomcu.AssignPan}},
-			SpeakerD: {Name: SpeakerNames[SpeakerD], Fader: gomcu.Channel4, SelectButton: gomcu.Select4, EnableButton: []gomcu.Switch{gomcu.AssignPlugin}},
-			SubA:     {Name: SpeakerNames[SubA], Fader: gomcu.Channel5, SelectButton: gomcu.Select5, EnableButton: []gomcu.Switch{gomcu.AssignEQ}},
-			SubB:     {Name: SpeakerNames[SubB], Fader: gomcu.Channel6, SelectButton: gomcu.Select6, EnableButton: []gomcu.Switch{gomcu.AssignInstrument}},
+			SpeakerA: {Name: SpeakerNames[SpeakerA], Fader: gomcu.Channel1, SelectButton: gomcu.Select1, EnableButton: []gomcu.Switch{gomcu.AssignTrack}, Type: SpeakerNormal, Exclusive: true},
+			SpeakerB: {Name: SpeakerNames[SpeakerB], Fader: gomcu.Channel2, SelectButton: gomcu.Select2, EnableButton: []gomcu.Switch{gomcu.AssignSend}, Type: SpeakerNormal, Exclusive: false},
+			SpeakerC: {Name: SpeakerNames[SpeakerC], Fader: gomcu.Channel3, SelectButton: gomcu.Select3, EnableButton: []gomcu.Switch{gomcu.AssignPan}, Type: SpeakerNormal, Exclusive: false},
+			SpeakerD: {Name: SpeakerNames[SpeakerD], Fader: gomcu.Channel4, SelectButton: gomcu.Select4, EnableButton: []gomcu.Switch{gomcu.AssignPlugin}, Type: SpeakerNormal, Exclusive: true},
+			SubA:     {Name: SpeakerNames[SubA], Fader: gomcu.Channel5, SelectButton: gomcu.Select5, EnableButton: []gomcu.Switch{gomcu.AssignEQ}, Type: SubwooferNormal, Exclusive: false},
+			SubB:     {Name: SpeakerNames[SubB], Fader: gomcu.Channel6, SelectButton: gomcu.Select6, EnableButton: []gomcu.Switch{gomcu.AssignInstrument}, Type: SubwooferNormal, Exclusive: true},
 		},
 
 		Master: Master{Name: SpeakerNames[MasterFader], Fader: gomcu.Master, SelectButton: gomcu.FaderMaster},

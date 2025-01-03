@@ -133,7 +133,28 @@ func (c *Controller) Reset() {
 }
 
 func (c *Controller) SetSpeakerEnabled(id int, state bool) {
+
 	if state != c.speakerEnabled[id] {
+		ex := c.mapping.Speaker[id].Exclusive
+		ty := c.mapping.Speaker[id].Type
+
+		if state {
+			// new speaker is exclusice, disable all other
+			if ex {
+				for k, v := range c.mapping.Speaker {
+					if ty == v.Type {
+						c.SetSpeakerEnabled(k, false)
+					}
+				}
+			} else { //Check other speakers for eclusive flag
+				for k, v := range c.mapping.Speaker {
+					if k != id && ty == v.Type && c.speakerEnabled[k] && v.Exclusive {
+						c.SetSpeakerEnabled(k, false)
+					}
+				}
+			}
+		}
+
 		c.speakerEnabled[id] = state
 		c.setLed(id, mcu.Bool2State(state))
 		c.fromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: c.speakerEnabled}
