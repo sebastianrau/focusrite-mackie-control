@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"reflect"
 	"sync"
-	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
@@ -72,9 +71,8 @@ func main() {
 	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
 	controller := monitorcontroller.NewController(toMcu, fromMcu, fromController)
 
-	go func() {
-		time.Sleep(5 * time.Second)
-		controller.SetMeter(monitorcontroller.MasterFader, 1.2)
+	defer func() {
+		controller.Reset()
 	}()
 
 	for {
