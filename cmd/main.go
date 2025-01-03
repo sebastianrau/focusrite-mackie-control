@@ -69,11 +69,7 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
-	controller := monitorcontroller.NewController(toMcu, fromMcu, fromController)
-
-	defer func() {
-		controller.Reset()
-	}()
+	monitorcontroller.NewController(toMcu, fromMcu, fromController)
 
 	for {
 
@@ -100,13 +96,10 @@ func main() {
 }
 
 /*
-func onExit() {
-}
-
 func onReady() {
 	fromUser := make(chan interface{}, 100)
 	systray.SetTemplateIcon(icon.Data, icon.Data)
-	//systray.SetTitle("obs-mcu")
+	systray.SetTitle("obs-mcu")
 	systray.SetTooltip("obs-mcu")
 	mOpenConfig := systray.AddMenuItem("Edit Config", "Open config file")
 	systray.AddSeparator()
@@ -154,6 +147,8 @@ func onReady() {
 	}
 	systray.AddSeparator()
 	mQuitOrig := systray.AddMenuItem("Quit", "Quit obs-mcu")
+
+
 	go func() {
 		for {
 			select {
@@ -189,11 +184,5 @@ func onReady() {
 			}
 		}
 	}()
-}
-
-// check if we run headless
-func isHeadless() bool {
-	_, display := os.LookupEnv("DISPLAY")
-	return runtime.GOOS != "windows" && runtime.GOOS != "darwin" && !display
 }
 */
