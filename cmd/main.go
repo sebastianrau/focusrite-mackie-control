@@ -7,13 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"runtime"
 	"sync"
 	"time"
 
-	"github.com/micmonay/keybd_event"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	monitorcontroller "github.com/sebastianrau/focusrite-mackie-control/pkg/monitor_controller"
 )
 
 const Version string = "v0.0.1"
@@ -65,60 +64,27 @@ func main() {
 	fromMcu := make(chan interface{}, 100)
 	toMcu := make(chan interface{}, 100)
 
+	fromController := make(chan interface{}, 100)
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
 	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
+	controller := monitorcontroller.NewController(toMcu, fromMcu, fromController)
 
-	kb, err := keybd_event.NewKeyBonding()
-	if err != nil {
-		panic(err)
-	}
-
-	// For linux, it is very important to wait 2 seconds
-	if runtime.GOOS == "linux" {
-		time.Sleep(2 * time.Second)
-	}
-
-	/*
-	   MediaNextTrack		176		The media next track key.
-	   MediaPreviousTrack	177		The media previous track key.
-	   MediaStop			178		The media Stop key.
-	   MediaPlayPause		179		The media play pause key.
-	*/
+	go func() {
+		time.Sleep(5 * time.Second)
+		controller.SetMeter(monitorcontroller.MasterFader, 1.2)
+	}()
 
 	for {
 
 		select {
-		case fm := <-fromMcu:
+		case fm := <-fromController:
 
 			switch f := fm.(type) {
 			case mcu.KeyMessage:
-				switch f.HotkeyName {
-				case "Play":
-					kb.SetKeys(179)
-					err := kb.Launching()
-					if err != nil {
-						fmt.Println(err.Error())
-					}
-					toMcu <- mcu.LedMessage{LedName: f.HotkeyName, LedState: true}
-				case "FastFwd":
-					kb.SetKeys(176)
-					err := kb.Launching()
-					if err != nil {
-						fmt.Println(err.Error())
-					}
-					toMcu <- mcu.LedMessage{LedName: f.HotkeyName, LedState: true}
-				case "Rewind":
-					kb.SetKeys(177)
-					err := kb.Launching()
-					if err != nil {
-						fmt.Println(err.Error())
-					}
-					toMcu <- mcu.LedMessage{LedName: f.HotkeyName, LedState: true}
-				default:
-					fmt.Printf("%s: %v\n", reflect.TypeOf(fm), fm)
-				}
+				fmt.Printf("%s: %v\n", reflect.TypeOf(fm), fm)
 
 			case mcu.RawFaderMessage:
 				fmt.Println(f)

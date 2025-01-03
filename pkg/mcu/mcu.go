@@ -1,6 +1,7 @@
 package mcu
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sync"
@@ -18,7 +19,6 @@ import (
 type Mcu struct {
 	config       *config.Config
 	waitGroup    *sync.WaitGroup
-	state        *McuState
 	midiInput    drivers.In
 	midiOutput   drivers.Out
 	midiStop     func()
@@ -27,24 +27,31 @@ type Mcu struct {
 	interrupt  chan os.Signal
 	connection chan int
 
-	toMcu       chan interface{}
-	fromMcu     chan interface{}
-	internalMcu chan interface{}
+	decodeButtons bool
+	toMcu         chan interface{}
+	fromMcu       chan interface{}
+
+	displayStringUpper []byte
+	displayStringLower []byte
 }
 
 // Initialize the MCU runloop
 func InitMcu(fromMcu chan interface{}, toMcu chan interface{}, interrupt chan os.Signal, wg *sync.WaitGroup, cfg config.Config) *Mcu {
 	m := Mcu{
-		config:    &cfg,
-		waitGroup: wg,
-		fromMcu:   fromMcu,
-		toMcu:     toMcu,
-		interrupt: interrupt,
-
-		connection:  make(chan int, 1),
-		internalMcu: make(chan interface{}),
+		config:             &cfg,
+		waitGroup:          wg,
+		fromMcu:            fromMcu,
+		toMcu:              toMcu,
+		interrupt:          interrupt,
+		connection:         make(chan int, 1),
+		displayStringUpper: make([]byte, 56),
+		displayStringLower: make([]byte, 56),
 	}
-	m.state = NewMcuState(m.sendMidi)
+
+	for i := 0; i < 8; i++ {
+		m.updateLcdText(gomcu.Channel(i), fmt.Sprintf("%-6s", " "), false)
+		m.updateLcdText(gomcu.Channel(i), fmt.Sprintf("%-6s", " "), true)
+	}
 
 	m.connection <- 0
 	wg.Add(1)
@@ -106,8 +113,7 @@ func (m *Mcu) connect() {
 		send(ms)
 	}
 
-	//TODO m.fromMcu <- ms.UpdateRequest{}
-	log.Print("MIDI Connected")
+	m.fromMcu <- ConnectionMessage{Connection: true}
 }
 
 // disconnects from the MCU, called from runloop
@@ -176,72 +182,24 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 	var uval uint16
 
 	if message.GetNoteOn(&c, &k, &v) {
-
-		// fader touch - handle locally
-		if gomcu.Switch(k) >= gomcu.Fader1 && gomcu.Switch(k) <= gomcu.Fader8 {
-			m.internalMcu <- RawFaderTouchMessage{
-				FaderNumber: k - byte(gomcu.Fader1),
-				Pressed:     v == 127,
-			}
-		}
-
 		// avoid noteoffs for the other commands
 		if v == 0 {
 			return
 		}
 
-		if gomcu.Switch(k) >= gomcu.BankL && gomcu.Switch(k) <= gomcu.ChannelR {
-			var amount int
-			switch gomcu.Switch(k) {
-			case gomcu.BankL:
-				amount = -8
-			case gomcu.BankR:
-				amount = 8
-			case gomcu.ChannelL:
-				amount = -1
-			case gomcu.ChannelR:
-				amount = 1
-			}
-			m.fromMcu <- BankMessage{
-				ChangeAmount: amount,
-			}
-		} else if gomcu.Switch(k) >= gomcu.V1 && gomcu.Switch(k) <= gomcu.V8 {
-			m.fromMcu <- VPotButtonMessage{
-				FaderNumber: k - byte(gomcu.V1),
-			}
-		} else if gomcu.Switch(k) >= gomcu.Mute1 && gomcu.Switch(k) <= gomcu.Mute8 {
-			m.fromMcu <- MuteMessage{
-				FaderNumber: k - byte(gomcu.Mute1),
-			}
-		} else if gomcu.Switch(k) >= gomcu.Rec1 && gomcu.Switch(k) <= gomcu.Rec8 {
-			m.fromMcu <- MonitorTypeMessage{
-				FaderNumber: k,
-				MonitorType: "REC",
-			}
-		} else if gomcu.Switch(k) >= gomcu.Solo1 && gomcu.Switch(k) <= gomcu.Solo8 {
-			m.fromMcu <- MonitorTypeMessage{
-				FaderNumber: k - byte(gomcu.Solo1),
-				MonitorType: "SOLO",
-			}
-		} else if gomcu.Switch(k) >= gomcu.Select1 && gomcu.Switch(k) <= gomcu.Select8 {
-			m.fromMcu <- SelectMessage{
-				FaderNumber: k - byte(gomcu.Select1),
-			}
-		} else if gomcu.Switch(k) >= gomcu.AssignTrack && gomcu.Switch(k) <= gomcu.AssignInstrument {
-			m.fromMcu <- AssignMessage{
-				Mode: k - byte(gomcu.AssignTrack),
-			}
-		} else if len(gomcu.Names) > int(k) {
+		if m.decodeButtons {
+			m.DecodeButtons(k, v)
+		} else {
 			fieldName := gomcu.Names[k]
 			m.fromMcu <- KeyMessage{
+				KeyNumber:  gomcu.Switch(k),
+				Pressed:    true,
 				HotkeyName: fieldName,
 			}
-		} else {
-			log.Printf("Unknown Button with key: %x", k)
 		}
 
 	} else if message.GetControlChange(&c, &k, &v) {
-		if gomcu.Switch(k) >= 0x10 && gomcu.Switch(k) <= 0x17 {
+		if inRange(k, gomcu.Mute1, gomcu.Mute8) {
 			amount := 0
 			if v < 65 {
 				amount = int(v)
@@ -249,29 +207,86 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 				amount = -1 * (int(v) - 64)
 			}
 			m.fromMcu <- VPotChangeMessage{
-				FaderNumber:  k - 0x10,
+				FaderNumber:  k - byte(gomcu.Mute1),
 				ChangeAmount: amount,
 			}
 		}
 
 	} else if message.GetPitchBend(&c, &val, &uval) {
 		m.fromMcu <- RawFaderMessage{
-			FaderNumber: c,
+			FaderNumber: gomcu.Channel(c),
 			FaderValue:  uval,
 		}
 	}
 
 }
 
+func (m *Mcu) DecodeButtons(k uint8, v uint8) {
+	if inRange(k, gomcu.Fader1, gomcu.FaderMaster) {
+		m.fromMcu <- RawFaderTouchMessage{
+			Channel: k - byte(gomcu.Fader1),
+			Pressed: v == 127,
+		}
+	} else if inRange(k, gomcu.BankL, gomcu.ChannelR) {
+		var amount int
+		switch gomcu.Switch(k) {
+		case gomcu.BankL:
+			amount = -8
+		case gomcu.BankR:
+			amount = 8
+		case gomcu.ChannelL:
+			amount = -1
+		case gomcu.ChannelR:
+			amount = 1
+		}
+
+		m.fromMcu <- BankMessage{
+			Offset: amount,
+		}
+	} else if inRange(k, gomcu.V1, gomcu.V8) {
+		m.fromMcu <- VPotButtonMessage{
+			FaderNumber: k - byte(gomcu.V1),
+		}
+	} else if inRange(k, gomcu.Mute1, gomcu.Mute8) {
+		m.fromMcu <- MuteMessage{
+			FaderNumber: k - byte(gomcu.Mute1),
+		}
+	} else if inRange(k, gomcu.Rec1, gomcu.Rec8) {
+		m.fromMcu <- RecMessage{
+			FaderNumber: k,
+		}
+	} else if inRange(k, gomcu.Solo1, gomcu.Solo8) {
+		m.fromMcu <- SoloMessage{
+			FaderNumber: k - byte(gomcu.Solo1),
+		}
+	} else if inRange(k, gomcu.Select1, gomcu.Select8) {
+		m.fromMcu <- SelectMessage{
+			FaderNumber: k - byte(gomcu.Select1),
+		}
+	} else if inRange(k, gomcu.AssignTrack, gomcu.AssignInstrument) {
+		m.fromMcu <- AssignMessage{
+			Mode: k - byte(gomcu.AssignTrack),
+		}
+	} else {
+		fieldName := gomcu.Names[k]
+		m.fromMcu <- KeyMessage{
+			KeyNumber:  gomcu.Switch(k),
+			HotkeyName: fieldName,
+		}
+	}
+}
+
 // run the MCU
 func (m *Mcu) run() {
-
 	for {
 		select {
 
 		case state := <-m.connection:
 			if state == 0 {
 				m.connect()
+				m.fromMcu <- ConnectionMessage{Connection: false}
+			} else {
+				m.fromMcu <- ConnectionMessage{Connection: true}
 			}
 
 		case <-m.interrupt:
@@ -285,40 +300,46 @@ func (m *Mcu) run() {
 			}
 
 			switch e := message.(type) {
-			case FaderMessage:
-				m.state.SetFaderLevel(e.FaderNumber, e.FaderValue)
-			case TrackEnableMessage:
-				m.state.SetTrackEnabledState(e.TrackNumber, e.Value)
-			case MuteMessage:
-				m.state.SetMuteState(e.FaderNumber, e.Value)
-			case ChannelTextMessage:
-				m.state.SetChannelText(e.FaderNumber, e.Text, e.Lower)
-			case DisplayTextMessage:
-				m.state.SetDisplayText(e.Text)
-			case AssignLEDMessage:
-				m.state.SetAssignText(e.Characters)
-			case MonitorTypeMessage:
-				m.state.SetMonitorState(e.FaderNumber, e.MonitorType)
-			case SelectMessage:
-				m.state.SetSelectState(e.FaderNumber, e.Value)
-			case AssignMessage:
-				m.state.SetAssignMode(e.Mode)
-			case VPotLedMessage:
-				m.state.SetVPotLed(e.FaderNumber, e.LedState)
-			case MeterMessage:
-				m.state.SetMeter(e.FaderNumber, e.Value)
-			case LedMessage:
-				if num, ok := gomcu.IDs[e.LedName]; ok {
-					m.state.SendLed(byte(num), e.LedState)
+
+			case LedCommand:
+				m.sendMidi([]midi.Message{gomcu.SetLED(e.Led, e.State)})
+			case FaderCommand:
+				m.sendMidi([]midi.Message{gomcu.SetFaderPos(e.Fader, e.Value)})
+
+			case TimeDisplayCommand:
+				m.sendMidi(gomcu.SetTimeDisplay(e.Text))
+
+			case ChannelTextCommand:
+				m.updateLcdText(e.Fader, e.Text, e.BottomLine)
+
+				if e.BottomLine {
+					m.sendMidi([]midi.Message{gomcu.SetLCD(56, string(m.displayStringLower))})
 				} else {
-					log.Printf("Could not find led with id %v", e.LedName)
+					m.sendMidi([]midi.Message{gomcu.SetLCD(0, string(m.displayStringUpper))})
 				}
+
+			case VPotLedCommand:
+				m.sendMidi([]midi.Message{gomcu.SetVPot(e.Channel, e.Mode, e.Led)})
+
+			case MeterCommand:
+				m.sendMidi([]midi.Message{gomcu.SetMeter(e.Channel, e.Value)})
 			}
-		case message := <-m.internalMcu:
-			switch e := message.(type) {
-			case RawFaderTouchMessage:
-				m.state.SetFaderTouched(e.FaderNumber, e.Pressed)
-			}
+
 		}
 	}
+}
+
+func (c *Mcu) updateLcdText(channel gomcu.Channel, text string, lower bool) {
+	text = ShortenText(text) + " "
+
+	offset := int(channel) * 7
+	if lower {
+		copy(c.displayStringLower[offset:], text)
+	} else {
+		copy(c.displayStringUpper[offset:], text)
+	}
+}
+
+func inRange(val byte, low gomcu.Switch, high gomcu.Switch) bool {
+	return gomcu.Switch(val) >= low && gomcu.Switch(val) <= high
 }

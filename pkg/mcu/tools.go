@@ -2,45 +2,23 @@ package mcu
 
 import (
 	"fmt"
-	"math"
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/normen/obs-mcu/gomcu"
 )
 
-var re *regexp.Regexp
-
-// var faderToObs interp.PiecewiseLinear
-// var obsToFader interp.PiecewiseLinear
-
-/*
-// prepares the interpolation for the mackie fader to obs fader translation
-
-	func InitInterp() {
-		// fader values for -inf, -60, -50, -40, -30, -20, -10, -6, 0, +6, +10
-		// -8192, -7460, -6512, -5142, -3578, -2376, -252, 1815, 4190, 6482, 8191
-		// 0, 0.000952, 0.002919, 0.009665, 0.031204, 0.096298, 0.315420, 0.488820, 1, 1, 1
-
-		//faderVals := []float64{-8192, -7460, -6512, -5142, -3578, -2376, -252, 1815, 4190}
-		faderVals := []float64{-8192, -7460, -6512, -5142, -3578, -2376, -252, 1815, 4190, 6482, 8191}
-		//obsVals := []float64{0, 0.000952, 0.002919, 0.009665, 0.031204, 0.096298, 0.315420, 0.488820, 1}
-		obsVals := []float64{0, 0.000952, 0.002919, 0.009665, 0.031204, 0.096298, 0.315420, 0.488820, 1, 1.315420, 1.411718}
-
-		faderToObs.Fit(faderVals, obsVals)
-		obsToFader.Fit(obsVals, faderVals)
-	}
-*/
 func ShortenText(input string) string {
+	re := regexp.MustCompile(`([^-_ ]+)[AEIOUaeiou]([^-_ ]+)`)
+
 	input = strings.ReplaceAll(input, "Input", "In")
 	input = strings.ReplaceAll(input, "Output", "Out")
-	if re == nil {
-		re = regexp.MustCompile(`([^-_ ]+)[AEIOUaeiou]([^-_ ]+)`)
-	}
+
 	ret := re.FindAllString(input, 1)
 	length := utf8.RuneCountInString(input)
 	for length > 6 && ret != nil {
 		input = re.ReplaceAllString(input, `$1$2`)
-		//log.Println("Found", input)
 		ret = re.FindAllString(input, 1)
 		length = utf8.RuneCountInString(input)
 	}
@@ -72,32 +50,47 @@ func ShortenText(input string) string {
 	return input
 }
 
-/*
-func FaderFloatToInt(level float64) int16 {
-	// why do I have to add 8191?..
-	level = obsToFader.Predict(level) + 8191
-	return int16(level)
-}
-
-func IntToFaderFloat(faderVal int16) float64 {
-	level := faderToObs.Predict(float64(faderVal))
-	return level
-}
-*/
-
-func MapToRange(value, fromMin, fromMax, toMin, toMax float64) float64 {
-	if fromMax == fromMin {
-		panic("Ursprünglicher Bereich darf nicht Null sein")
+func Db2MeterLevel(valueDB float64) gomcu.MeterLevel {
+	if valueDB >= 0 {
+		return gomcu.MoreThan0
+	} else if valueDB > -2 {
+		return gomcu.MoreThan2
+	} else if valueDB > -4 {
+		return gomcu.MoreThan4
+	} else if valueDB > -6 {
+		return gomcu.MoreThan6
+	} else if valueDB > -8 {
+		return (gomcu.MoreThan8)
+	} else if valueDB > -10 {
+		return (gomcu.MoreThan10)
+	} else if valueDB > -14 {
+		return (gomcu.MoreThan14)
+	} else if valueDB > -20 {
+		return (gomcu.MoreThan20)
+	} else if valueDB > -30 {
+		return (gomcu.MoreThan30)
+	} else if valueDB > -40 {
+		return (gomcu.MoreThan40)
+	} else if valueDB > -50 {
+		return (gomcu.MoreThan50)
+	} else if valueDB > -60 {
+		return (gomcu.MoreThan60)
 	}
-	return ((value-fromMin)*(toMax-toMin)/(fromMax-fromMin) + toMin)
+
+	return (gomcu.LessThan60)
 }
 
-// LinearToDb wandelt einen linearen Faktor in Dezibel um.
-func LinearToDb(linear float64) float64 {
-	return 20 * math.Log10(linear)
+func Bool2State(b bool) gomcu.State {
+	if b {
+		return gomcu.StateOn
+	}
+	return gomcu.StateOff
 }
 
-// DbToLinear wandelt einen Dezibelwert in einen linearen Faktor um.
-func DbToLinear(db float64) float64 {
-	return math.Pow(10, db/20)
+func InvertState(s gomcu.State) gomcu.State {
+	if s == gomcu.StateOff {
+		return gomcu.StateOn
+	}
+	// Led Blink --> Led Off
+	return gomcu.StateOff
 }
