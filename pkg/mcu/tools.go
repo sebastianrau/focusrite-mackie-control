@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/normen/obs-mcu/gomcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 )
 
 func ShortenText(input string) string {

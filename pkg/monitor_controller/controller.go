@@ -5,7 +5,7 @@ import (
 	"log"
 	"reflect"
 
-	"github.com/normen/obs-mcu/gomcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 )
 
@@ -60,17 +60,20 @@ func (c *Controller) Run() {
 				c.SetMute(true)
 				c.initDisplay()
 				c.setDisplayText(c.timeDisplay)
+				masterFader, _ := c.mapping.GetMcuFader(MasterFader)
+				c.toMcu <- mcu.SelectMessage{FaderNumber: masterFader}
 
-				//m := ControllerMapping.Master
-				//c.mapping.Speaker[]
+			}
 
-				c.toMcu <- mcu.LedCommand{Led: gomcu.FaderMaster, State: gomcu.StateOn}
+		case mcu.SelectMessage:
+			id, ok := c.mapping.GetIdByFader(gomcu.Channel(f.FaderNumber))
+			if ok {
+				c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.speakerLevel[id]}
 			}
 
 		case mcu.KeyMessage:
-			log.Printf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+			// log.Printf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
 
-			// GOMCU Raw Messages
 			switch f.KeyNumber {
 			case gomcu.Mute1,
 				gomcu.Mute2,
@@ -81,8 +84,14 @@ func (c *Controller) Run() {
 				gomcu.Mute7,
 				gomcu.Mute8:
 				c.ToggleMute()
-			default:
-				fmt.Println("Test")
+
+			case gomcu.Play,
+				gomcu.Stop,
+				gomcu.FastFwd,
+				gomcu.Rewind:
+				c.fromController <- TransportMessage{
+					Key: f.KeyNumber,
+				}
 			}
 
 			//Mapped Switches

@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-
-	"github.com/normen/obs-mcu/gomcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
@@ -33,6 +32,7 @@ type Mcu struct {
 
 	displayStringUpper []byte
 	displayStringLower []byte
+	selectedChannel    gomcu.Channel
 }
 
 // Initialize the MCU runloop
@@ -46,12 +46,14 @@ func InitMcu(fromMcu chan interface{}, toMcu chan interface{}, interrupt chan os
 		connection:         make(chan int, 1),
 		displayStringUpper: make([]byte, 56),
 		displayStringLower: make([]byte, 56),
+		selectedChannel:    gomcu.Channel1,
 	}
 
 	for i := 0; i < 8; i++ {
 		m.updateLcdText(gomcu.Channel(i), fmt.Sprintf("%-6s", " "), false)
 		m.updateLcdText(gomcu.Channel(i), fmt.Sprintf("%-6s", " "), true)
 	}
+	m.DecodeChannelSelect(uint8(gomcu.Channel1))
 
 	m.connection <- 0
 	wg.Add(1)
@@ -187,6 +189,10 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 			return
 		}
 
+		if m.DecodeChannelSelect(k) {
+			return
+		}
+
 		if m.decodeButtons {
 			m.DecodeButtons(k, v)
 		} else {
@@ -221,12 +227,31 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 
 }
 
+func (m *Mcu) DecodeChannelSelect(k uint8) bool {
+	if inRange(k, gomcu.Select1, gomcu.Select8) {
+
+		newChannel := gomcu.Channel(k - uint8(gomcu.Select1))
+		oldLed := gomcu.Switch(m.selectedChannel) + gomcu.Select1
+		newLed := gomcu.Switch(k)
+
+		if newChannel != m.selectedChannel {
+			m.selectedChannel = gomcu.Channel(newChannel)
+			m.toMcu <- LedCommand{Led: oldLed, State: gomcu.StateOff}
+			m.toMcu <- LedCommand{Led: newLed, State: gomcu.StateOn}
+		}
+
+		m.fromMcu <- SelectMessage{
+			FaderNumber: newChannel,
+		}
+		return true
+	}
+
+	return false
+}
+
 func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 	if inRange(k, gomcu.Fader1, gomcu.FaderMaster) {
-		m.fromMcu <- RawFaderTouchMessage{
-			Channel: k - byte(gomcu.Fader1),
-			Pressed: v == 127,
-		}
+		m.fromMcu <- RawFaderTouchMessage{Channel: k - byte(gomcu.Fader1), Pressed: v == 127}
 	} else if inRange(k, gomcu.BankL, gomcu.ChannelR) {
 		var amount int
 		switch gomcu.Switch(k) {
@@ -239,40 +264,20 @@ func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 		case gomcu.ChannelR:
 			amount = 1
 		}
+		m.fromMcu <- BankMessage{Offset: amount}
 
-		m.fromMcu <- BankMessage{
-			Offset: amount,
-		}
 	} else if inRange(k, gomcu.V1, gomcu.V8) {
-		m.fromMcu <- VPotButtonMessage{
-			FaderNumber: k - byte(gomcu.V1),
-		}
+		m.fromMcu <- VPotButtonMessage{FaderNumber: k - byte(gomcu.V1)}
 	} else if inRange(k, gomcu.Mute1, gomcu.Mute8) {
-		m.fromMcu <- MuteMessage{
-			FaderNumber: k - byte(gomcu.Mute1),
-		}
+		m.fromMcu <- MuteMessage{FaderNumber: k - byte(gomcu.Mute1)}
 	} else if inRange(k, gomcu.Rec1, gomcu.Rec8) {
-		m.fromMcu <- RecMessage{
-			FaderNumber: k,
-		}
+		m.fromMcu <- RecMessage{FaderNumber: k}
 	} else if inRange(k, gomcu.Solo1, gomcu.Solo8) {
-		m.fromMcu <- SoloMessage{
-			FaderNumber: k - byte(gomcu.Solo1),
-		}
-	} else if inRange(k, gomcu.Select1, gomcu.Select8) {
-		m.fromMcu <- SelectMessage{
-			FaderNumber: k - byte(gomcu.Select1),
-		}
+		m.fromMcu <- SoloMessage{FaderNumber: k - byte(gomcu.Solo1)}
 	} else if inRange(k, gomcu.AssignTrack, gomcu.AssignInstrument) {
-		m.fromMcu <- AssignMessage{
-			Mode: k - byte(gomcu.AssignTrack),
-		}
+		m.fromMcu <- AssignMessage{Mode: k - byte(gomcu.AssignTrack)}
 	} else {
-		fieldName := gomcu.Names[k]
-		m.fromMcu <- KeyMessage{
-			KeyNumber:  gomcu.Switch(k),
-			HotkeyName: fieldName,
-		}
+		m.fromMcu <- KeyMessage{KeyNumber: gomcu.Switch(k), HotkeyName: gomcu.Names[k]}
 	}
 }
 
@@ -323,6 +328,14 @@ func (m *Mcu) run() {
 
 			case MeterCommand:
 				m.sendMidi([]midi.Message{gomcu.SetMeter(e.Channel, e.Value)})
+
+			case FaderSelectCommand:
+
+				for i := gomcu.Select1; i <= gomcu.Select8; i++ {
+					m.sendMidi([]midi.Message{gomcu.SendOff(gomcu.Switch(i))})
+				}
+				m.sendMidi([]midi.Message{gomcu.SetLED(gomcu.Switch(e.Channel)+gomcu.Select1, gomcu.StateOn)})
+
 			}
 
 		}

@@ -1,6 +1,6 @@
 package mcu
 
-import "github.com/normen/obs-mcu/gomcu"
+import "github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 
 // ----------------------- TO MCU -----------------------
 
@@ -33,6 +33,11 @@ type VPotLedCommand struct {
 type MeterCommand struct {
 	Channel gomcu.Channel
 	Value   gomcu.MeterLevel
+}
+
+type FaderSelectCommand struct {
+	Channel     gomcu.Channel
+	ChnnalValue uint16
 }
 
 // ----------------------- FROM MCU -----------------------
@@ -74,7 +79,7 @@ type AssignMessage struct {
 }
 
 type SelectMessage struct {
-	FaderNumber byte
+	FaderNumber gomcu.Channel
 }
 
 type VPotChangeMessage struct {
