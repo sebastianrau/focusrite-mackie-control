@@ -4,6 +4,7 @@ go 1.23.1
 
 require (
 	github.com/go-vgo/robotgo v0.110.5
+	github.com/terminalstatic/go-xsd-validate v0.1.6
 	gitlab.com/gomidi/midi/v2 v2.2.10
 	gopkg.in/yaml.v2 v2.4.0
 )
