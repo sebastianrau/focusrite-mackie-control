@@ -5,6 +5,7 @@ import (
 	"log"
 	"reflect"
 
+	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 )
@@ -12,6 +13,7 @@ import (
 type Controller struct {
 	speakerEnabled []bool
 	speakerLevel   []uint16
+	speakerLevelDB []float64
 	mute           bool
 
 	meterLevels []gomcu.MeterLevel
@@ -33,6 +35,7 @@ func NewController(toMcu chan interface{}, fromMcu chan interface{}, fromControl
 	state := Controller{
 		speakerEnabled: make([]bool, faderLength),
 		speakerLevel:   make([]uint16, faderLength),
+		speakerLevelDB: make([]float64, faderLength),
 		meterLevels:    make([]gomcu.MeterLevel, faderLength),
 		ledStates:      make([]gomcu.State, buttonLength),
 		mute:           false,
@@ -179,8 +182,9 @@ func (c *Controller) SetSpeakerLevel(id int, level uint16) {
 
 	if c.speakerLevel[id] != level {
 		c.speakerLevel[id] = level
+		c.speakerLevelDB[id] = faderdb.FaderToDB(level)
 		c.toMcu <- mcu.FaderCommand{Fader: fader, Value: level}
-		c.fromController <- SpeakerLevelMessage{SpeakerID: id, SpeakerLevel: c.speakerLevel}
+		c.fromController <- c.NewSpeakerLevelMessage(id)
 	}
 }
 

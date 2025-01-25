@@ -8,8 +8,13 @@ type SpeakerEnabledMessage struct {
 }
 
 type SpeakerLevelMessage struct {
-	SpeakerID    int
-	SpeakerLevel []uint16
+	SpeakerID      int
+	SpeakerLevel   []uint16
+	SpeakerLevelDB []float64
+}
+
+func (c *Controller) NewSpeakerLevelMessage(id int) *SpeakerLevelMessage {
+	return &SpeakerLevelMessage{SpeakerID: id, SpeakerLevel: c.speakerLevel, SpeakerLevelDB: c.speakerLevelDB}
 }
 
 type MuteMessage struct {
