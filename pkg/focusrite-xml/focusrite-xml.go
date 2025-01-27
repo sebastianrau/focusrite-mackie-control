@@ -66,7 +66,13 @@ func ParseFromXML(in string) (interface{}, error) {
 	case "device-arrival":
 		var v DeviceArrival
 		if err := xml.Unmarshal([]byte(xmlData), &v); err != nil {
-			fmt.Println("Parsing device-arrival")
+			return nil, err
+		}
+		return v, nil
+
+	case "device-removal":
+		var v DeviceRemoval
+		if err := xml.Unmarshal([]byte(xmlData), &v); err != nil {
 			return nil, err
 		}
 		return v, nil
@@ -85,7 +91,6 @@ func ParseFromXML(in string) (interface{}, error) {
 		}
 		return v, nil
 	default:
-		fmt.Println(xmlData)
-		return nil, fmt.Errorf("unknown XML type: %s", wrapper.XMLName.Local)
+		return nil, fmt.Errorf("unknown XML type: %s\n%s", wrapper.XMLName.Local, xmlData)
 	}
 }

@@ -24,6 +24,11 @@ func (dl DeviceList) AddDevice(d *focusritexml.Device) {
 	d.UpdateMap()
 }
 
+func (dl DeviceList) Remove(id int) {
+	delete(dl, id)
+	log.Printf("removed device with ID: %d device list.", id)
+}
+
 func (dl DeviceList) UpdateSet(set focusritexml.Set) {
 	d, ok := dl[set.DevID]
 	if ok {
