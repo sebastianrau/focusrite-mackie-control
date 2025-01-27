@@ -1,0 +1,111 @@
+<device>
+    <nickname offset-bytes="16" bytes="32"/>
+    <mixer high="false">
+        <inputs num="8" pin0="0x300"/>
+        <mixes num="6" pin0="0x300"/>
+    </mixer>
+    <inputs>
+        <analogue name="Analogue 1" stereo-name="Analogue 1-2" pin="0x80">
+            <mode offset-bytes="124" bits="1" command="7">
+                <enum value="Line" option="0"/>
+                <enum value="Inst" option="1"/>
+            </mode>
+            <pad offset-bytes="132" bits="1" command="8"/>
+            <air offset-bytes="140" bits="1" command="8"/>
+        </analogue>
+        <analogue name="Analogue 2" pin="0x81">
+            <mode offset-bytes="125" bits="1" command="7">
+                <enum value="Line" option="0"/>
+                <enum value="Inst" option="1"/>
+            </mode>
+            <pad offset-bytes="133" bits="1" command="8"/>
+            <air offset-bytes="141" bits="1" command="8"/>
+        </analogue>
+        <analogue name="Analogue 3" stereo-name="Analogue 3-4" pin="0x82"/>
+        <analogue name="Analogue 4" pin="0x83"/>
+        <playback name="Playback 1" stereo-name="Playback 1-2" pin="0x600"/>
+        <playback name="Playback 2" pin="0x601"/>
+        <playback name="Playback 3" stereo-name="Playback 3-4" pin="0x602"/>
+        <playback name="Playback 4" pin="0x603"/>
+    </inputs>
+    <outputs>
+        <analogue name="Monitor Output 1" stereo-name="Monitor Outputs 1-2" pin="0x80">
+            <gain offset-bytes="52" bits="16" command="1" gain-mode="gain"/>
+            <mute offset-bytes="92" bits="1" command="1"/>
+        </analogue>
+        <analogue name="Monitor Output 2" pin="0x81">
+            <gain offset-bytes="54" bits="16" command="1" gain-mode="gain"/>
+            <mute offset-bytes="93" bits="1" command="1"/>
+        </analogue>
+        <analogue name="Line Output 3" stereo-name="Line Outputs 3-4" pin="0x82" headphone="1">
+            <gain offset-bytes="56" bits="16" command="1" gain-mode="gain"/>
+            <mute offset-bytes="94" bits="1" command="1"/>
+        </analogue>
+        <analogue name="Line Output 4" pin="0x83" headphone="1">
+            <gain offset-bytes="58" bits="16" command="1" gain-mode="gain"/>
+            <mute offset-bytes="95" bits="1" command="1"/>
+        </analogue>
+    </outputs>
+    <record-outputs>
+        <record pin="0x600" input="0"/>
+        <record pin="0x601" input="1"/>
+        <record pin="0x602" input="2"/>
+        <record pin="0x603" input="3"/>
+        <loopback name="Loopback 1" stereo-name="Loopback 1-2" pin="0x604"/>
+        <loopback name="Loopback 2" pin="0x605"/>
+    </record-outputs>
+    <clocking>
+        <clock-source>
+            <enum value="Internal" option="41"/>
+        </clock-source>
+        <sample-rate>
+            <enum value="44.1 kHz" option="44100"/>
+            <enum value="48 kHz" option="48000"/>
+            <enum value="88.2 kHz" option="88200"/>
+            <enum value="96 kHz" option="96000"/>
+            <enum value="176.4 kHz" option="176400"/>
+            <enum value="192 kHz" option="192000"/>
+        </sample-rate>
+    </clocking>
+    <settings>
+        <standalone offset-bytes="149" bits="1"/>
+        <phantom-persistence offset-bytes="158" bits="1"/>
+    </settings>
+    <preset>
+        <enum value="Direct Routing"/>
+        <enum value="System Playback"/>
+        <enum value="2 Channel Analogue"/>
+        <enum value="Standalone Preamp"/>
+        <enum value="Empty"/>
+    </preset>
+    <appspace appspace-size="8428" app-ofs="236" appstorage-size="8192" flash-command="6"/>
+    <routing num="34" />
+    <firmware>
+        <segment name="App_Upgrade" nickname="App" version="1605" file="SctG3_4i4.bin" encrypted="true">
+            <version offset-bytes="12" bits="32"/>
+            <encrypted offset-bytes="48" offset-bits="7" bits="1"/>
+        </segment>
+    </firmware>
+    <quick-start url="https://customer.focusrite.com/getstarted/continue/">
+        <msd-mode offset-bytes="157" bits="1"/>
+    </quick-start>
+    <halo-settings>
+        <available-colours>
+            <enum value="red" option="1"/>
+            <enum value="amber" option="3"/>
+            <enum value="green" option="2"/>
+            <enum value="light blue" option="6"/>
+            <enum value="blue" option="4"/>
+            <enum value="pink" option="5"/>
+            <enum value="light pink" option="7"/>
+        </available-colours>
+        <good-meter-colour offset-bytes="168" bits="8" command="11"/>
+        <pre-clip-meter-colour offset-bytes="167" bits="8" command="11"/>
+        <clipping-meter-colour offset-bytes="166" bits="8" command="11"/>
+        <enable-preview-mode offset-bytes="161" bits="8" command="9"/>
+        <halos>
+            <halo offset-bytes="162" bits="8" command="9"/>
+            <halo offset-bytes="163" bits="8" command="9"/>
+        </halos>
+    </halo-settings>
+</device>

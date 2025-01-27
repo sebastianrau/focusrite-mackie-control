@@ -1,0 +1,542 @@
+<device-arrival>
+    <device id="1" protocol="USB" model="Scarlett 4i4 (3rd Gen)" class="Scarlett" bus-id="0" serial-number="D87W9TV252AD1A" version="2">
+        <nickname id="2"/>
+        <seal-broken id="3"/>
+        <snapshot id="4"/>
+        <save-snapshot id="5"/>
+        <reset-device id="7"/>
+        <preset id="6">
+            <enum value="Direct Routing"/>
+            <enum value="System Playback"/>
+            <enum value="2 Channel Analogue"/>
+            <enum value="Standalone Preamp"/>
+            <enum value="Empty"/>
+        </preset>
+        <firmware>
+            <version id="8"/>
+            <needs-update id="9"/>
+            <firmware-progress id="10"/>
+            <update-firmware id="11"/>
+            <restore-factory id="12"/>
+        </firmware>
+        <mixer>
+            <available id="238"/>
+            <inputs>
+                <add-input id="13"/>
+                <add-input-without-reset id="14"/>
+                <add-stereo-input id="15"/>
+                <remove-input id="16"/>
+                <free-inputs id="17"/>
+                <input>
+                    <source id="18"/>
+                    <stereo id="19"/>
+                </input>
+                <input>
+                    <source id="20"/>
+                    <stereo id="21"/>
+                </input>
+                <input>
+                    <source id="22"/>
+                    <stereo id="23"/>
+                </input>
+                <input>
+                    <source id="24"/>
+                    <stereo id="25"/>
+                </input>
+                <input>
+                    <source id="26"/>
+                    <stereo id="27"/>
+                </input>
+                <input>
+                    <source id="28"/>
+                    <stereo id="29"/>
+                </input>
+                <input>
+                    <source id="30"/>
+                    <stereo id="31"/>
+                </input>
+                <input>
+                    <source id="32"/>
+                    <stereo id="33"/>
+                </input>
+            </inputs>
+            <mixes>
+                <mix id="34" name="Mix A" stereo-name="Mix A">
+                    <meter id="67"/>
+                    <input>
+                        <gain id="35"/>
+                        <pan id="36"/>
+                        <mute id="37"/>
+                        <solo id="38"/>
+                    </input>
+                    <input>
+                        <gain id="39"/>
+                        <pan id="40"/>
+                        <mute id="41"/>
+                        <solo id="42"/>
+                    </input>
+                    <input>
+                        <gain id="43"/>
+                        <pan id="44"/>
+                        <mute id="45"/>
+                        <solo id="46"/>
+                    </input>
+                    <input>
+                        <gain id="47"/>
+                        <pan id="48"/>
+                        <mute id="49"/>
+                        <solo id="50"/>
+                    </input>
+                    <input>
+                        <gain id="51"/>
+                        <pan id="52"/>
+                        <mute id="53"/>
+                        <solo id="54"/>
+                    </input>
+                    <input>
+                        <gain id="55"/>
+                        <pan id="56"/>
+                        <mute id="57"/>
+                        <solo id="58"/>
+                    </input>
+                    <input>
+                        <gain id="59"/>
+                        <pan id="60"/>
+                        <mute id="61"/>
+                        <solo id="62"/>
+                    </input>
+                    <input>
+                        <gain id="63"/>
+                        <pan id="64"/>
+                        <mute id="65"/>
+                        <solo id="66"/>
+                    </input>
+                </mix>
+                <mix id="68" name="Mix A" stereo-name="">
+                    <meter id="101"/>
+                    <input>
+                        <gain id="69"/>
+                        <pan id="70"/>
+                        <mute id="71"/>
+                        <solo id="72"/>
+                    </input>
+                    <input>
+                        <gain id="73"/>
+                        <pan id="74"/>
+                        <mute id="75"/>
+                        <solo id="76"/>
+                    </input>
+                    <input>
+                        <gain id="77"/>
+                        <pan id="78"/>
+                        <mute id="79"/>
+                        <solo id="80"/>
+                    </input>
+                    <input>
+                        <gain id="81"/>
+                        <pan id="82"/>
+                        <mute id="83"/>
+                        <solo id="84"/>
+                    </input>
+                    <input>
+                        <gain id="85"/>
+                        <pan id="86"/>
+                        <mute id="87"/>
+                        <solo id="88"/>
+                    </input>
+                    <input>
+                        <gain id="89"/>
+                        <pan id="90"/>
+                        <mute id="91"/>
+                        <solo id="92"/>
+                    </input>
+                    <input>
+                        <gain id="93"/>
+                        <pan id="94"/>
+                        <mute id="95"/>
+                        <solo id="96"/>
+                    </input>
+                    <input>
+                        <gain id="97"/>
+                        <pan id="98"/>
+                        <mute id="99"/>
+                        <solo id="100"/>
+                    </input>
+                </mix>
+                <mix id="102" name="Mix B" stereo-name="Mix B">
+                    <meter id="135"/>
+                    <input>
+                        <gain id="103"/>
+                        <pan id="104"/>
+                        <mute id="105"/>
+                        <solo id="106"/>
+                    </input>
+                    <input>
+                        <gain id="107"/>
+                        <pan id="108"/>
+                        <mute id="109"/>
+                        <solo id="110"/>
+                    </input>
+                    <input>
+                        <gain id="111"/>
+                        <pan id="112"/>
+                        <mute id="113"/>
+                        <solo id="114"/>
+                    </input>
+                    <input>
+                        <gain id="115"/>
+                        <pan id="116"/>
+                        <mute id="117"/>
+                        <solo id="118"/>
+                    </input>
+                    <input>
+                        <gain id="119"/>
+                        <pan id="120"/>
+                        <mute id="121"/>
+                        <solo id="122"/>
+                    </input>
+                    <input>
+                        <gain id="123"/>
+                        <pan id="124"/>
+                        <mute id="125"/>
+                        <solo id="126"/>
+                    </input>
+                    <input>
+                        <gain id="127"/>
+                        <pan id="128"/>
+                        <mute id="129"/>
+                        <solo id="130"/>
+                    </input>
+                    <input>
+                        <gain id="131"/>
+                        <pan id="132"/>
+                        <mute id="133"/>
+                        <solo id="134"/>
+                    </input>
+                </mix>
+                <mix id="136" name="Mix B" stereo-name="">
+                    <meter id="169"/>
+                    <input>
+                        <gain id="137"/>
+                        <pan id="138"/>
+                        <mute id="139"/>
+                        <solo id="140"/>
+                    </input>
+                    <input>
+                        <gain id="141"/>
+                        <pan id="142"/>
+                        <mute id="143"/>
+                        <solo id="144"/>
+                    </input>
+                    <input>
+                        <gain id="145"/>
+                        <pan id="146"/>
+                        <mute id="147"/>
+                        <solo id="148"/>
+                    </input>
+                    <input>
+                        <gain id="149"/>
+                        <pan id="150"/>
+                        <mute id="151"/>
+                        <solo id="152"/>
+                    </input>
+                    <input>
+                        <gain id="153"/>
+                        <pan id="154"/>
+                        <mute id="155"/>
+                        <solo id="156"/>
+                    </input>
+                    <input>
+                        <gain id="157"/>
+                        <pan id="158"/>
+                        <mute id="159"/>
+                        <solo id="160"/>
+                    </input>
+                    <input>
+                        <gain id="161"/>
+                        <pan id="162"/>
+                        <mute id="163"/>
+                        <solo id="164"/>
+                    </input>
+                    <input>
+                        <gain id="165"/>
+                        <pan id="166"/>
+                        <mute id="167"/>
+                        <solo id="168"/>
+                    </input>
+                </mix>
+                <mix id="170" name="Mix C" stereo-name="Mix C">
+                    <meter id="203"/>
+                    <input>
+                        <gain id="171"/>
+                        <pan id="172"/>
+                        <mute id="173"/>
+                        <solo id="174"/>
+                    </input>
+                    <input>
+                        <gain id="175"/>
+                        <pan id="176"/>
+                        <mute id="177"/>
+                        <solo id="178"/>
+                    </input>
+                    <input>
+                        <gain id="179"/>
+                        <pan id="180"/>
+                        <mute id="181"/>
+                        <solo id="182"/>
+                    </input>
+                    <input>
+                        <gain id="183"/>
+                        <pan id="184"/>
+                        <mute id="185"/>
+                        <solo id="186"/>
+                    </input>
+                    <input>
+                        <gain id="187"/>
+                        <pan id="188"/>
+                        <mute id="189"/>
+                        <solo id="190"/>
+                    </input>
+                    <input>
+                        <gain id="191"/>
+                        <pan id="192"/>
+                        <mute id="193"/>
+                        <solo id="194"/>
+                    </input>
+                    <input>
+                        <gain id="195"/>
+                        <pan id="196"/>
+                        <mute id="197"/>
+                        <solo id="198"/>
+                    </input>
+                    <input>
+                        <gain id="199"/>
+                        <pan id="200"/>
+                        <mute id="201"/>
+                        <solo id="202"/>
+                    </input>
+                </mix>
+                <mix id="204" name="Mix C" stereo-name="">
+                    <meter id="237"/>
+                    <input>
+                        <gain id="205"/>
+                        <pan id="206"/>
+                        <mute id="207"/>
+                        <solo id="208"/>
+                    </input>
+                    <input>
+                        <gain id="209"/>
+                        <pan id="210"/>
+                        <mute id="211"/>
+                        <solo id="212"/>
+                    </input>
+                    <input>
+                        <gain id="213"/>
+                        <pan id="214"/>
+                        <mute id="215"/>
+                        <solo id="216"/>
+                    </input>
+                    <input>
+                        <gain id="217"/>
+                        <pan id="218"/>
+                        <mute id="219"/>
+                        <solo id="220"/>
+                    </input>
+                    <input>
+                        <gain id="221"/>
+                        <pan id="222"/>
+                        <mute id="223"/>
+                        <solo id="224"/>
+                    </input>
+                    <input>
+                        <gain id="225"/>
+                        <pan id="226"/>
+                        <mute id="227"/>
+                        <solo id="228"/>
+                    </input>
+                    <input>
+                        <gain id="229"/>
+                        <pan id="230"/>
+                        <mute id="231"/>
+                        <solo id="232"/>
+                    </input>
+                    <input>
+                        <gain id="233"/>
+                        <pan id="234"/>
+                        <mute id="235"/>
+                        <solo id="236"/>
+                    </input>
+                </mix>
+            </mixes>
+        </mixer>
+        <inputs>
+            <analogue id="239" supports-talkback="false" hidden="false" name="Analogue 1" stereo-name="Analogue 1-2">
+                <available id="241"/>
+                <meter id="242"/>
+                <nickname id="240"/>
+                <mode id="243">
+                    <enum value="Line"/>
+                    <enum value="Inst"/>
+                </mode>
+                <air id="244"/>
+                <pad id="245"/>
+            </analogue>
+            <analogue id="246" supports-talkback="false" hidden="false" name="Analogue 2" stereo-name="">
+                <available id="248"/>
+                <meter id="249"/>
+                <nickname id="247"/>
+                <mode id="250">
+                    <enum value="Line"/>
+                    <enum value="Inst"/>
+                </mode>
+                <air id="251"/>
+                <pad id="252"/>
+            </analogue>
+            <analogue id="253" supports-talkback="false" hidden="false" name="Analogue 3" stereo-name="Analogue 3-4">
+                <available id="255"/>
+                <meter id="256"/>
+                <nickname id="254"/>
+            </analogue>
+            <analogue id="257" supports-talkback="false" hidden="false" name="Analogue 4" stereo-name="">
+                <available id="259"/>
+                <meter id="260"/>
+                <nickname id="258"/>
+            </analogue>
+            <playback id="261" supports-talkback="false" hidden="false" name="Playback 1" stereo-name="Playback 1-2">
+                <available id="263"/>
+                <meter id="264"/>
+                <nickname id="262"/>
+            </playback>
+            <playback id="265" supports-talkback="false" hidden="false" name="Playback 2" stereo-name="">
+                <available id="267"/>
+                <meter id="268"/>
+                <nickname id="266"/>
+            </playback>
+            <playback id="269" supports-talkback="false" hidden="false" name="Playback 3" stereo-name="Playback 3-4">
+                <available id="271"/>
+                <meter id="272"/>
+                <nickname id="270"/>
+            </playback>
+            <playback id="273" supports-talkback="false" hidden="false" name="Playback 4" stereo-name="">
+                <available id="275"/>
+                <meter id="276"/>
+                <nickname id="274"/>
+            </playback>
+        </inputs>
+        <outputs>
+            <analogue name="Monitor Output 1" stereo-name="Monitor Outputs 1-2" headphone="0" independent="false" monitor="false" hardware-controls="0">
+                <available id="277"/>
+                <meter id="278"/>
+                <assign-mix id="279"/>
+                <assign-talkback-mix id="280"/>
+                <mute id="281"/>
+                <source id="282"/>
+                <stereo id="283"/>
+                <nickname id="284"/>
+                <hardware-control id="285"/>
+                <gain id="286"/>
+            </analogue>
+            <analogue name="Monitor Output 2" stereo-name="" headphone="0" independent="false" monitor="false" hardware-controls="0">
+                <available id="287"/>
+                <meter id="288"/>
+                <assign-mix id="289"/>
+                <assign-talkback-mix id="290"/>
+                <mute id="291"/>
+                <source id="292"/>
+                <stereo id="293"/>
+                <nickname id="294"/>
+                <hardware-control id="295"/>
+                <gain id="296"/>
+            </analogue>
+            <analogue name="Line Output 3" stereo-name="Line Outputs 3-4" headphone="1" independent="false" monitor="false" hardware-controls="0">
+                <available id="297"/>
+                <meter id="298"/>
+                <assign-mix id="299"/>
+                <assign-talkback-mix id="300"/>
+                <mute id="301"/>
+                <source id="302"/>
+                <stereo id="303"/>
+                <nickname id="304"/>
+                <hardware-control id="305"/>
+                <gain id="306"/>
+            </analogue>
+            <analogue name="Line Output 4" stereo-name="" headphone="1" independent="false" monitor="false" hardware-controls="0">
+                <available id="307"/>
+                <meter id="308"/>
+                <assign-mix id="309"/>
+                <assign-talkback-mix id="310"/>
+                <mute id="311"/>
+                <source id="312"/>
+                <stereo id="313"/>
+                <nickname id="314"/>
+                <hardware-control id="315"/>
+                <gain id="316"/>
+            </analogue>
+            <loopback name="Loopback 1" stereo-name="Loopback 1-2">
+                <available id="317"/>
+                <meter id="318"/>
+                <assign-mix id="319"/>
+                <assign-talkback-mix id="320"/>
+                <mute id="321"/>
+                <source id="322"/>
+                <stereo id="323"/>
+                <nickname id="324"/>
+            </loopback>
+            <loopback name="Loopback 2" stereo-name="">
+                <available id="325"/>
+                <meter id="326"/>
+                <assign-mix id="327"/>
+                <assign-talkback-mix id="328"/>
+                <mute id="329"/>
+                <source id="330"/>
+                <stereo id="331"/>
+                <nickname id="332"/>
+            </loopback>
+        </outputs>
+        <record-outputs/>
+        <monitoring>
+            <monitor-group-pairs></monitor-group-pairs>
+        </monitoring>
+        <clocking>
+            <locked id="333"/>
+            <clock-source id="334">
+                <enum value="Internal"/>
+            </clock-source>
+            <sample-rate id="335">
+                <enum value="44.1 kHz"/>
+                <enum value="48 kHz"/>
+                <enum value="88.2 kHz"/>
+                <enum value="96 kHz"/>
+                <enum value="176.4 kHz"/>
+                <enum value="192 kHz"/>
+            </sample-rate>
+            <clock-master id="336"/>
+        </clocking>
+        <settings>
+            <phantom-persistence id="337"/>
+            <delay-compensation></delay-compensation>
+        </settings>
+        <dante/>
+        <state></state>
+        <quick-start url="https://customer.focusrite.com/getstarted/continue/D8?source=fc&amp;upn=D87W9TV252AD1A&amp;utm_source=focusrite_control&amp;utm_medium=referral&amp;utm_campaign=fc_msd_prompt">
+            <msd-mode id="342"/>
+        </quick-start>
+        <halo-settings>
+            <available-colours>
+                <enum value="red"/>
+                <enum value="amber"/>
+                <enum value="green"/>
+                <enum value="light blue"/>
+                <enum value="blue"/>
+                <enum value="pink"/>
+                <enum value="light pink"/>
+            </available-colours>
+            <good-meter-colour id="343"/>
+            <pre-clip-meter-colour id="344"/>
+            <clipping-meter-colour id="345"/>
+            <enable-preview-mode id="346"/>
+            <halos id="347"/>
+        </halo-settings>
+        <pairable-devices></pairable-devices>
+    </device>
+</device-arrival>
