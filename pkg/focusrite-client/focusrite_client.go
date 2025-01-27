@@ -23,10 +23,14 @@ type FocusriteClient struct {
 	isConnected bool
 	mutex       sync.Mutex
 
-	DataChannel      chan interface{}
+	DeviceList    DeviceList
+	ClientDetails focusritexml.ClientDetails
+
 	ConnectedChannel chan bool
-	stopChannel      chan struct{}
-	messageChannel   chan string
+	DataChannel      chan *focusritexml.Device
+	ApprovalChannel  chan bool
+
+	stopChannel chan struct{}
 }
 
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
@@ -41,11 +45,17 @@ func NewFocusriteClientAutoDiscover() (*FocusriteClient, error) {
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
 func NewFocusriteClient(port int) *FocusriteClient {
 	f := &FocusriteClient{
-		port:             port,
-		DataChannel:      make(chan interface{}),
+		port: port,
+		ClientDetails: focusritexml.ClientDetails{
+			Hostname:  "Monitor Controller",
+			ClientKey: "123456789",
+		},
+
+		DeviceList:       make(DeviceList),
+		DataChannel:      make(chan *focusritexml.Device),
+		ApprovalChannel:  make(chan bool),
 		ConnectedChannel: make(chan bool),
 		stopChannel:      make(chan struct{}),
-		messageChannel:   make(chan string),
 	}
 	go f.start()
 
@@ -117,7 +127,42 @@ func (fc *FocusriteClient) connectAndListen() error {
 			if err != nil {
 				fmt.Println(err.Error())
 			}
-			fc.DataChannel <- d
+			switch dd := d.(type) {
+
+			case focusritexml.KeepAlive:
+				//TODO add Keep Alive timer
+				//TODO reset keep alive timer
+
+			case focusritexml.Set:
+				fc.DeviceList.UpdateSet(dd)
+				log.Printf("Device Updated with ID: %d \n\n", dd.DevID)
+				device, ok := fc.DeviceList.GetDevice(dd.DevID)
+				if ok {
+					fc.DataChannel <- device
+				}
+
+			case focusritexml.DeviceArrival:
+				fc.DeviceList.AddDevice(&dd.Device)
+				fc.SendSubscribe(dd.Device.ID, true)
+				device, ok := fc.DeviceList.GetDevice(dd.Device.ID)
+				if ok {
+					fc.DataChannel <- device
+				}
+				log.Printf("New Device: %s, with ID: %d \n\n", dd.Device.Model, dd.Device.ID)
+
+			case focusritexml.DeviceRemoval:
+				fc.DeviceList.Remove(dd.Id)
+
+			case focusritexml.ClientDetails:
+				fc.ClientDetails.Id = dd.Id
+				log.Printf("New Cleint Details: %s, with ID: %s \n\n", dd.ClientKey, dd.Id)
+
+			case focusritexml.Approval:
+				fc.ApprovalChannel <- dd.Authorised
+
+			default:
+				fmt.Printf("UNKNOWN data: %+v\n\n", d)
+			}
 		}
 
 	}
@@ -127,11 +172,7 @@ func (fc *FocusriteClient) connectAndListen() error {
 // SendData sends an XML-encoded FocusriteControl object to the server.
 func (fc *FocusriteClient) SendClientDetails() error {
 
-	return fc.sendXML(focusritexml.ClientDetails{
-		Hostname: "Monitor Controller",
-		//Hostname:  "Focusrite Midi Control",
-		ClientKey: "123456789",
-	})
+	return fc.sendXML(fc.ClientDetails)
 }
 
 func (fc *FocusriteClient) SendSubscribe(id int, subscribe bool) error {

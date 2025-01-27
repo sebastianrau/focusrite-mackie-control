@@ -1,4 +1,4 @@
-package focusrite
+package focusriteclient
 
 import (
 	"log"
@@ -11,6 +11,15 @@ type DeviceList map[int]*focusritexml.Device
 func (dl DeviceList) GetDevice(id int) (*focusritexml.Device, bool) {
 	d, ok := dl[id]
 	return d, ok
+}
+
+func (dl DeviceList) GetDeviceBySerialnumber(serial string) (*focusritexml.Device, bool) {
+	for _, v := range dl {
+		if v.SerialNumber == serial {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 func (dl DeviceList) AddDevice(d *focusritexml.Device) {
