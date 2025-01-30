@@ -1,5 +1,7 @@
 package monitorcontroller
 
+// TODO: remove Fader fpr Speaker Level
+
 import (
 	"fmt"
 	"log"
@@ -12,16 +14,15 @@ import (
 
 type Controller struct {
 	speakerEnabled []bool
-	speakerLevel   []uint16
-	speakerLevelDB []float64
-	mute           bool
+	ledStates      []gomcu.State
 
-	meterLevels []gomcu.MeterLevel
-	ledStates   []gomcu.State
+	masterMute    bool
+	masterLevel   uint16
+	masterLevelDB float64
+	masterMeter   gomcu.MeterLevel
 
 	timeDisplay string
-
-	mapping *ControllerMapping
+	mapping     *Configuration
 
 	toMcu   chan interface{}
 	fromMcu chan interface{}
@@ -34,13 +35,16 @@ func NewController(toMcu chan interface{}, fromMcu chan interface{}, fromControl
 
 	state := Controller{
 		speakerEnabled: make([]bool, faderLength),
-		speakerLevel:   make([]uint16, faderLength),
-		speakerLevelDB: make([]float64, faderLength),
-		meterLevels:    make([]gomcu.MeterLevel, faderLength),
 		ledStates:      make([]gomcu.State, buttonLength),
-		mute:           false,
-		timeDisplay:    "12345670000890",
-		mapping:        DefaultMapping(),
+
+		masterMute:    false,
+		masterLevel:   0,
+		masterLevelDB: -100.0,
+		masterMeter:   gomcu.LessThan60,
+
+		timeDisplay: "12345670000890",
+		mapping:     DefaultConfiguration(),
+
 		toMcu:          toMcu,
 		fromMcu:        fromMcu,
 		fromController: fromController,
@@ -63,15 +67,14 @@ func (c *Controller) Run() {
 				c.SetMute(true)
 				c.initDisplay()
 				c.setDisplayText(c.timeDisplay)
-				masterFader, _ := c.mapping.GetMcuFader(MasterFader)
+				masterFader, _ := c.mapping.GetMasterFader()
 				c.toMcu <- mcu.SelectMessage{FaderNumber: masterFader}
 
 			}
 
 		case mcu.SelectMessage:
-			id, ok := c.mapping.GetIdByFader(gomcu.Channel(f.FaderNumber))
-			if ok {
-				c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.speakerLevel[id]}
+			if f.FaderNumber == c.mapping.Master.Mcu.Fader {
+				c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.masterLevel}
 			}
 
 		case mcu.KeyMessage:
@@ -115,9 +118,8 @@ func (c *Controller) Run() {
 			}
 
 		case mcu.RawFaderMessage:
-			fader, ok := c.mapping.GetIdByFader(f.FaderNumber)
-			if ok {
-				c.SetSpeakerLevel(fader, f.FaderValue)
+			if f.FaderNumber == c.mapping.Master.Mcu.Fader {
+				c.SetMasterLevel(f.FaderValue)
 				break
 			}
 
@@ -132,11 +134,11 @@ func (c *Controller) Reset() {
 
 	for i := 0; i < faderLength; i++ {
 		c.SetSpeakerEnabled(i, false)
-		c.SetSpeakerLevel(i, 0)
+		c.SetMasterLevel(0)
 
 		t, _ := c.mapping.GetMcuName(i)
 		c.setChannelText(i, t, false)
-		c.SetMeter(i, -99.9)
+		c.SetMasterMeter(-99.9)
 	}
 
 	for i := 0; i < buttonLength; i++ {
@@ -173,18 +175,12 @@ func (c *Controller) SetSpeakerEnabled(id int, state bool) {
 	}
 }
 
-func (c *Controller) SetSpeakerLevel(id int, level uint16) {
-	fader, err := c.mapping.GetMcuFader(id)
-
-	if err != nil {
-		return
-	}
-
-	if c.speakerLevel[id] != level {
-		c.speakerLevel[id] = level
-		c.speakerLevelDB[id] = faderdb.FaderToDB(level)
-		c.toMcu <- mcu.FaderCommand{Fader: fader, Value: level}
-		c.fromController <- c.NewSpeakerLevelMessage(id)
+func (c *Controller) SetMasterLevel(level uint16) {
+	if c.masterLevel != level {
+		c.masterLevel = level
+		c.masterLevelDB = faderdb.FaderToDB(level)
+		c.toMcu <- mcu.FaderCommand{Fader: c.mapping.Master.Mcu.Fader, Value: level}
+		c.fromController <- c.NewSpeakerLevelMessage()
 	}
 }
 
@@ -229,34 +225,26 @@ func (c *Controller) setChannelText(id int, text string, lower bool) {
 
 }
 
-func (c *Controller) SetMeter(id int, valueDB float64) {
-
+func (c *Controller) SetMasterMeter(valueDB float64) {
 	out := mcu.Db2MeterLevel(valueDB)
-
-	fader, err := c.mapping.GetMcuFader(id)
-	if err != nil {
-		return
-	}
-
-	fmt.Printf("Setting Meter to %f (%d)\n", valueDB, byte(out))
-	if c.meterLevels[id] != out {
-		c.meterLevels[id] = out
-		c.toMcu <- mcu.MeterCommand{Channel: fader, Value: gomcu.MeterLevel(out)}
+	if c.masterMeter != out {
+		c.masterMeter = out
+		c.toMcu <- mcu.MeterCommand{Channel: c.mapping.Master.Mcu.Fader, Value: gomcu.MeterLevel(out)}
 
 	}
 }
 
 func (c *Controller) ToggleMute() {
-	c.SetMute(!c.mute)
+	c.SetMute(!c.masterMute)
 }
 
 func (c *Controller) SetMute(mute bool) {
-	if c.mute != mute {
-		c.mute = mute
+	if c.masterMute != mute {
+		c.masterMute = mute
 		for _, v := range MuteButtons {
 			c.toMcu <- mcu.LedCommand{Led: v, State: mcu.Bool2State(mute)}
 		}
-		c.fromController <- MuteMessage{Mute: c.mute}
+		c.fromController <- MuteMessage{Mute: c.masterMute}
 	}
 }
 

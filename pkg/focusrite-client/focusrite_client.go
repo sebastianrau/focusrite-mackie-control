@@ -11,17 +11,27 @@ import (
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 )
 
+type State int
+
 const (
-	SERVER_IP    string        = "localhost"
-	KEEP_ALIVE_S time.Duration = 3 * time.Second
+	Discover = iota
+	Connected
+	Waiting
+)
+
+const (
+	SERVER_IP        string        = "localhost"
+	KEEP_ALIVE_S     time.Duration = 3 * time.Second
+	RECONNECT_TIME_S time.Duration = 5 * time.Second
 )
 
 // FocusriteClient stellt eine TCP-Verbindung zu einem Focusrite-Server her und empfängt Daten.
 type FocusriteClient struct {
+	mutex       sync.Mutex
+	state       State
 	port        int
 	connection  net.Conn
 	isConnected bool
-	mutex       sync.Mutex
 
 	DeviceList    DeviceList
 	ClientDetails focusritexml.ClientDetails
@@ -29,62 +39,60 @@ type FocusriteClient struct {
 	ConnectedChannel chan bool
 	DataChannel      chan *focusritexml.Device
 	ApprovalChannel  chan bool
-
-	stopChannel chan struct{}
 }
 
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
-func NewFocusriteClientAutoDiscover() (*FocusriteClient, error) {
-	port, err := DiscoverServer()
-	if err != nil {
-		return nil, err
-	}
-	return NewFocusriteClient(port), nil
-}
-
-// NewFocusriteClient erstellt einen neuen FocusriteClient.
-func NewFocusriteClient(port int) *FocusriteClient {
+func NewFocusriteClient() *FocusriteClient {
 	f := &FocusriteClient{
-		port: port,
+		state: Discover,
 		ClientDetails: focusritexml.ClientDetails{
 			Hostname:  "Monitor Controller",
 			ClientKey: "123456789",
 		},
-
 		DeviceList:       make(DeviceList),
 		DataChannel:      make(chan *focusritexml.Device),
 		ApprovalChannel:  make(chan bool),
 		ConnectedChannel: make(chan bool),
-		stopChannel:      make(chan struct{}),
 	}
-	go f.start()
+	go f.run()
+	go f.runKeepalive()
 
 	return f
 }
 
 // Start stellt eine Verbindung zum Focusrite-Server her und empfängt Daten.
-func (fc *FocusriteClient) start() error {
+func (fc *FocusriteClient) run() {
 	for {
-		err := fc.connectAndListen()
-		if err != nil {
-			log.Printf("Verbindungsfehler: %v\n", err)
-			fc.setConnected(false)
-
-			// Reconnect-Logik
-			select {
-			case <-fc.stopChannel:
-				return nil
-			default:
-				log.Println("Versuche erneut zu verbinden...")
-				time.Sleep(5 * time.Second)
-				continue
+		switch fc.state {
+		case Discover:
+			p, err := DiscoverServer()
+			if err != nil {
+				log.Println(err.Error())
+				fc.state = Waiting
 			}
+			log.Printf("Port discovered: %d", fc.port)
+			fc.port = p
+			fc.state = Connected
+
+		case Connected:
+			err := fc.connectAndListen()
+			if err != nil {
+				log.Println("connect and listen: " + err.Error())
+			}
+			fc.setConnection(nil)
+			fc.setConnected(false)
+			fc.state = Waiting
+
+		case Waiting:
+			time.Sleep(RECONNECT_TIME_S)
+			fc.state = Discover
 		}
 	}
 }
 
 // connectAndListen stellt die Verbindung her und verarbeitet eingehende Daten.
 func (fc *FocusriteClient) connectAndListen() error {
+
 	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", SERVER_IP, fc.port))
 	if err != nil {
 		return err
@@ -95,78 +103,71 @@ func (fc *FocusriteClient) connectAndListen() error {
 	fc.setConnection(conn)
 	fc.SendClientDetails()
 
-	// Send keep alive
-	go func(fc *FocusriteClient) {
-		for {
-			if !fc.Connected() {
-				return
-			}
-			fc.sendXML(focusritexml.KeepAlive{})
-			time.Sleep(KEEP_ALIVE_S)
-		}
-	}(fc)
-
 	for {
 		buf := make([]byte, 65536)
-		n, err := conn.Read(buf) // Liest Daten in den Puffer
+		n, err := conn.Read(buf)
 		if err == io.EOF {
-			log.Println("Verbindung geschlossen.")
-			time.Sleep(5 * time.Second)
-			break
+			continue
 		}
 		if err != nil {
-			log.Printf("Fehler beim Lesen des Servers: %v\n", err)
-			break
+			return err
 		}
-
 		packet := string(buf[:n])
-
-		// Empfange und sende Daten über den Channel
 		if packet != "" {
-			d, err := focusritexml.ParseFromXML(packet)
-			if err != nil {
-				fmt.Println(err.Error())
-			}
-			switch dd := d.(type) {
+			go fc.handleXmlPacket(packet)
+		}
+	}
+}
 
-			case focusritexml.KeepAlive:
-				//TODO add Keep Alive timer
-				//TODO reset keep alive timer
+func (fc *FocusriteClient) runKeepalive() {
+	for {
+		if fc.isConnected {
+			fc.sendXML(focusritexml.KeepAlive{})
+		}
+		time.Sleep(KEEP_ALIVE_S)
+	}
+}
 
-			case focusritexml.Set:
-				fc.DeviceList.UpdateSet(dd)
-				log.Printf("Device Updated with ID: %d \n\n", dd.DevID)
-				device, ok := fc.DeviceList.GetDevice(dd.DevID)
-				if ok {
-					fc.DataChannel <- device
-				}
+func (fc *FocusriteClient) handleXmlPacket(packet string) {
+	d, err := focusritexml.ParseFromXML(packet)
+	if err != nil {
+		log.Println(err.Error())
+	}
 
-			case focusritexml.DeviceArrival:
-				fc.DeviceList.AddDevice(&dd.Device)
-				fc.SendSubscribe(dd.Device.ID, true)
-				device, ok := fc.DeviceList.GetDevice(dd.Device.ID)
-				if ok {
-					fc.DataChannel <- device
-				}
-				log.Printf("New Device: %s, with ID: %d \n\n", dd.Device.Model, dd.Device.ID)
+	switch dd := d.(type) {
 
-			case focusritexml.DeviceRemoval:
-				fc.DeviceList.Remove(dd.Id)
-
-			case focusritexml.ClientDetails:
-				fc.ClientDetails.Id = dd.Id
-				log.Printf("New Cleint Details: %s, with ID: %s \n\n", dd.ClientKey, dd.Id)
-
-			case focusritexml.Approval:
-				fc.ApprovalChannel <- dd.Authorised
-
-			default:
-				fmt.Printf("UNKNOWN data: %+v\n\n", d)
-			}
+	case focusritexml.Set:
+		fc.DeviceList.UpdateSet(dd)
+		log.Printf("Device Updated with ID: %d (%d Items) \n\n", dd.DevID, len(dd.Items))
+		device, ok := fc.DeviceList.GetDevice(dd.DevID)
+		if ok {
+			fc.DataChannel <- device
 		}
 
+	case focusritexml.DeviceArrival:
+		fc.DeviceList.AddDevice(&dd.Device)
+		fc.SendSubscribe(dd.Device.ID, true)
+		device, ok := fc.DeviceList.GetDevice(dd.Device.ID)
+		if ok {
+			fc.DataChannel <- device
+		}
+		log.Printf("New Device: %s, with ID: %d \n\n", dd.Device.Model, dd.Device.ID)
+
+	case focusritexml.DeviceRemoval:
+		fc.DeviceList.Remove(dd.Id)
+
+	case focusritexml.ClientDetails:
+		fc.ClientDetails.Id = dd.Id
+		log.Printf("New Cleint Details: %s, with ID: %s \n\n", dd.ClientKey, dd.Id)
+
+	case focusritexml.Approval:
+		fc.ApprovalChannel <- dd.Authorised
+
+	//Ignoring
+	case focusritexml.KeepAlive:
+	default:
+		fmt.Printf("UNKNOWN data: %+v\n\n", d)
 	}
-	return nil
 }
 
 // SendData sends an XML-encoded FocusriteControl object to the server.
@@ -202,11 +203,6 @@ func (fc *FocusriteClient) setConnection(conn net.Conn) {
 	fc.mutex.Lock()
 	defer fc.mutex.Unlock()
 	fc.connection = conn
-}
-
-// Stop beendet den Client und die Reconnect-Logik.
-func (fc *FocusriteClient) Stop() {
-	close(fc.stopChannel)
 }
 
 func (fc *FocusriteClient) sendXML(data interface{}) error {

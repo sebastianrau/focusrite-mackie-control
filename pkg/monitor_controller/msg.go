@@ -7,14 +7,14 @@ type SpeakerEnabledMessage struct {
 	SpeakerEnabled []bool
 }
 
-type SpeakerLevelMessage struct {
-	SpeakerID      int
-	SpeakerLevel   []uint16
-	SpeakerLevelDB []float64
+type MasterLevelMessage struct {
+	SpeakerLevel   uint16
+	SpeakerLevelDB float64
 }
 
-func (c *Controller) NewSpeakerLevelMessage(id int) *SpeakerLevelMessage {
-	return &SpeakerLevelMessage{SpeakerID: id, SpeakerLevel: c.speakerLevel, SpeakerLevelDB: c.speakerLevelDB}
+// TODO Rename
+func (c *Controller) NewSpeakerLevelMessage() *MasterLevelMessage {
+	return &MasterLevelMessage{SpeakerLevel: c.masterLevel, SpeakerLevelDB: c.masterLevelDB}
 }
 
 type MuteMessage struct {

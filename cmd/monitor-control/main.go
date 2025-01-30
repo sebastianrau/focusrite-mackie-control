@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	monitorcontroller "github.com/sebastianrau/focusrite-mackie-control/pkg/monitor_controller"
@@ -67,13 +68,14 @@ func main() {
 
 	fromMcu := make(chan interface{}, 100)
 	toMcu := make(chan interface{}, 100)
-
 	fromController := make(chan interface{}, 100)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
 	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
+	fc := focusriteclient.NewFocusriteClient()
+
 	monitorcontroller.NewController(toMcu, fromMcu, fromController)
 
 	//syst := systray.CreateSystray(cfg)
@@ -81,6 +83,11 @@ func main() {
 	for {
 
 		select {
+		case frCon := <-fc.ConnectedChannel:
+			fmt.Printf("Focusrite Connection State: %t\n", frCon)
+
+		case frDevice := <-fc.DataChannel:
+			fmt.Printf("Device Update %d (%s)\n", frDevice.ID, frDevice.SerialNumber)
 
 		case fm := <-fromController:
 			switch f := fm.(type) {

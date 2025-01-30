@@ -44,7 +44,7 @@ var (
 
 func DiscoverServer() (int, error) {
 	for _, p := range ports {
-		port, err := client(p)
+		port, err := discoverClient(p)
 		if err == nil {
 			return port, nil
 		}
@@ -52,8 +52,7 @@ func DiscoverServer() (int, error) {
 	return 0, fmt.Errorf("no server found")
 }
 
-func client(port int) (int, error) {
-
+func discoverClient(port int) (int, error) {
 	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", "127.0.0.1", port))
 	if err != nil {
 		return 0, err
