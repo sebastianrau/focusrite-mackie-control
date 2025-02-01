@@ -72,34 +72,47 @@ func main() {
 
 	fromMcu := make(chan interface{}, 100)
 	toMcu := make(chan interface{}, 100)
-	fromController := make(chan interface{}, 100)
+
+	toFocusrite := make(chan *monitorcontroller.UpdateFocusriteDevice, 100)
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
 	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
+
 	fc := focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
 
-	monitorcontroller.NewController(toMcu, fromMcu, fromController)
+	control := monitorcontroller.NewController(
+		toMcu,
+		fromMcu,
+		fc.DeviceArrivalChannel,
+		fc.RawUpdateChannel,
+		toFocusrite)
 
 	//syst := systray.CreateSystray(cfg)
 
 	for {
 
 		select {
+
+		case setFocusrite := <-toFocusrite:
+
+			device, ok := fc.DeviceList.GetDeviceBySerialnumber(setFocusrite.SerialNumber.Value)
+			if ok {
+				setFocusrite.Set.DevID = device.ID
+				fc.SendSet(setFocusrite.Set)
+				log.Infof("Sending to Focusrite: %v\n", setFocusrite)
+			} else {
+				log.Warnf("Unknown device to Update: SN %s", setFocusrite.SerialNumber.Value)
+			}
+
 		case frCon := <-fc.ConnectedChannel:
 			log.Infof("Focusrite Connection State: %t\n", frCon)
-
-		case newDevice := <-fc.DeviceArrivalChannel:
-			log.Infof("New Device Connected %d (%s)\n", newDevice.ID, newDevice.SerialNumber)
 
 		case frDevice := <-fc.DeviceUpdateChannel:
 			log.Infof("Device Update %d (%s)\n", frDevice.ID, frDevice.SerialNumber)
 
-		case r := <-fc.RawUpdateChannel:
-			log.Infof("Raw Update %d len: %d\n", r.DevID, len(r.Items))
-
-		case fm := <-fromController:
+		case fm := <-control.FromController:
 			switch f := fm.(type) {
 
 			case monitorcontroller.TransportMessage:

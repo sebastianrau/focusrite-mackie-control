@@ -59,7 +59,6 @@ type FocusriteClient struct {
 
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
 func NewFocusriteClient(mode FocusriteClientMode) *FocusriteClient {
-
 	f := &FocusriteClient{
 		state: Discover,
 		ClientDetails: focusritexml.ClientDetails{
@@ -261,4 +260,12 @@ func (fc *FocusriteClient) sendXML(data interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func (fc *FocusriteClient) SendSet(set focusritexml.Set) error {
+	dev, ok := fc.DeviceList.GetDevice(set.DevID)
+	if ok {
+		dev.UpdateSet(set)
+	}
+	return fc.sendXML(set)
 }

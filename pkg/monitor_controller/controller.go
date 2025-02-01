@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
@@ -30,11 +31,22 @@ type Controller struct {
 	toMcu   chan interface{}
 	fromMcu chan interface{}
 
-	fromController chan interface{}
+	focusriteArrivalChannel   chan *focusritexml.Device
+	focusriteRawUpdateChannel chan *focusritexml.Set
+	toFocusrite               chan *UpdateFocusriteDevice
+
+	FromController chan interface{}
+
+	focusriteElementMap map[int]focusritexml.Elements
 }
 
 // NewMcuState creates a new McuState
-func NewController(toMcu chan interface{}, fromMcu chan interface{}, fromController chan interface{}) *Controller {
+func NewController(
+	toMcu chan interface{},
+	fromMcu chan interface{},
+	focusriteArrivalChannel chan *focusritexml.Device,
+	focusriteRawUpdateChannel chan *focusritexml.Set,
+	toFocusrite chan *UpdateFocusriteDevice) *Controller {
 
 	state := Controller{
 		speakerEnabled: make([]bool, faderLength),
@@ -48,87 +60,116 @@ func NewController(toMcu chan interface{}, fromMcu chan interface{}, fromControl
 		timeDisplay: "12345670000890",
 		mapping:     DefaultConfiguration(),
 
-		toMcu:          toMcu,
-		fromMcu:        fromMcu,
-		fromController: fromController,
+		toMcu:   toMcu,
+		fromMcu: fromMcu,
+
+		focusriteArrivalChannel:   focusriteArrivalChannel,
+		focusriteRawUpdateChannel: focusriteRawUpdateChannel,
+		toFocusrite:               toFocusrite,
+
+		FromController: make(chan interface{}, 100),
 	}
+	state.UpdateMap()
 
 	go state.Run()
-
 	return &state
 }
 
 func (c *Controller) Run() {
-
 	for {
-		fm := <-c.fromMcu
+		select {
+		case mcu := <-c.fromMcu:
+			c.handleMcu(mcu)
 
-		switch f := fm.(type) {
+		case focusrite := <-c.focusriteArrivalChannel:
+			log.Debugf("New Focusrite Device Arrived ID:%d SN:%s", focusrite.ID, focusrite.SerialNumber)
 
-		case mcu.ConnectionMessage:
-			if f.Connection {
-				c.SetMute(true)
-				c.initDisplay()
-				c.setDisplayText(c.timeDisplay)
-				masterFader, _ := c.mapping.GetMasterFader()
-				c.toMcu <- mcu.SelectMessage{FaderNumber: masterFader}
+		case update := <-c.focusriteRawUpdateChannel:
+			log.Debugf("New Raw Update Device Arrived. Items: %d", len(update.Items))
+			c.handleFocusriteUpdate(update.Items)
+		}
+	}
+}
 
+func (c *Controller) handleMcu(msg interface{}) {
+	switch f := msg.(type) {
+
+	case mcu.ConnectionMessage:
+		if f.Connection {
+			c.SetMute(true)
+			c.initDisplay()
+			c.setDisplayText(c.timeDisplay)
+			masterFader, _ := c.mapping.GetMasterFader()
+			c.toMcu <- mcu.SelectMessage{FaderNumber: masterFader}
+		}
+
+	case mcu.SelectMessage:
+		if f.FaderNumber == c.mapping.Master.Mcu.Fader {
+			c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.masterLevel}
+		}
+
+	case mcu.KeyMessage:
+		log.Debugf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+
+		switch f.KeyNumber {
+		case gomcu.Mute1,
+			gomcu.Mute2,
+			gomcu.Mute3,
+			gomcu.Mute4,
+			gomcu.Mute5,
+			gomcu.Mute6,
+			gomcu.Mute7,
+			gomcu.Mute8:
+			c.ToggleMute()
+
+		case gomcu.Play,
+			gomcu.Stop,
+			gomcu.FastFwd,
+			gomcu.Rewind:
+			c.FromController <- TransportMessage{
+				Key: f.KeyNumber,
 			}
+		}
 
-		case mcu.SelectMessage:
-			if f.FaderNumber == c.mapping.Master.Mcu.Fader {
-				c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.masterLevel}
+		//Mapped Switches
+		key, ok := c.mapping.GetIdBySwitch(f.KeyNumber)
+
+		if ok {
+			switch key {
+			case SpeakerAEnabled,
+				SpeakerBEnabled,
+				SpeakerCEnabled,
+				SpeakerDEnabled,
+				SubAEnabled,
+				SubBEnabled:
+				c.SetSpeakerEnabled(key, !c.speakerEnabled[key])
+			default:
+				log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
 			}
+		}
 
-		case mcu.KeyMessage:
-			log.Debugf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+	case mcu.RawFaderMessage:
+		if f.FaderNumber == c.mapping.Master.Mcu.Fader {
+			c.SetMasterLevel(f.FaderValue)
+			break
+		}
 
-			switch f.KeyNumber {
-			case gomcu.Mute1,
-				gomcu.Mute2,
-				gomcu.Mute3,
-				gomcu.Mute4,
-				gomcu.Mute5,
-				gomcu.Mute6,
-				gomcu.Mute7,
-				gomcu.Mute8:
-				c.ToggleMute()
+	default:
+		log.Warnf("Unhandled mcu message %s: %v\n", reflect.TypeOf(msg), msg)
 
-			case gomcu.Play,
-				gomcu.Stop,
-				gomcu.FastFwd,
-				gomcu.Rewind:
-				c.fromController <- TransportMessage{
-					Key: f.KeyNumber,
-				}
-			}
+	}
+}
 
-			//Mapped Switches
-			key, ok := c.mapping.GetIdBySwitch(f.KeyNumber)
+func (c *Controller) handleFocusriteUpdate(Items []focusritexml.Item) {
 
-			if ok {
-				switch key {
-				case SpeakerAEnabled,
-					SpeakerBEnabled,
-					SpeakerCEnabled,
-					SpeakerDEnabled,
-					SubAEnabled,
-					SubBEnabled:
-					c.SetSpeakerEnabled(key, !c.speakerEnabled[key])
-				default:
-					log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
-				}
-			}
-
-		case mcu.RawFaderMessage:
-			if f.FaderNumber == c.mapping.Master.Mcu.Fader {
-				c.SetMasterLevel(f.FaderValue)
-				break
-			}
-
+	for _, s := range Items {
+		switch s.ID {
+		case c.mapping.Master.Focusrite.Mute.ID:
+			log.Debugf("Found Mute ID %d", s.ID)
+			c.mapping.Master.Focusrite.Mute.Set(s.Value)
+			c.SetMute(c.mapping.Master.Focusrite.Mute.Value)
 		default:
-			log.Warnf("Unhandled mcu message %s: %v\n", reflect.TypeOf(fm), fm)
-
+			log.Debugf("Unknowm ID: %d", s.ID)
 		}
 	}
 }
@@ -174,7 +215,7 @@ func (c *Controller) SetSpeakerEnabled(id int, state bool) {
 
 		c.speakerEnabled[id] = state
 		c.setLed(id, mcu.Bool2State(state))
-		c.fromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: c.speakerEnabled}
+		c.FromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: c.speakerEnabled}
 	}
 }
 
@@ -183,7 +224,7 @@ func (c *Controller) SetMasterLevel(level uint16) {
 		c.masterLevel = level
 		c.masterLevelDB = faderdb.FaderToDB(level)
 		c.toMcu <- mcu.FaderCommand{Fader: c.mapping.Master.Mcu.Fader, Value: level}
-		c.fromController <- c.NewSpeakerLevelMessage()
+		c.FromController <- c.NewSpeakerLevelMessage()
 	}
 }
 
@@ -247,7 +288,15 @@ func (c *Controller) SetMute(mute bool) {
 		for _, v := range MuteButtons {
 			c.toMcu <- mcu.LedCommand{Led: v, State: mcu.Bool2State(mute)}
 		}
-		c.fromController <- MuteMessage{Mute: c.masterMute}
+		c.toFocusrite <- &UpdateFocusriteDevice{
+			SerialNumber: c.mapping.SerialNumber,
+			Set: focusritexml.Set{
+				Items: []focusritexml.Item{
+					{ID: c.mapping.Master.Focusrite.Mute.ID, Value: fmt.Sprintf("%t", c.masterMute)},
+				},
+			},
+		}
+		c.FromController <- MuteMessage{Mute: c.masterMute}
 	}
 }
 
@@ -256,4 +305,11 @@ func (c *Controller) initDisplay() {
 		c.setChannelText(k, v.Name, false)
 	}
 	c.setChannelText(MasterFader, c.mapping.Master.Name, false)
+}
+
+func (d *Controller) UpdateMap() {
+	if d.focusriteElementMap == nil {
+		d.focusriteElementMap = make(map[int]focusritexml.Elements)
+	}
+	d.focusriteElementMap[d.mapping.Master.Focusrite.Mute.ID] = &d.mapping.Master.Focusrite.Mute
 }

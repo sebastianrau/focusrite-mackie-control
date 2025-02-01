@@ -61,7 +61,7 @@ func (d *Device) UpdateSet(set Set) int {
 		value, ok := d.elementsMap[v.ID]
 		if ok {
 			updateCount++
-			err := value.Set(v.ID, v.Value)
+			err := value.Set(v.Value)
 			if err != nil {
 				log.Errorf("item could not be updated: %d (%s): %s", v.ID, v.Value, err.Error())
 			}

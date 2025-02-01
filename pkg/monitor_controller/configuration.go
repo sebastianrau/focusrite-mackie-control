@@ -39,13 +39,14 @@ const (
 )
 
 type Speaker struct {
-	Name      string
-	Mcu       McuConfiguration
-	Focusrite FocusriteConfiguration
+	Name string
+	Mcu  McuConfiguration
+	//Focusrite FocusriteConfiguration
 	Type      SpeakerType
 	Exclusive bool
 }
 
+/*
 type FocusriteConfiguration struct {
 	SerialNumber focusritexml.ElementString
 	Nickname     focusritexml.ElementString
@@ -54,14 +55,16 @@ type FocusriteConfiguration struct {
 	Mute         focusritexml.ElementBool
 	Meter        focusritexml.ElementInt
 }
+*/
 
 type McuConfiguration struct {
 	EnableButton []gomcu.Switch
 }
 
 type Master struct {
-	Name string
-	Mcu  McuMaster
+	Name      string
+	Mcu       McuMaster
+	Focusrite FocusriteMaster
 }
 
 type McuMaster struct {
@@ -69,9 +72,14 @@ type McuMaster struct {
 	SelectButton gomcu.Switch
 }
 
+type FocusriteMaster struct {
+	Mute focusritexml.ElementBool
+}
+
 type Configuration struct {
-	Speaker map[int]Speaker
-	Master  Master
+	Speaker      map[int]Speaker
+	Master       Master
+	SerialNumber focusritexml.ElementString
 }
 
 var (

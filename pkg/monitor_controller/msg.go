@@ -1,6 +1,9 @@
 package monitorcontroller
 
-import "github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+import (
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+)
 
 type SpeakerEnabledMessage struct {
 	SpeakerID      int
@@ -23,4 +26,9 @@ type MuteMessage struct {
 
 type TransportMessage struct {
 	Key gomcu.Switch
+}
+
+type UpdateFocusriteDevice struct {
+	SerialNumber focusritexml.ElementString
+	Set          focusritexml.Set
 }

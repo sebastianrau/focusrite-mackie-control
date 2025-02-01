@@ -5,7 +5,7 @@ import (
 )
 
 type Elements interface {
-	Set(id int, value string) error
+	Set(value string) error
 	Id() int
 }
 
@@ -15,7 +15,7 @@ type ElementString struct {
 	Value string
 }
 
-func (e *ElementString) Set(id int, value string) error {
+func (e *ElementString) Set(value string) error {
 	e.Value = value
 	return nil
 }
@@ -30,7 +30,7 @@ type ElementInt struct {
 	Value int
 }
 
-func (e *ElementInt) Set(id int, value string) error {
+func (e *ElementInt) Set(value string) error {
 	i, err := strconv.Atoi(value)
 	if err != nil {
 		return err
@@ -49,7 +49,7 @@ type ElementBool struct {
 	Value bool
 }
 
-func (e *ElementBool) Set(id int, value string) error {
+func (e *ElementBool) Set(value string) error {
 	i, err := strconv.ParseBool(value)
 	if err != nil {
 		return err
