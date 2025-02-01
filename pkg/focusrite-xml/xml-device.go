@@ -61,7 +61,10 @@ func (d *Device) UpdateSet(set Set) int {
 		value, ok := d.elementsMap[v.ID]
 		if ok {
 			updateCount++
-			value.Set(v.ID, v.Value)
+			err := value.Set(v.ID, v.Value)
+			if err != nil {
+				log.Errorf("item could not be updated: %d (%s): %s", v.ID, v.Value, err.Error())
+			}
 		} else {
 			log.Warnf("unknown ID to update: %d with name %s\n", v.ID, v.Value)
 		}

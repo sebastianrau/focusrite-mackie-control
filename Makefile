@@ -44,8 +44,8 @@ app.darwinArm:
 app.linux64:
 	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_NAME}-linux -v ${APP_MAIN}
 
-lint:
-	golint -set_exit_status $(shell go list ./...)
+cli-lint:
+	golangci-lint run  cmd/... pkg/...
 
 clean:
 	-rm -f ${BUILD_DIR}/*

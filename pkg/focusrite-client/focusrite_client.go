@@ -87,7 +87,7 @@ func (fc *FocusriteClient) run() {
 		case Discover:
 			p, err := DiscoverServer()
 			if err != nil {
-				log.Warnf(err.Error())
+				log.Warn(err.Error())
 				fc.state = Waiting
 			}
 			log.Infof("Port discovered: %d", fc.port)
@@ -97,7 +97,7 @@ func (fc *FocusriteClient) run() {
 		case Connected:
 			err := fc.connectAndListen()
 			if err != nil {
-				log.Infof("connect and listen: " + err.Error())
+				log.Info("connect and listen: " + err.Error())
 			}
 			fc.setConnection(nil)
 			fc.setConnected(false)
@@ -121,7 +121,10 @@ func (fc *FocusriteClient) connectAndListen() error {
 
 	fc.setConnected(true)
 	fc.setConnection(conn)
-	fc.SendClientDetails()
+	err = fc.SendClientDetails()
+	if err != nil {
+		return err
+	}
 
 	for {
 		buf := make([]byte, 65536)
@@ -142,7 +145,10 @@ func (fc *FocusriteClient) connectAndListen() error {
 func (fc *FocusriteClient) runKeepalive() {
 	for {
 		if fc.isConnected {
-			fc.sendXML(focusritexml.KeepAlive{})
+			err := fc.sendXML(focusritexml.KeepAlive{})
+			if err != nil {
+				log.Error(err.Error())
+			}
 		}
 		time.Sleep(KEEP_ALIVE_S)
 	}
@@ -174,7 +180,10 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 	case focusritexml.DeviceArrival:
 		device := fc.DeviceList.AddDevice(&dd.Device)
 		device.UpdateMap()
-		fc.SendSubscribe(device.ID, true)
+		err := fc.SendSubscribe(device.ID, true)
+		if err != nil {
+			log.Error(err.Error())
+		}
 		fc.DeviceArrivalChannel <- device
 		log.Infof("New Device: %s, with ID: %d \n", dd.Device.Model, dd.Device.ID)
 		return

@@ -100,14 +100,14 @@ func (m *Mcu) connect() {
 
 	m.midiStop, err = midi.ListenTo(m.midiInput, m.receiveMidi)
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 		m.retryConnect()
 		return
 	}
 
 	send, err := midi.SendTo(m.midiOutput)
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 		m.retryConnect()
 		return
 	}
@@ -115,9 +115,11 @@ func (m *Mcu) connect() {
 	msg := []midi.Message{}
 	msg = append(msg, gomcu.SetTimeDisplay("Monitor Control")...)
 	for _, ms := range msg {
-		send(ms)
+		err := send(ms)
+		if err != nil {
+			log.Errorf("Midi message could not be send. %v", ms)
+		}
 	}
-
 	m.fromMcu <- ConnectionMessage{Connection: true}
 }
 
@@ -130,14 +132,14 @@ func (m *Mcu) disconnect() {
 	if m.midiInput != nil {
 		err := m.midiInput.Close()
 		if err != nil {
-			log.Errorf(err.Error())
+			log.Error(err.Error())
 		}
 		m.midiInput = nil
 	}
 	if m.midiOutput != nil {
 		err := m.midiOutput.Close()
 		if err != nil {
-			log.Errorf(err.Error())
+			log.Error(err.Error())
 		}
 		m.midiOutput = nil
 	}
@@ -168,15 +170,19 @@ func (m *Mcu) checkMidiConnection() bool {
 }
 
 // send a list of midi messages
-func (mcu *Mcu) sendMidi(m []midi.Message) {
+func (mcu *Mcu) sendMidi(m []midi.Message) error {
 	send, err := midi.SendTo(mcu.midiOutput)
 	if err != nil {
-		log.Warnf(err.Error())
-		return
+		log.Warn(err.Error())
+		return err
 	}
 	for _, msg := range m {
-		send(msg)
+		err := send(msg)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // receives midi messages from the MCU, called from midi runloop!
@@ -286,12 +292,13 @@ func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 // run the MCU
 func (m *Mcu) run() {
 	for {
-		select {
 
+		var err error
+		select {
 		case state := <-m.connection:
 			if state == 0 {
-				m.connect()
 				m.fromMcu <- ConnectionMessage{Connection: false}
+				m.connect()
 			} else {
 				m.fromMcu <- ConnectionMessage{Connection: true}
 			}
@@ -309,37 +316,43 @@ func (m *Mcu) run() {
 			switch e := message.(type) {
 
 			case LedCommand:
-				m.sendMidi([]midi.Message{gomcu.SetLED(e.Led, e.State)})
+				err = m.sendMidi([]midi.Message{gomcu.SetLED(e.Led, e.State)})
 			case FaderCommand:
-				m.sendMidi([]midi.Message{gomcu.SetFaderPos(e.Fader, e.Value)})
+				err = m.sendMidi([]midi.Message{gomcu.SetFaderPos(e.Fader, e.Value)})
 
 			case TimeDisplayCommand:
-				m.sendMidi(gomcu.SetTimeDisplay(e.Text))
+				err = m.sendMidi(gomcu.SetTimeDisplay(e.Text))
 
 			case ChannelTextCommand:
 				m.updateLcdText(e.Fader, e.Text, e.BottomLine)
 
 				if e.BottomLine {
-					m.sendMidi([]midi.Message{gomcu.SetLCD(56, string(m.displayStringLower))})
+					err = m.sendMidi([]midi.Message{gomcu.SetLCD(56, string(m.displayStringLower))})
 				} else {
-					m.sendMidi([]midi.Message{gomcu.SetLCD(0, string(m.displayStringUpper))})
+					err = m.sendMidi([]midi.Message{gomcu.SetLCD(0, string(m.displayStringUpper))})
 				}
 
 			case VPotLedCommand:
-				m.sendMidi([]midi.Message{gomcu.SetVPot(e.Channel, e.Mode, e.Led)})
+				err = m.sendMidi([]midi.Message{gomcu.SetVPot(e.Channel, e.Mode, e.Led)})
 
 			case MeterCommand:
-				m.sendMidi([]midi.Message{gomcu.SetMeter(e.Channel, e.Value)})
+				err = m.sendMidi([]midi.Message{gomcu.SetMeter(e.Channel, e.Value)})
 
 			case FaderSelectCommand:
-
 				for i := gomcu.Select1; i <= gomcu.Select8; i++ {
-					m.sendMidi([]midi.Message{gomcu.SendOff(gomcu.Switch(i))})
+					err = m.sendMidi([]midi.Message{gomcu.SendOff(gomcu.Switch(i))})
+					if err != nil {
+						log.Errorf("can't send midi command")
+					}
 				}
-				m.sendMidi([]midi.Message{gomcu.SetLED(gomcu.Switch(e.Channel)+gomcu.Select1, gomcu.StateOn)})
-
+				err = m.sendMidi([]midi.Message{gomcu.SetLED(gomcu.Switch(e.Channel)+gomcu.Select1, gomcu.StateOn)})
 			}
 
+		}
+
+		if err != nil {
+			log.Errorf("can't send midi command")
+			err = nil
 		}
 	}
 }

@@ -105,13 +105,25 @@ func main() {
 			case monitorcontroller.TransportMessage:
 				switch f.Key {
 				case gomcu.Play:
-					robotgo.KeyTap(robotgo.AudioPlay)
+					err := robotgo.KeyTap(robotgo.AudioPlay)
+					if err != nil {
+						log.Error(err.Error())
+					}
 				case gomcu.Stop:
-					robotgo.KeyTap(robotgo.AudioStop)
+					err := robotgo.KeyTap(robotgo.AudioStop)
+					if err != nil {
+						log.Error(err.Error())
+					}
 				case gomcu.FastFwd:
-					robotgo.KeyTap(robotgo.AudioNext)
+					err := robotgo.KeyTap(robotgo.AudioNext)
+					if err != nil {
+						log.Error(err.Error())
+					}
 				case gomcu.Rewind:
-					robotgo.KeyTap(robotgo.AudioPrev)
+					err := robotgo.KeyTap(robotgo.AudioPrev)
+					if err != nil {
+						log.Error(err.Error())
+					}
 				}
 			default:
 				log.Warnf("unhandled message from monitor-controller %s: %v\n", reflect.TypeOf(fm), fm)

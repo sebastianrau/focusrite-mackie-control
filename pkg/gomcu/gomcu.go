@@ -33,7 +33,7 @@ var (
 func Reset(output drivers.Out) {
 	send, err := midi.SendTo(output)
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 		return
 	}
 	var m []midi.Message
@@ -57,18 +57,20 @@ func Reset(output drivers.Out) {
 	}
 
 	for _, msg := range m {
-		send(msg)
+		err := send(msg)
+		if err != nil {
+			log.Errorf("")
+		}
 	}
 
-	time.Sleep(time.Second)
+	time.Sleep(100 * time.Millisecond)
+
 	m = []midi.Message{}
 
 	for i := 0; i < LenIDs; i++ {
 		m = append(m, SetLED(Switch(i), StateOff))
 	}
 	for i := 0; i < LenChannels; i++ {
-		//normen
-		//m = append(m, SetFaderPos(Channel(i), -0x1FFF))
 		m = append(m, SetFaderPos(Channel(i), 0x0))
 	}
 	for i := 0; i < LenChannels-1; i++ {
@@ -87,7 +89,10 @@ func Reset(output drivers.Out) {
 		m = append(m, SetLCD(i, " "))
 	}
 	for _, msg := range m {
-		send(msg)
+		err := send(msg)
+		if err != nil {
+			log.Errorf("")
+		}
 	}
 }
 

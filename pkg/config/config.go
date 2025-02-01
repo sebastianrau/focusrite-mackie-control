@@ -76,7 +76,10 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	os.MkdirAll(path, os.ModePerm)
+	err = os.MkdirAll(path, os.ModePerm)
+	if err != nil {
+		return err
+	}
 
 	filename, _ := getPathAndFile()
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
@@ -89,8 +92,15 @@ func (c *Config) Save() error {
 	if err != nil {
 		return err
 	}
-	file.Write(buf)
-	file.Sync()
+	_, err = file.Write(buf)
+	if err != nil {
+		return err
+	}
+
+	err = file.Sync()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -135,7 +145,7 @@ func UserConfigure() (*Config, bool) {
 
 	err = config.Save()
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Error(err.Error())
 		return nil, false
 	}
 
