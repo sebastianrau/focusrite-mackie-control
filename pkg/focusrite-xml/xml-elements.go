@@ -6,6 +6,7 @@ import (
 
 type Elements interface {
 	Set(id int, value string) error
+	Id() int
 }
 
 // ElementString
@@ -17,6 +18,10 @@ type ElementString struct {
 func (e *ElementString) Set(id int, value string) error {
 	e.Value = value
 	return nil
+}
+
+func (e *ElementString) Id() int {
+	return e.ID
 }
 
 // ElementInt
@@ -34,6 +39,10 @@ func (e *ElementInt) Set(id int, value string) error {
 	return nil
 }
 
+func (e *ElementInt) Id() int {
+	return e.ID
+}
+
 // ElementBool
 type ElementBool struct {
 	ID    int `xml:"id,attr,omitempty"`
@@ -47,4 +56,8 @@ func (e *ElementBool) Set(id int, value string) error {
 	}
 	e.Value = i
 	return nil
+}
+
+func (e *ElementBool) Id() int {
+	return e.ID
 }
