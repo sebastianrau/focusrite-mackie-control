@@ -138,7 +138,7 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 
 	case focusritexml.Set:
 		fc.DeviceList.UpdateSet(dd)
-		log.Printf("Device Updated with ID: %d (%d Items) \n\n", dd.DevID, len(dd.Items))
+		log.Printf("Got device Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))
 		device, ok := fc.DeviceList.GetDevice(dd.DevID)
 		if ok {
 			fc.DataChannel <- device
@@ -146,19 +146,21 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 
 	case focusritexml.DeviceArrival:
 		fc.DeviceList.AddDevice(&dd.Device)
-		fc.SendSubscribe(dd.Device.ID, true)
 		device, ok := fc.DeviceList.GetDevice(dd.Device.ID)
 		if ok {
+			device.UpdateMap()
+			fc.SendSubscribe(device.ID, true)
+
 			fc.DataChannel <- device
 		}
-		log.Printf("New Device: %s, with ID: %d \n\n", dd.Device.Model, dd.Device.ID)
+		log.Printf("New Device: %s, with ID: %d \n", dd.Device.Model, dd.Device.ID)
 
 	case focusritexml.DeviceRemoval:
 		fc.DeviceList.Remove(dd.Id)
 
 	case focusritexml.ClientDetails:
 		fc.ClientDetails.Id = dd.Id
-		log.Printf("New Cleint Details: %s, with ID: %s \n\n", dd.ClientKey, dd.Id)
+		log.Printf("New Cleint Details: %s, with ID: %s \n", dd.ClientKey, dd.Id)
 
 	case focusritexml.Approval:
 		fc.ApprovalChannel <- dd.Authorised

@@ -30,7 +30,6 @@ func (dl DeviceList) AddDevice(d *focusritexml.Device) {
 		}
 	}
 	dl[d.ID] = d
-	d.UpdateMap()
 }
 
 func (dl DeviceList) Remove(id int) {

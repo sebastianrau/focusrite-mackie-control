@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"reflect"
 	"sync"
 
 	"github.com/go-vgo/robotgo"
@@ -83,11 +82,13 @@ func main() {
 	for {
 
 		select {
-		case frCon := <-fc.ConnectedChannel:
-			fmt.Printf("Focusrite Connection State: %t\n", frCon)
+		//case frCon := <-fc.ConnectedChannel:
+		case <-fc.ConnectedChannel:
+			//log.Printf("Focusrite Connection State: %t\n", frCon)
 
-		case frDevice := <-fc.DataChannel:
-			fmt.Printf("Device Update %d (%s)\n", frDevice.ID, frDevice.SerialNumber)
+		//case frDevice := <-fc.DataChannel:
+		case <-fc.DataChannel:
+			//fmt.Printf("Device Update %d (%s)\n", frDevice.ID, frDevice.SerialNumber)
 
 		case fm := <-fromController:
 			switch f := fm.(type) {
@@ -104,7 +105,7 @@ func main() {
 					robotgo.KeyTap(robotgo.AudioPrev)
 				}
 			default:
-				fmt.Printf("%s: %v\n", reflect.TypeOf(fm), fm)
+				//fmt.Printf("%s: %v\n", reflect.TypeOf(fm), fm)
 
 			}
 
