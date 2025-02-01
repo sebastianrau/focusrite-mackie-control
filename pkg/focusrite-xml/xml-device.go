@@ -2,12 +2,15 @@ package focusritexml
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 
 	"github.com/ECUST-XX/xml"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
+
+var log *logrus.Entry = logger.WithPackage("focusrite-xml.device")
 
 type Device struct {
 	XMLName xml.Name `xml:"device"`
@@ -49,7 +52,7 @@ func (d *Device) UpdateMap() {
 		d.elementsMap = make(map[int]Elements)
 	}
 	UpdateAllMaps(d, d.elementsMap, 0)
-	log.Printf("Updated Device Map with %d items", len(d.elementsMap))
+	log.Debugf("Updated Device Map with %d items", len(d.elementsMap))
 }
 
 func (d *Device) UpdateSet(set Set) int {
@@ -60,7 +63,7 @@ func (d *Device) UpdateSet(set Set) int {
 			updateCount++
 			value.Set(v.ID, v.Value)
 		} else {
-			log.Printf("unknown ID to update: %d with name %s\n", v.ID, v.Value)
+			log.Warnf("unknown ID to update: %d with name %s\n", v.ID, v.Value)
 		}
 	}
 	return updateCount
@@ -104,32 +107,3 @@ func UpdateAllMaps(v interface{}, elementsMap map[int]Elements, level int) {
 func IndentPrintf(indent int, format string, a ...interface{}) string {
 	return strings.Repeat(" ", indent*4) + fmt.Sprintf(format, a...)
 }
-
-/*
-
-func (d *Device) UpdateMap() {
-	d.elementsMap = make(map[int]Elements)
-	d.elementsMap[d.Nickname.ID] = &d.Nickname
-	d.elementsMap[d.SealBroken.ID] = &d.SealBroken
-	d.elementsMap[d.Snapshot.ID] = &d.Snapshot
-	d.elementsMap[d.SaveSnapshot.ID] = &d.SaveSnapshot
-	d.elementsMap[d.ResetDevice.ID] = &d.ResetDevice
-	d.elementsMap[d.RecordOutputs.ID] = &d.RecordOutputs
-	d.elementsMap[d.Dante.ID] = &d.Dante
-	d.elementsMap[d.State.ID] = &d.State
-	d.elementsMap[d.PairableDevices.ID] = &d.PairableDevices
-	d.elementsMap[d.Preset.ID] = &d.Preset
-
-	d.Firmware.UpdateMap(d.elementsMap)
-	d.Firmware.UpdateMap(d.elementsMap)
-	d.Mixer.UpdateMap(d.elementsMap)
-	d.Inputs.UpdateMap(d.elementsMap)
-	d.Outputs.UpdateMap(d.elementsMap)
-	d.Clocking.UpdateMap(d.elementsMap)
-	d.Settings.UpdateMap(d.elementsMap)
-	d.QuickStart.UpdateMap(d.elementsMap)
-	d.HaloSettings.UpdateMap(d.elementsMap)
-
-	log.Printf("Updated Device Map with %d items", len(d.elementsMap))
-}
-*/

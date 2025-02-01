@@ -2,18 +2,21 @@ package mcu
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sirupsen/logrus"
 
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
 )
+
+var log *logrus.Entry = logger.WithPackage("mcu")
 
 type Mcu struct {
 	config       *config.Config
@@ -68,27 +71,27 @@ func (m *Mcu) connect() {
 
 	m.midiInput, err = midi.FindInPort(m.config.MidiInputPort)
 	if err != nil {
-		log.Printf("Could not find MIDI Input '%s'", m.config.MidiInputPort)
+		log.Infof("Could not find MIDI Input '%s'", m.config.MidiInputPort)
 		m.retryConnect()
 		return
 	}
 
 	m.midiOutput, err = midi.FindOutPort(m.config.MidiOutputPort)
 	if err != nil {
-		log.Printf("Could not find MIDI Output '%s'", m.config.MidiOutputPort)
+		log.Infof("Could not find MIDI Output '%s'", m.config.MidiOutputPort)
 		m.retryConnect()
 		return
 	}
 
 	err = m.midiInput.Open()
 	if err != nil {
-		log.Printf("Could not open MIDI Input '%s'", m.config.MidiInputPort)
+		log.Errorf("Could not open MIDI Input '%s'", m.config.MidiInputPort)
 		m.retryConnect()
 		return
 	}
 	err = m.midiOutput.Open()
 	if err != nil {
-		log.Printf("Could not open MIDI Output '%s'", m.config.MidiOutputPort)
+		log.Errorf("Could not open MIDI Output '%s'", m.config.MidiOutputPort)
 		m.retryConnect()
 		return
 	}
@@ -97,14 +100,14 @@ func (m *Mcu) connect() {
 
 	m.midiStop, err = midi.ListenTo(m.midiInput, m.receiveMidi)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(err.Error())
 		m.retryConnect()
 		return
 	}
 
 	send, err := midi.SendTo(m.midiOutput)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(err.Error())
 		m.retryConnect()
 		return
 	}
@@ -120,7 +123,6 @@ func (m *Mcu) connect() {
 
 // disconnects from the MCU, called from runloop
 func (m *Mcu) disconnect() {
-	//debug.PrintStack()
 	if m.midiStop != nil {
 		m.midiStop()
 		m.midiStop = nil
@@ -128,14 +130,14 @@ func (m *Mcu) disconnect() {
 	if m.midiInput != nil {
 		err := m.midiInput.Close()
 		if err != nil {
-			log.Print(err)
+			log.Errorf(err.Error())
 		}
 		m.midiInput = nil
 	}
 	if m.midiOutput != nil {
 		err := m.midiOutput.Close()
 		if err != nil {
-			log.Print(err)
+			log.Errorf(err.Error())
 		}
 		m.midiOutput = nil
 	}
@@ -143,7 +145,7 @@ func (m *Mcu) disconnect() {
 
 // retry connection after 3 seconds
 func (m *Mcu) retryConnect() {
-	log.Print("Retry MIDI connection..")
+	log.Infof("Retry MIDI connection ....")
 	m.disconnect()
 	if m.connectRetry != nil {
 		m.connectRetry.Stop()
@@ -169,7 +171,7 @@ func (m *Mcu) checkMidiConnection() bool {
 func (mcu *Mcu) sendMidi(m []midi.Message) {
 	send, err := midi.SendTo(mcu.midiOutput)
 	if err != nil {
-		log.Print(err)
+		log.Warnf(err.Error())
 		return
 	}
 	for _, msg := range m {

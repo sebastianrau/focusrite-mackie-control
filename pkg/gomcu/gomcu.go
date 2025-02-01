@@ -1,14 +1,17 @@
 package gomcu
 
 import (
-	"log"
 	"strings"
 	"time"
 
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
 )
+
+var log *logrus.Entry = logger.WithPackage("gomcu")
 
 var (
 	header    = []byte{0x00, 0x00, 0x66, 0x14}
@@ -16,12 +19,12 @@ var (
 	header_c4 = []byte{0x00, 0x00, 0x66, 0x17}
 
 	SysExMessages = map[string][]byte{
-		"Query":       []byte{0x00},
-		"GoOffline":   []byte{0x0F, 0x7F},
-		"Version":     []byte{0x13, 0x00},
-		"ResetFaders": []byte{0x61},
-		"ResetLEDs":   []byte{0x62},
-		"Reset":       []byte{0x63},
+		"Query":       {0x00},
+		"GoOffline":   {0x0F, 0x7F},
+		"Version":     {0x13, 0x00},
+		"ResetFaders": {0x61},
+		"ResetLEDs":   {0x62},
+		"Reset":       {0x63},
 	}
 )
 
@@ -30,7 +33,7 @@ var (
 func Reset(output drivers.Out) {
 	send, err := midi.SendTo(output)
 	if err != nil {
-		log.Print(err)
+		log.Errorf(err.Error())
 		return
 	}
 	var m []midi.Message

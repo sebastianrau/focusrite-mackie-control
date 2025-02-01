@@ -1,8 +1,6 @@
 package focusriteclient
 
 import (
-	"log"
-
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 )
 
@@ -22,19 +20,20 @@ func (dl DeviceList) GetDeviceBySerialnumber(serial string) (*focusritexml.Devic
 	return nil, false
 }
 
-func (dl DeviceList) AddDevice(d *focusritexml.Device) {
+func (dl DeviceList) AddDevice(d *focusritexml.Device) *focusritexml.Device {
 	for _, v := range dl {
 		if v.SerialNumber == d.SerialNumber {
 			delete(dl, v.ID)
-			log.Printf("removed device with same serial from device list. Old Id  %d", v.ID)
+			log.Debugf("removed device with same serial from device list. Old Id  %d", v.ID)
 		}
 	}
 	dl[d.ID] = d
+	return dl[d.ID]
 }
 
 func (dl DeviceList) Remove(id int) {
 	delete(dl, id)
-	log.Printf("removed device with ID: %d device list.", id)
+	log.Debugf("removed device with ID: %d device list.", id)
 }
 
 func (dl DeviceList) UpdateSet(set focusritexml.Set) {

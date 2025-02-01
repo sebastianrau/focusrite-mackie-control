@@ -4,7 +4,9 @@ go 1.23.1
 
 require (
 	github.com/ECUST-XX/xml v1.20.2
+	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/go-vgo/robotgo v0.110.5
+	github.com/sirupsen/logrus v1.9.3
 	gitlab.com/gomidi/midi/v2 v2.2.10
 	gopkg.in/yaml.v2 v2.4.0
 )

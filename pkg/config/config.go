@@ -3,14 +3,17 @@ package config
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gomidi/midi/v2"
 	"gopkg.in/yaml.v2"
 )
+
+var log *logrus.Entry = logger.WithPackage("focusrite-config")
 
 const (
 	subfolder string = ".monitor-controller"
@@ -132,7 +135,7 @@ func UserConfigure() (*Config, bool) {
 
 	err = config.Save()
 	if err != nil {
-		log.Println(err)
+		log.Errorf(err.Error())
 		return nil, false
 	}
 

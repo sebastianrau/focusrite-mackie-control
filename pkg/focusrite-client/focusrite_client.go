@@ -3,13 +3,16 @@ package focusriteclient
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"sync"
 	"time"
 
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sirupsen/logrus"
 )
+
+var log *logrus.Entry = logger.WithPackage("focusriteclient")
 
 type State int
 
@@ -25,6 +28,14 @@ const (
 	RECONNECT_TIME_S time.Duration = 5 * time.Second
 )
 
+type FocusriteClientMode int
+
+const (
+	UpdateDevice FocusriteClientMode = iota
+	UpdateRaw
+	UpdateBoth
+)
+
 // FocusriteClient stellt eine TCP-Verbindung zu einem Focusrite-Server her und empfängt Daten.
 type FocusriteClient struct {
 	mutex       sync.Mutex
@@ -37,22 +48,31 @@ type FocusriteClient struct {
 	ClientDetails focusritexml.ClientDetails
 
 	ConnectedChannel chan bool
-	DataChannel      chan *focusritexml.Device
 	ApprovalChannel  chan bool
+
+	DeviceArrivalChannel chan *focusritexml.Device
+	DeviceUpdateChannel  chan *focusritexml.Device
+	RawUpdateChannel     chan *focusritexml.Set
+
+	Mode FocusriteClientMode
 }
 
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
-func NewFocusriteClient() *FocusriteClient {
+func NewFocusriteClient(mode FocusriteClientMode) *FocusriteClient {
+
 	f := &FocusriteClient{
 		state: Discover,
 		ClientDetails: focusritexml.ClientDetails{
 			Hostname:  "Monitor Controller",
 			ClientKey: "123456789",
 		},
-		DeviceList:       make(DeviceList),
-		DataChannel:      make(chan *focusritexml.Device),
-		ApprovalChannel:  make(chan bool),
-		ConnectedChannel: make(chan bool),
+		DeviceList:           make(DeviceList),
+		DeviceUpdateChannel:  make(chan *focusritexml.Device),
+		DeviceArrivalChannel: make(chan *focusritexml.Device),
+		RawUpdateChannel:     make(chan *focusritexml.Set),
+		ApprovalChannel:      make(chan bool),
+		ConnectedChannel:     make(chan bool),
+		Mode:                 mode,
 	}
 	go f.run()
 	go f.runKeepalive()
@@ -67,17 +87,17 @@ func (fc *FocusriteClient) run() {
 		case Discover:
 			p, err := DiscoverServer()
 			if err != nil {
-				log.Println(err.Error())
+				log.Warnf(err.Error())
 				fc.state = Waiting
 			}
-			log.Printf("Port discovered: %d", fc.port)
+			log.Infof("Port discovered: %d", fc.port)
 			fc.port = p
 			fc.state = Connected
 
 		case Connected:
 			err := fc.connectAndListen()
 			if err != nil {
-				log.Println("connect and listen: " + err.Error())
+				log.Infof("connect and listen: " + err.Error())
 			}
 			fc.setConnection(nil)
 			fc.setConnected(false)
@@ -114,7 +134,7 @@ func (fc *FocusriteClient) connectAndListen() error {
 		}
 		packet := string(buf[:n])
 		if packet != "" {
-			go fc.handleXmlPacket(packet)
+			fc.handleXmlPacket(packet)
 		}
 	}
 }
@@ -131,44 +151,51 @@ func (fc *FocusriteClient) runKeepalive() {
 func (fc *FocusriteClient) handleXmlPacket(packet string) {
 	d, err := focusritexml.ParseFromXML(packet)
 	if err != nil {
-		log.Println(err.Error())
+		log.Errorln(err.Error())
 	}
 
 	switch dd := d.(type) {
-
 	case focusritexml.Set:
-		fc.DeviceList.UpdateSet(dd)
-		log.Printf("Got device Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))
+		log.Debugf("Got device Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))
 		device, ok := fc.DeviceList.GetDevice(dd.DevID)
-		if ok {
-			fc.DataChannel <- device
+		if !ok {
+			log.Warningf("Unknown device to Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))
+			return
 		}
+		if fc.Mode == UpdateDevice || fc.Mode == UpdateBoth {
+			fc.DeviceList.UpdateSet(dd)
+			fc.DeviceUpdateChannel <- device
+		}
+		if fc.Mode == UpdateRaw || fc.Mode == UpdateBoth {
+			fc.RawUpdateChannel <- &dd
+		}
+		return
 
 	case focusritexml.DeviceArrival:
-		fc.DeviceList.AddDevice(&dd.Device)
-		device, ok := fc.DeviceList.GetDevice(dd.Device.ID)
-		if ok {
-			device.UpdateMap()
-			fc.SendSubscribe(device.ID, true)
-
-			fc.DataChannel <- device
-		}
-		log.Printf("New Device: %s, with ID: %d \n", dd.Device.Model, dd.Device.ID)
+		device := fc.DeviceList.AddDevice(&dd.Device)
+		device.UpdateMap()
+		fc.SendSubscribe(device.ID, true)
+		fc.DeviceArrivalChannel <- device
+		log.Infof("New Device: %s, with ID: %d \n", dd.Device.Model, dd.Device.ID)
+		return
 
 	case focusritexml.DeviceRemoval:
 		fc.DeviceList.Remove(dd.Id)
+		return
 
 	case focusritexml.ClientDetails:
 		fc.ClientDetails.Id = dd.Id
-		log.Printf("New Cleint Details: %s, with ID: %s \n", dd.ClientKey, dd.Id)
+		log.Debugf("New Cleint Details: %s, with ID: %s \n", dd.ClientKey, dd.Id)
+		return
 
 	case focusritexml.Approval:
 		fc.ApprovalChannel <- dd.Authorised
+		return
 
 	//Ignoring
 	case focusritexml.KeepAlive:
 	default:
-		fmt.Printf("UNKNOWN data: %+v\n\n", d)
+		log.Warnf("UNKNOWN data: %+v\n\n", d)
 	}
 }
 

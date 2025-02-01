@@ -4,13 +4,16 @@ package monitorcontroller
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	"github.com/sirupsen/logrus"
 )
+
+var log *logrus.Entry = logger.WithPackage("monitor-controller")
 
 type Controller struct {
 	speakerEnabled []bool
@@ -78,7 +81,7 @@ func (c *Controller) Run() {
 			}
 
 		case mcu.KeyMessage:
-			// log.Printf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+			log.Debugf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
 
 			switch f.KeyNumber {
 			case gomcu.Mute1,
@@ -113,7 +116,7 @@ func (c *Controller) Run() {
 					SubBEnabled:
 					c.SetSpeakerEnabled(key, !c.speakerEnabled[key])
 				default:
-					log.Printf("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+					log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
 				}
 			}
 
@@ -124,7 +127,7 @@ func (c *Controller) Run() {
 			}
 
 		default:
-			log.Printf("%s: %v\n", reflect.TypeOf(fm), fm)
+			log.Warnf("Unhandled mcu message %s: %v\n", reflect.TypeOf(fm), fm)
 
 		}
 	}
