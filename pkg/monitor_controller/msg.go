@@ -14,12 +14,6 @@ type MasterLevelMessage struct {
 	SpeakerLevelDB float64
 }
 
-// TODO Rename
-/*func (c *Controller) NewSpeakerLevelMessage() *MasterLevelMessage {
-	return &MasterLevelMessage{SpeakerLevel: c.masterLevel, SpeakerLevelDB: c.masterLevelDB}
-}
-*/
-
 type MuteMessage bool
 type DimMessage bool
 type TransportMessage gomcu.Switch

@@ -78,18 +78,17 @@ func (c *Controller) handleMcu(msg interface{}) {
 
 	case mcu.SelectMessage:
 		if slices.Contains(c.config.Master.VolumeMcuChannel, f.FaderNumber) {
+			log.Debugf("Channel Select Button detected: %d", f.FaderNumber)
 			c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: c.config.Master.VolumeMcuRaw}
 		}
 
 	case mcu.KeyMessage:
-		log.Debugf("Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
-
-		if slices.Contains(c.config.Master.MuteSwitch.McuButtonsList, f.KeyNumber) {
+		if c.config.Master.MuteSwitch.IsMcuID(f.KeyNumber) {
 			c.setMute(!c.config.Master.MuteSwitch.Value)
 			return
 		}
 
-		if slices.Contains(c.config.Master.DimSwitch.McuButtonsList, f.KeyNumber) {
+		if c.config.Master.DimSwitch.IsMcuID(f.KeyNumber) {
 			c.setDim(!c.config.Master.DimSwitch.Value)
 			return
 		}

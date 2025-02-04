@@ -93,22 +93,22 @@ func main() {
 				case gomcu.Play:
 					err := robotgo.KeyTap(robotgo.AudioPlay)
 					if err != nil {
-						log.Error(err.Error())
+						log.Errorf("Keytab error %s", err.Error())
 					}
 				case gomcu.Stop:
-					err := robotgo.KeyTap(robotgo.AudioStop)
-					if err != nil {
-						log.Error(err.Error())
-					}
+					// err := robotgo.KeyTap(robotgo.Audio)
+					// if err != nil {
+					// 	log.Errorf("Keytab error %s", err.Error())
+					// }
 				case gomcu.FastFwd:
 					err := robotgo.KeyTap(robotgo.AudioNext)
 					if err != nil {
-						log.Error(err.Error())
+						log.Errorf("Keytab error %s", err.Error())
 					}
 				case gomcu.Rewind:
 					err := robotgo.KeyTap(robotgo.AudioPrev)
 					if err != nil {
-						log.Error(err.Error())
+						log.Errorf("Keytab error %s", err.Error())
 					}
 				}
 
