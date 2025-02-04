@@ -23,7 +23,6 @@ const Version string = "v0.0.1"
 var log *logrus.Entry = logger.WithPackage("main")
 
 // TODO : config file command line option
-// TODO : Focusrite Control
 // TODO : Context Menu
 
 func main() {
@@ -32,8 +31,6 @@ func main() {
 		cfg                               *config.Config
 		waitGroup                         sync.WaitGroup
 	)
-
-	//	log := logger.Log.WithFields(logrus.Fields{"package": "main"})
 
 	flag.BoolVar(&showMidi, "l", false, "List all installed MIDI devices")
 	flag.BoolVar(&configureMidi, "c", false, "Configure and start")
@@ -74,7 +71,6 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt)
 
 	mcu := mcu.InitMcu(interrupt, &waitGroup, *cfg)
-
 	fc := focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
 
 	control := monitorcontroller.NewController(
@@ -95,11 +91,6 @@ func main() {
 					if err != nil {
 						log.Errorf("Keytab error %s", err.Error())
 					}
-				case gomcu.Stop:
-					// err := robotgo.KeyTap(robotgo.Audio)
-					// if err != nil {
-					// 	log.Errorf("Keytab error %s", err.Error())
-					// }
 				case gomcu.FastFwd:
 					err := robotgo.KeyTap(robotgo.AudioNext)
 					if err != nil {
@@ -110,12 +101,21 @@ func main() {
 					if err != nil {
 						log.Errorf("Keytab error %s", err.Error())
 					}
+				case gomcu.Stop:
+					// Ignore Stop
+					// err := robotgo.KeyTap(robotgo.Audio)
+					// if err != nil {
+					// 	log.Errorf("Keytab error %s", err.Error())
+					// }
 				}
 
 			case monitorcontroller.MuteMessage:
 				log.Infof("Mute: %t", f)
 			case monitorcontroller.DimMessage:
 				log.Infof("Dim: %t", f)
+			case monitorcontroller.SpeakerEnabledMessage:
+				log.Infof("Speaker %d set to %t", f.SpeakerID, f.SpeakerEnabled)
+
 			default:
 				log.Warnf("unhandled message from monitor-controller %s: %v\n", reflect.TypeOf(fm), fm)
 

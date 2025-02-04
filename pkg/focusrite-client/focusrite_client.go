@@ -125,10 +125,11 @@ func (fc *FocusriteClient) runKeepalive() {
 func (fc *FocusriteClient) runCommandHandling() {
 	for {
 		set := <-fc.ToFocusrite
-		log.Infof("Sending to Focusrite %d items\n", len(set.Items))
-		fc.sendSet(set)
+		if len(set.Items) > 0 {
+			log.Infof("Sending to Focusrite %d items\n", len(set.Items))
+			fc.sendSet(set)
+		}
 	}
-
 }
 
 // connectAndListen stellt die Verbindung her und verarbeitet eingehende Daten.

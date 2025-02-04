@@ -1,16 +1,12 @@
 package faderdb
 
-import (
-	"math"
-)
-
 // Lookup-Tabelle für Fader -> dB.
 var faderToDBTable = []struct {
 	fader uint16
 	db    float64
 }{
-	{0, -100},
-	{1, -80},
+	{0, -127},
+	{1, -126},
 	{912, -60},
 	{1664, -50},
 	{2416, -40},
@@ -26,7 +22,7 @@ var faderToDBTable = []struct {
 // FaderToDB konvertiert einen Faderwert (0 bis 16384) in Dezibel (dB) mithilfe einer Lookup-Tabelle und Interpolation.
 func FaderToDB(faderValue uint16) float64 {
 	if faderValue <= 0 {
-		return math.Inf(-1)
+		return -127.0
 	}
 	if faderValue >= 16384 {
 		return 10 // Maximalwert

@@ -3,10 +3,12 @@ package monitorcontroller
 // TODO: remove Fader fpr Speaker Level
 
 import (
+	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
 
+	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
 	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 
@@ -51,6 +53,7 @@ func NewController(
 
 		mcuLedState: make(map[gomcu.Switch]gomcu.State),
 	}
+	c.config.DefaultValues()
 
 	go c.Run()
 	return &c
@@ -83,6 +86,7 @@ func (c *Controller) handleMcu(msg interface{}) {
 		}
 
 	case mcu.KeyMessage:
+		log.Debugf("Key Msg: %s (%d)", f.HotkeyName, f.KeyNumber)
 		if c.config.Master.MuteSwitch.IsMcuID(f.KeyNumber) {
 			c.setMute(!c.config.Master.MuteSwitch.Value)
 			return
@@ -93,13 +97,13 @@ func (c *Controller) handleMcu(msg interface{}) {
 			return
 		}
 
-		/*
-			for k, spk := range c.config.Speaker {
-				if slices.Contains(spk.Mute.McuButtonsList, f.KeyNumber) {
-					c.toggleSpeakerEnabled(k)
-				}
+		for k, spk := range c.config.Speaker {
+			if spk.Mute.IsMcuID(f.KeyNumber) {
+				log.Debugf("Speaker Select Button %s detected. SpeakerId %d ", f.HotkeyName, k)
+				c.toggleSpeakerEnabled(k)
 				return
-			}*/
+			}
+		}
 
 		switch f.KeyNumber {
 		case gomcu.Play,
@@ -112,7 +116,8 @@ func (c *Controller) handleMcu(msg interface{}) {
 
 	case mcu.RawFaderMessage:
 		if slices.Contains(c.config.Master.VolumeMcuChannel, f.FaderNumber) {
-			// TODO set Master Volume Raw
+			log.Debugf("Fader %d: %d ", f.FaderNumber, f.FaderValue)
+			c.setMasterVolumeRawValue(f.FaderValue)
 		}
 
 	default:
@@ -171,6 +176,18 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 			c.setMute(boolValue)
 			return
 		}
+
+		for k, spk := range c.config.Speaker {
+			if spk.Mute.IsFcID(FocusriteId(s.ID)) {
+				log.Debugf("Found Speaker mute from fc %d: %v", s.ID, s.Value)
+				boolValue, err := strconv.ParseBool(s.Value)
+				if err != nil {
+					log.Error(err.Error())
+					return
+				}
+				c.setSpeakerEnabled(k, boolValue) //not inverted because value is mute value
+			}
+		}
 	}
 }
 
@@ -190,7 +207,7 @@ func (c *Controller) handleFocusriteDeviceRemoval(deviceId int) {
 	}
 }
 
-// Controller Functions
+// Mute function
 func (c *Controller) setMute(mute bool) {
 	if c.config.Master.MuteSwitch.Value == mute {
 		log.Debugf("Set Mute: %t, but no change", mute)
@@ -219,12 +236,12 @@ func (c *Controller) setMute(mute bool) {
 			fcUpdateSet.AddItemBool(int(spkMuteId), state)
 		}
 	}
-
 	c.toFocusrite <- *fcUpdateSet
 	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
 
 }
 
+// Dim function
 func (c *Controller) setDim(dim bool) {
 	if c.config.Master.DimSwitch.Value == dim {
 		log.Debugf("Set Dim: %t, but no change", dim)
@@ -244,18 +261,18 @@ func (c *Controller) setDim(dim bool) {
 	}
 
 	c.AddItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
-	// TODO Update Master Volue
+	c.updateSpeakerVolume()
 	c.toFocusrite <- *fcUpdateSet
 	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
 
 }
 
-/*
+// Speaker Enable functions
 func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 	mute := !enabled
-
 	speaker, ok := c.config.Speaker[id]
 	if !ok || mute == speaker.Mute.Value {
+		log.Debugf("Set Speaker %d Enable: %t, but no change needed", id, enabled)
 		return
 	}
 
@@ -266,8 +283,9 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 	if enabled {
 		// speaker will be turned on, if is exclusice, disable all others with same type
 		if speakerExclusive {
+
 			for k, v := range c.config.Speaker {
-				if speakerType == v.Type {
+				if speakerType == v.Type && k != id && !v.Mute.Value {
 					c.setSpeakerEnabled(k, false)
 				}
 			}
@@ -278,7 +296,7 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 					continue
 				}
 				//if same speaker type other speaker is exclusive and enabled --> mute it
-				if speakerType == v.Type && v.Exclusive && !v.Mute.Value {
+				if speakerType == v.Type && v.Exclusive && !v.Mute.Value && k != id {
 					c.setSpeakerEnabled(k, false)
 				}
 			}
@@ -286,21 +304,19 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 	}
 
 	fcUpdateItems := []focusritexml.Item{}
-	for _, spkMuteId := range speaker.Mute.FcIdsList {
+	for _, fcID := range speaker.Mute.FcIdsList {
 		state := mute || c.config.Master.MuteSwitch.Value //mute speaker or master muter
-		fcUpdateItems = append(fcUpdateItems, focusritexml.Item{ID: int(spkMuteId), Value: fmt.Sprintf("%t", state)})
+		fcUpdateItems = append(fcUpdateItems, focusritexml.Item{ID: int(fcID), Value: fmt.Sprintf("%t", state)})
 	}
 	c.toFocusrite <- focusritexml.Set{Items: fcUpdateItems}
+	log.Debugf("Send: %v", fcUpdateItems)
 
 	for _, v := range speaker.Mute.McuButtonsList {
 		c.setLedBool(v, enabled)
 	}
 
 	c.FromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: enabled}
-
 }
-
-
 func (c *Controller) toggleSpeakerEnabled(id int) {
 	speaker, ok := c.config.Speaker[id]
 	if !ok {
@@ -308,13 +324,66 @@ func (c *Controller) toggleSpeakerEnabled(id int) {
 	}
 	c.setSpeakerEnabled(id, speaker.Mute.Value) //use mute value to invert
 }
-*/
 
-// gomcu shorts
+// Volume function
+func (c *Controller) setMasterVolumeRawValue(vol uint16) {
+	if c.config.Master.VolumeMcuRaw == vol {
+		return
+	}
+
+	db := faderdb.FaderToDB(vol)
+	c.config.Master.VolumeMcuRaw = vol
+	c.config.Master.VolumeDB = int(db)
+	log.Debugf("New Master Volume %d (%d db)", c.config.Master.VolumeMcuRaw, c.config.Master.VolumeDB)
+
+	c.updateSpeakerVolume()
+}
+
+func (c *Controller) setMasterVolumeDB(vol int) {
+	if c.config.Master.VolumeDB == vol {
+		return
+	}
+	c.config.Master.VolumeDB = vol
+	c.config.Master.VolumeMcuRaw = faderdb.DBToFader(float64(vol))
+
+	c.updateSpeakerVolume()
+}
+
+func (c *Controller) updateSpeakerVolume() {
+
+	fcUpdateSet, err := focusritexml.NewSet(c.config.FocusriteDeviceId)
+	if err != nil {
+		return
+	}
+
+	volume := int(c.config.Master.VolumeDB)
+	if c.config.Master.DimSwitch.Value {
+		volume = volume - int(c.config.Master.DimVolumeOffset)
+	}
+
+	if volume >= 0 {
+		volume = 0
+	}
+
+	if volume < -127 {
+		volume = 127
+	}
+
+	for _, spk := range c.config.Speaker {
+		for _, fcId := range spk.OutputGain.FcIdsList {
+			fcUpdateSet.AddItemInt(int(fcId), volume)
+		}
+	}
+
+	c.toFocusrite <- *fcUpdateSet
+	log.Debugf("setting focusrite speaker Level to %d", volume)
+
+}
+
+// gomcu LED shorts
 func (c *Controller) setLedBool(sw gomcu.Switch, state bool) {
 	c.setLed(sw, mcu.Bool2State(state))
 }
-
 func (c *Controller) setLed(sw gomcu.Switch, state gomcu.State) {
 	s, ok := c.mcuLedState[sw]
 	if s != state || !ok { //new state or new entry
@@ -363,6 +432,8 @@ func (c *Controller) initFocusriteDevice() {
 	c.AddItemsToSet(updateSet, &c.config.Master.DimSwitch)
 
 	c.toFocusrite <- *updateSet
+
+	c.updateSpeakerVolume()
 }
 
 // make Focusrite update Set from Mapping Items
