@@ -16,7 +16,7 @@ type HardwareControls struct {
 
 type Controls struct {
 	Gain      ElementInt  `xml:"gain"`
-	Dim       ElementInt  `xml:"dim"`
+	Dim       ElementBool `xml:"dim"`
 	Mute      ElementBool `xml:"mute"`
 	AltEnable ElementBool `xml:"alt-enable"`
 	Alt       ElementInt  `xml:"alt"`

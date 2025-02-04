@@ -3,7 +3,6 @@ package monitorcontroller
 import (
 	"fmt"
 
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 )
 
@@ -14,127 +13,67 @@ const (
 	SpeakerD
 	SubA
 	SubB
-	MasterFader
 
-	faderLength
+	SPEAKER_LEN
 )
 
 type SpeakerType int
 
 const (
-	SpeakerNormal SpeakerType = iota
-	SubwooferNormal
+	Speaker SpeakerType = iota
+	Subwoofer
 )
 
-const (
-	SpeakerAEnabled = iota
-	SpeakerBEnabled
-	SpeakerCEnabled
-	SpeakerDEnabled
-	SubAEnabled
-	SubBEnabled
-	Mute
-
-	buttonLength
-)
-
-type Speaker struct {
-	Name string
-	Mcu  McuConfiguration
-	//Focusrite FocusriteConfiguration
+type SpeakerConfig struct {
+	Name      MappingString
+	Mute      MappingBool
 	Type      SpeakerType
 	Exclusive bool
 }
 
-/*
-type FocusriteConfiguration struct {
-	SerialNumber focusritexml.ElementString
-	Nickname     focusritexml.ElementString
-	Available    focusritexml.ElementBool
-	Volume       focusritexml.ElementInt
-	Mute         focusritexml.ElementBool
-	Meter        focusritexml.ElementInt
-}
-*/
+type MasterConfig struct {
+	MuteSwitch MappingBool
+	DimSwitch  MappingBool
+	Meter      MappingInt
 
-type McuConfiguration struct {
-	EnableButton []gomcu.Switch
-}
-
-type Master struct {
-	Name      string
-	Mcu       McuMaster
-	Focusrite FocusriteMaster
-}
-
-type McuMaster struct {
-	Fader        gomcu.Channel
-	SelectButton gomcu.Switch
-}
-
-type FocusriteMaster struct {
-	Mute focusritexml.ElementBool
+	VolumeMcuChannel []gomcu.Channel
+	VolumeMcuRaw     uint16
+	VolumeDB         float64
+	DimVolumeOffset  float64
 }
 
 type Configuration struct {
-	Speaker      map[int]Speaker
-	Master       Master
-	SerialNumber focusritexml.ElementString
+	Speaker map[int]SpeakerConfig
+	Master  MasterConfig
+
+	FocusriteSerialNumber string
+	FocusriteDeviceId     int
+
+	fcElementMap map[int]*Mapping
 }
 
-var (
-	SpeakerNames = map[int]string{
-		SpeakerA:    "Speaker A",
-		SpeakerB:    "Speaker B",
-		SpeakerC:    "Speaker C",
-		SpeakerD:    "Speaker D",
-		SubA:        "Sub A",
-		SubB:        "Sub B",
-		MasterFader: "Master",
-	}
-
-	MuteButtons = []gomcu.Switch{
-		gomcu.Mute1,
-		gomcu.Mute2,
-		gomcu.Mute3,
-		gomcu.Mute4,
-		gomcu.Mute5,
-		gomcu.Mute6,
-		gomcu.Mute7,
-		gomcu.Mute8,
-	}
-)
+func (c *Configuration) UpdateMaps() {
+	c.fcElementMap = make(map[int]*Mapping)
+}
 
 // Getter by controller mapping id
-
-func (m *Configuration) GetMasterFader() (gomcu.Channel, error) {
-	return m.Master.Mcu.Fader, nil
+func (m *Configuration) GetMasterFaderMcuChannel() []gomcu.Channel {
+	return m.Master.VolumeMcuChannel
 
 }
 
-func (m *Configuration) GetMcuEnabledSwitch(id int) ([]gomcu.Switch, error) {
+func (m *Configuration) GetSpeakerEnabledMcuSwitch(id int) ([]gomcu.Switch, error) {
 	if f, ok := m.Speaker[id]; ok {
-		return f.Mcu.EnableButton, nil
+		return f.Mute.McuButtons(), nil
 	} else {
-		return nil, fmt.Errorf("name not found: %d", id)
+		return nil, fmt.Errorf("no speaker with id:%d found", id)
 	}
 }
 
-func (m *Configuration) GetMcuName(id int) (string, error) {
+func (m *Configuration) GetSpeakerName(id int) (string, error) {
 	if f, ok := m.Speaker[id]; ok {
-		return f.Name, nil
+		return f.Name.Value, nil
 	} else {
-		return "", fmt.Errorf("name not found: %d", id)
+		return "", fmt.Errorf("no speaker with id:%d found", id)
 	}
-}
-
-func (m *Configuration) GetIdBySwitch(c gomcu.Switch) (int, bool) {
-	for k, v := range m.Speaker {
-		for _, b := range v.Mcu.EnableButton {
-			if b == c {
-				return k, true
-			}
-		}
-	}
-	return -1, false
 }

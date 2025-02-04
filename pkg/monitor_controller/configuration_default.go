@@ -1,56 +1,99 @@
 package monitorcontroller
 
-import (
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
-)
+import "github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 
 var (
-	PLATFORM_NANO Configuration = Configuration{
-		Speaker: map[int]Speaker{
-			SpeakerA: {Name: SpeakerNames[SpeakerA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignTrack}}, Type: SpeakerNormal, Exclusive: true},
-			SpeakerB: {Name: SpeakerNames[SpeakerB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignSend}}, Type: SpeakerNormal, Exclusive: true},
-			SpeakerC: {Name: SpeakerNames[SpeakerA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignPan}}, Type: SpeakerNormal, Exclusive: true},
-			SpeakerD: {Name: SpeakerNames[SpeakerB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignPlugin}}, Type: SpeakerNormal, Exclusive: true},
-			SubA:     {Name: SpeakerNames[SpeakerA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignEQ}}, Type: SpeakerNormal, Exclusive: true},
-			SubB:     {Name: SpeakerNames[SpeakerB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.AssignInstrument}}, Type: SpeakerNormal, Exclusive: true},
-		},
-		Master: Master{
-			Name: SpeakerNames[MasterFader],
-			Mcu: McuMaster{
-				Fader: gomcu.Master,
-			},
-			Focusrite: FocusriteMaster{
-				Mute: focusritexml.ElementBool{ID: 1679},
-			},
-		},
-		SerialNumber: focusritexml.ElementString{Value: "P9EAC6K250F325"},
-	}
+	DEFAULT Configuration = Configuration{
 
-	FADERPORT_CFG Configuration = Configuration{
-		Speaker: map[int]Speaker{
-			SpeakerA: {Name: SpeakerNames[SpeakerA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.Trim}}, Type: SpeakerNormal, Exclusive: true},
-			SpeakerB: {Name: SpeakerNames[SpeakerB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.Touch}}, Type: SpeakerNormal, Exclusive: false},
-			SpeakerC: {Name: SpeakerNames[SpeakerA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.Write}}, Type: SpeakerNormal, Exclusive: false},
-			SpeakerD: {Name: SpeakerNames[SpeakerB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{}}, Type: SpeakerNormal, Exclusive: false},
-			SubA:     {Name: SpeakerNames[SubA], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{gomcu.Read}}, Type: SubwooferNormal, Exclusive: true},
-			SubB:     {Name: SpeakerNames[SubB], Mcu: McuConfiguration{EnableButton: []gomcu.Switch{}}, Type: SubwooferNormal, Exclusive: true},
-		},
-		Master: Master{
-			Name: SpeakerNames[MasterFader],
-			Mcu: McuMaster{
-				Fader: gomcu.Channel8,
+		Speaker: map[int]SpeakerConfig{
+			SpeakerA: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignTrack, gomcu.Trim},
+				},
+				Type:      Speaker,
+				Exclusive: true,
 			},
-			Focusrite: FocusriteMaster{
-				Mute: focusritexml.ElementBool{ID: 1679},
+			SpeakerB: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignSend, gomcu.Touch},
+				},
+				Type:      Speaker,
+				Exclusive: true,
+			},
+			SpeakerC: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignPan, gomcu.Write},
+				},
+				Type:      Speaker,
+				Exclusive: true,
+			},
+			SpeakerD: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignPlugin},
+				},
+				Type:      Speaker,
+				Exclusive: true,
+			},
+			SubA: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignEQ, gomcu.Read},
+				},
+				Type:      Subwoofer,
+				Exclusive: true,
+			},
+			SubB: {
+				Name: MappingString{
+					FcIdsList: []FocusriteId{},
+				},
+				Mute: MappingBool{
+					FcIdsList:      []FocusriteId{},
+					McuButtonsList: []gomcu.Switch{gomcu.AssignInstrument},
+				},
+				Type:      Subwoofer,
+				Exclusive: true,
 			},
 		},
-		SerialNumber: focusritexml.ElementString{Value: "P9EAC6K250F325"},
+		Master: MasterConfig{
+			MuteSwitch: MappingBool{
+				McuButtonsList: []gomcu.Switch{gomcu.Mute1, gomcu.Mute2, gomcu.Mute3, gomcu.Mute4, gomcu.Mute5, gomcu.Mute6, gomcu.Mute7, gomcu.Mute8},
+				FcIdsList:      []FocusriteId{1679},
+			},
+			DimSwitch: MappingBool{
+				McuButtonsList: []gomcu.Switch{gomcu.Solo1, gomcu.Solo2, gomcu.Solo3, gomcu.Solo4, gomcu.Solo5, gomcu.Solo6, gomcu.Solo7, gomcu.Solo8},
+				FcIdsList:      []FocusriteId{1678},
+			},
+			Meter: MappingInt{
+				McuButtonsList: []gomcu.Switch{},
+				FcIdsList:      []FocusriteId{},
+			},
+			VolumeMcuChannel: []gomcu.Channel{gomcu.Channel1, gomcu.Channel2, gomcu.Channel3, gomcu.Channel4, gomcu.Channel5, gomcu.Channel6, gomcu.Channel7, gomcu.Channel8, gomcu.Master},
+			DimVolumeOffset:  20.0,
+		},
+		FocusriteSerialNumber: "P9EAC6K250F325", // my 18i20
 	}
 )
 
-// For Testing only
+// TODO For Testing only
 func DefaultConfiguration() *Configuration {
-	//return &PLATFORM_NANO
-	return &FADERPORT_CFG
+	return &DEFAULT
 }

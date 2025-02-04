@@ -30,8 +30,8 @@ type Mcu struct {
 	connection chan int
 
 	decodeButtons bool
-	toMcu         chan interface{}
-	fromMcu       chan interface{}
+	ToMcu         chan interface{}
+	FromMcu       chan interface{}
 
 	displayStringUpper []byte
 	displayStringLower []byte
@@ -39,12 +39,12 @@ type Mcu struct {
 }
 
 // Initialize the MCU runloop
-func InitMcu(fromMcu chan interface{}, toMcu chan interface{}, interrupt chan os.Signal, wg *sync.WaitGroup, cfg config.Config) *Mcu {
+func InitMcu(interrupt chan os.Signal, wg *sync.WaitGroup, cfg config.Config) *Mcu {
 	m := Mcu{
 		config:             &cfg,
 		waitGroup:          wg,
-		fromMcu:            fromMcu,
-		toMcu:              toMcu,
+		FromMcu:            make(chan interface{}, 100),
+		ToMcu:              make(chan interface{}, 100),
 		interrupt:          interrupt,
 		connection:         make(chan int, 1),
 		displayStringUpper: make([]byte, 56),
@@ -120,7 +120,7 @@ func (m *Mcu) connect() {
 			log.Errorf("Midi message could not be send. %v", ms)
 		}
 	}
-	m.fromMcu <- ConnectionMessage{Connection: true}
+	m.FromMcu <- ConnectionMessage{Connection: true}
 }
 
 // disconnects from the MCU, called from runloop
@@ -205,7 +205,7 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 			m.DecodeButtons(k, v)
 		} else {
 			fieldName := gomcu.Names[k]
-			m.fromMcu <- KeyMessage{
+			m.FromMcu <- KeyMessage{
 				KeyNumber:  gomcu.Switch(k),
 				Pressed:    true,
 				HotkeyName: fieldName,
@@ -220,14 +220,14 @@ func (m *Mcu) receiveMidi(message midi.Message, timestamps int32) {
 			} else {
 				amount = -1 * (int(v) - 64)
 			}
-			m.fromMcu <- VPotChangeMessage{
+			m.FromMcu <- VPotChangeMessage{
 				FaderNumber:  k - byte(gomcu.Mute1),
 				ChangeAmount: amount,
 			}
 		}
 
 	} else if message.GetPitchBend(&c, &val, &uval) {
-		m.fromMcu <- RawFaderMessage{
+		m.FromMcu <- RawFaderMessage{
 			FaderNumber: gomcu.Channel(c),
 			FaderValue:  uval,
 		}
@@ -244,11 +244,11 @@ func (m *Mcu) DecodeChannelSelect(k uint8) bool {
 
 		if newChannel != m.selectedChannel {
 			m.selectedChannel = gomcu.Channel(newChannel)
-			m.toMcu <- LedCommand{Led: oldLed, State: gomcu.StateOff}
-			m.toMcu <- LedCommand{Led: newLed, State: gomcu.StateOn}
+			m.ToMcu <- LedCommand{Led: oldLed, State: gomcu.StateOff}
+			m.ToMcu <- LedCommand{Led: newLed, State: gomcu.StateOn}
 		}
 
-		m.fromMcu <- SelectMessage{
+		m.FromMcu <- SelectMessage{
 			FaderNumber: newChannel,
 		}
 		return true
@@ -259,7 +259,7 @@ func (m *Mcu) DecodeChannelSelect(k uint8) bool {
 
 func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 	if inRange(k, gomcu.Fader1, gomcu.FaderMaster) {
-		m.fromMcu <- RawFaderTouchMessage{Channel: k - byte(gomcu.Fader1), Pressed: v == 127}
+		m.FromMcu <- RawFaderTouchMessage{Channel: k - byte(gomcu.Fader1), Pressed: v == 127}
 	} else if inRange(k, gomcu.BankL, gomcu.ChannelR) {
 		var amount int
 		switch gomcu.Switch(k) {
@@ -272,20 +272,20 @@ func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 		case gomcu.ChannelR:
 			amount = 1
 		}
-		m.fromMcu <- BankMessage{Offset: amount}
+		m.FromMcu <- BankMessage{Offset: amount}
 
 	} else if inRange(k, gomcu.V1, gomcu.V8) {
-		m.fromMcu <- VPotButtonMessage{FaderNumber: k - byte(gomcu.V1)}
+		m.FromMcu <- VPotButtonMessage{FaderNumber: k - byte(gomcu.V1)}
 	} else if inRange(k, gomcu.Mute1, gomcu.Mute8) {
-		m.fromMcu <- MuteMessage{FaderNumber: k - byte(gomcu.Mute1)}
+		m.FromMcu <- MuteMessage{FaderNumber: k - byte(gomcu.Mute1)}
 	} else if inRange(k, gomcu.Rec1, gomcu.Rec8) {
-		m.fromMcu <- RecMessage{FaderNumber: k}
+		m.FromMcu <- RecMessage{FaderNumber: k}
 	} else if inRange(k, gomcu.Solo1, gomcu.Solo8) {
-		m.fromMcu <- SoloMessage{FaderNumber: k - byte(gomcu.Solo1)}
+		m.FromMcu <- SoloMessage{FaderNumber: k - byte(gomcu.Solo1)}
 	} else if inRange(k, gomcu.AssignTrack, gomcu.AssignInstrument) {
-		m.fromMcu <- AssignMessage{Mode: k - byte(gomcu.AssignTrack)}
+		m.FromMcu <- AssignMessage{Mode: k - byte(gomcu.AssignTrack)}
 	} else {
-		m.fromMcu <- KeyMessage{KeyNumber: gomcu.Switch(k), HotkeyName: gomcu.Names[k]}
+		m.FromMcu <- KeyMessage{KeyNumber: gomcu.Switch(k), HotkeyName: gomcu.Names[k]}
 	}
 }
 
@@ -297,10 +297,10 @@ func (m *Mcu) run() {
 		select {
 		case state := <-m.connection:
 			if state == 0 {
-				m.fromMcu <- ConnectionMessage{Connection: false}
+				m.FromMcu <- ConnectionMessage{Connection: false}
 				m.connect()
 			} else {
-				m.fromMcu <- ConnectionMessage{Connection: true}
+				m.FromMcu <- ConnectionMessage{Connection: true}
 			}
 
 		case <-m.interrupt:
@@ -308,7 +308,7 @@ func (m *Mcu) run() {
 			m.waitGroup.Done()
 			return
 
-		case message := <-m.toMcu:
+		case message := <-m.ToMcu:
 			if !m.checkMidiConnection() {
 				continue
 			}

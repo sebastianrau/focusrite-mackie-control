@@ -70,53 +70,26 @@ func main() {
 		os.Exit(-1)
 	}
 
-	fromMcu := make(chan interface{}, 100)
-	toMcu := make(chan interface{}, 100)
-
-	toFocusrite := make(chan *monitorcontroller.UpdateFocusriteDevice, 100)
-
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mcu.InitMcu(fromMcu, toMcu, interrupt, &waitGroup, *cfg)
+	mcu := mcu.InitMcu(interrupt, &waitGroup, *cfg)
 
 	fc := focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
 
 	control := monitorcontroller.NewController(
-		toMcu,
-		fromMcu,
-		fc.DeviceArrivalChannel,
-		fc.RawUpdateChannel,
-		toFocusrite)
-
-	//syst := systray.CreateSystray(cfg)
+		mcu.ToMcu, mcu.FromMcu,
+		fc.ToFocusrite, fc.FromFocusrite)
 
 	for {
 
 		select {
 
-		case setFocusrite := <-toFocusrite:
-
-			device, ok := fc.DeviceList.GetDeviceBySerialnumber(setFocusrite.SerialNumber.Value)
-			if ok {
-				setFocusrite.Set.DevID = device.ID
-				fc.SendSet(setFocusrite.Set)
-				log.Infof("Sending to Focusrite: %v\n", setFocusrite)
-			} else {
-				log.Warnf("Unknown device to Update: SN %s", setFocusrite.SerialNumber.Value)
-			}
-
-		case frCon := <-fc.ConnectedChannel:
-			log.Infof("Focusrite Connection State: %t\n", frCon)
-
-		case frDevice := <-fc.DeviceUpdateChannel:
-			log.Infof("Device Update %d (%s)\n", frDevice.ID, frDevice.SerialNumber)
-
 		case fm := <-control.FromController:
 			switch f := fm.(type) {
 
 			case monitorcontroller.TransportMessage:
-				switch f.Key {
+				switch gomcu.Switch(f) {
 				case gomcu.Play:
 					err := robotgo.KeyTap(robotgo.AudioPlay)
 					if err != nil {
@@ -138,6 +111,11 @@ func main() {
 						log.Error(err.Error())
 					}
 				}
+
+			case monitorcontroller.MuteMessage:
+				log.Infof("Mute: %t", f)
+			case monitorcontroller.DimMessage:
+				log.Infof("Dim: %t", f)
 			default:
 				log.Warnf("unhandled message from monitor-controller %s: %v\n", reflect.TypeOf(fm), fm)
 

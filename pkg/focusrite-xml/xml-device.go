@@ -63,7 +63,7 @@ func (d *Device) UpdateSet(set Set) int {
 			updateCount++
 			err := value.Set(v.Value)
 			if err != nil {
-				log.Errorf("item could not be updated: %d (%s): %s", v.ID, v.Value, err.Error())
+				log.Errorf("item could not be updated: %d (String Value: %s): %s", v.ID, v.Value, err.Error())
 			}
 		} else {
 			log.Warnf("unknown ID to update: %d with name %s\n", v.ID, v.Value)

@@ -47,12 +47,13 @@ type FocusriteClient struct {
 	DeviceList    DeviceList
 	ClientDetails focusritexml.ClientDetails
 
-	ConnectedChannel chan bool
-	ApprovalChannel  chan bool
+	ToFocusrite   chan focusritexml.Set
+	FromFocusrite chan interface{}
 
-	DeviceArrivalChannel chan *focusritexml.Device
-	DeviceUpdateChannel  chan *focusritexml.Device
-	RawUpdateChannel     chan *focusritexml.Set
+	//DeviceArrivalChannel chan *focusritexml.Device
+	//DeviceRemovalChannel chan int
+	//DeviceUpdateChannel chan *focusritexml.Device
+	//RawUpdateChannel chan *focusritexml.Set
 
 	Mode FocusriteClientMode
 }
@@ -65,22 +66,22 @@ func NewFocusriteClient(mode FocusriteClientMode) *FocusriteClient {
 			Hostname:  "Monitor Controller",
 			ClientKey: "123456789",
 		},
-		DeviceList:           make(DeviceList),
-		DeviceUpdateChannel:  make(chan *focusritexml.Device),
-		DeviceArrivalChannel: make(chan *focusritexml.Device),
-		RawUpdateChannel:     make(chan *focusritexml.Set),
-		ApprovalChannel:      make(chan bool),
-		ConnectedChannel:     make(chan bool),
-		Mode:                 mode,
+		DeviceList: make(DeviceList),
+
+		ToFocusrite:   make(chan focusritexml.Set, 100),
+		FromFocusrite: make(chan interface{}, 100),
+
+		Mode: mode,
 	}
-	go f.run()
+	go f.runConnection()
 	go f.runKeepalive()
+	go f.runCommandHandling()
 
 	return f
 }
 
 // Start stellt eine Verbindung zum Focusrite-Server her und empfängt Daten.
-func (fc *FocusriteClient) run() {
+func (fc *FocusriteClient) runConnection() {
 	for {
 		switch fc.state {
 		case Discover:
@@ -107,6 +108,27 @@ func (fc *FocusriteClient) run() {
 			fc.state = Discover
 		}
 	}
+}
+
+func (fc *FocusriteClient) runKeepalive() {
+	for {
+		if fc.isConnected {
+			err := fc.sendXML(focusritexml.KeepAlive{})
+			if err != nil {
+				log.Error(err.Error())
+			}
+		}
+		time.Sleep(KEEP_ALIVE_S)
+	}
+}
+
+func (fc *FocusriteClient) runCommandHandling() {
+	for {
+		set := <-fc.ToFocusrite
+		log.Infof("Sending to Focusrite %d items\n", len(set.Items))
+		fc.sendSet(set)
+	}
+
 }
 
 // connectAndListen stellt die Verbindung her und verarbeitet eingehende Daten.
@@ -141,18 +163,6 @@ func (fc *FocusriteClient) connectAndListen() error {
 	}
 }
 
-func (fc *FocusriteClient) runKeepalive() {
-	for {
-		if fc.isConnected {
-			err := fc.sendXML(focusritexml.KeepAlive{})
-			if err != nil {
-				log.Error(err.Error())
-			}
-		}
-		time.Sleep(KEEP_ALIVE_S)
-	}
-}
-
 func (fc *FocusriteClient) handleXmlPacket(packet string) {
 	d, err := focusritexml.ParseFromXML(packet)
 	if err != nil {
@@ -169,10 +179,10 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 		}
 		if fc.Mode == UpdateDevice || fc.Mode == UpdateBoth {
 			fc.DeviceList.UpdateSet(dd)
-			fc.DeviceUpdateChannel <- device
+			fc.FromFocusrite <- DeviceUpdateMessage(*device)
 		}
 		if fc.Mode == UpdateRaw || fc.Mode == UpdateBoth {
-			fc.RawUpdateChannel <- &dd
+			fc.FromFocusrite <- RawUpdateMessage(dd)
 		}
 		return
 
@@ -183,11 +193,12 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 		if err != nil {
 			log.Error(err.Error())
 		}
-		fc.DeviceArrivalChannel <- device
+		fc.FromFocusrite <- DeviceArrivalMessage(*device)
 		log.Infof("New Device: %s, with ID: %d \n", dd.Device.Model, dd.Device.ID)
 		return
 
 	case focusritexml.DeviceRemoval:
+		fc.FromFocusrite <- DeviceRemovalMessage(dd.Id)
 		fc.DeviceList.Remove(dd.Id)
 		return
 
@@ -197,7 +208,7 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 		return
 
 	case focusritexml.Approval:
-		fc.ApprovalChannel <- dd.Authorised
+		fc.FromFocusrite <- ApprovalMessasge(dd.Authorised)
 		return
 
 	//Ignoring
@@ -225,7 +236,7 @@ func (fc *FocusriteClient) setConnected(status bool) {
 	fc.mutex.Lock()
 	defer fc.mutex.Unlock()
 	fc.isConnected = status
-	fc.ConnectedChannel <- status
+	fc.FromFocusrite <- ConnectionStatusMessage(status)
 }
 
 // setConnected aktualisiert den Verbindungsstatus.
@@ -262,10 +273,21 @@ func (fc *FocusriteClient) sendXML(data interface{}) error {
 	return nil
 }
 
-func (fc *FocusriteClient) SendSet(set focusritexml.Set) error {
-	dev, ok := fc.DeviceList.GetDevice(set.DevID)
-	if ok {
-		dev.UpdateSet(set)
+func (fc *FocusriteClient) sendSet(set focusritexml.Set) error {
+
+	var cleanSet []focusritexml.Item
+
+	for _, v := range set.Items {
+		if v.ID != 0 {
+			cleanSet = append(cleanSet, v)
+		}
 	}
-	return fc.sendXML(set)
+	set.Items = cleanSet
+
+	dev, ok := fc.DeviceList.GetDevice(set.DevID)
+	if ok && len(set.Items) > 0 {
+		dev.UpdateSet(set)
+		return fc.sendXML(set)
+	}
+	return nil
 }

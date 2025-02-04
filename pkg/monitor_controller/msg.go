@@ -1,13 +1,12 @@
 package monitorcontroller
 
 import (
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 )
 
 type SpeakerEnabledMessage struct {
 	SpeakerID      int
-	SpeakerEnabled []bool
+	SpeakerEnabled bool
 }
 
 type MasterLevelMessage struct {
@@ -16,19 +15,11 @@ type MasterLevelMessage struct {
 }
 
 // TODO Rename
-func (c *Controller) NewSpeakerLevelMessage() *MasterLevelMessage {
+/*func (c *Controller) NewSpeakerLevelMessage() *MasterLevelMessage {
 	return &MasterLevelMessage{SpeakerLevel: c.masterLevel, SpeakerLevelDB: c.masterLevelDB}
 }
+*/
 
-type MuteMessage struct {
-	Mute bool
-}
-
-type TransportMessage struct {
-	Key gomcu.Switch
-}
-
-type UpdateFocusriteDevice struct {
-	SerialNumber focusritexml.ElementString
-	Set          focusritexml.Set
-}
+type MuteMessage bool
+type DimMessage bool
+type TransportMessage gomcu.Switch
