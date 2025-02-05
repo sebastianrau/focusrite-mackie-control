@@ -3,11 +3,11 @@ package monitorcontroller
 // TODO: remove Fader fpr Speaker Level
 
 import (
-	"fmt"
 	"reflect"
 	"slices"
 	"strconv"
 
+	"github.com/ECUST-XX/xml"
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
 	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
@@ -123,7 +123,6 @@ func (c *Controller) handleMcu(msg interface{}) {
 
 	case mcu.RawFaderMessage:
 		if slices.Contains(c.config.Master.VolumeMcuChannel, f.FaderNumber) {
-			log.Debugf("Fader %d: %d ", f.FaderNumber, f.FaderValue)
 			c.setMasterVolumeRawValue(f.FaderValue)
 		}
 
@@ -159,12 +158,9 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 		return
 	}
 
-	log.Debugf("New Raw Update Device Arrived. Items: %d", len(set.Items))
-
+	// log.Debugf("New Raw Update Device Arrived. Items: %d", len(set.Items))
 	for _, s := range set.Items {
-
 		fcID := FocusriteId(s.ID)
-
 		if c.config.Master.DimSwitch.IsFcID(fcID) {
 			log.Debugf("Found Dim ID %d", s.ID)
 			boolValue, err := strconv.ParseBool(s.Value)
@@ -182,20 +178,36 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 				log.Error(err.Error())
 				return
 			}
-
 			c.setMute(boolValue)
 			return
 		}
 
-		for k, spk := range c.config.Speaker {
+		for _, spk := range c.config.Speaker {
+			if spk.Name.IsFcID(FocusriteId(s.ID)) {
+				log.Debugf("Found Speaker Name from fc %d: %s", s.ID, s.Value)
+				spk.Name.ParseItem(s)
+				// TODO Update MCU Displays
+			}
+
 			if spk.Mute.IsFcID(FocusriteId(s.ID)) {
 				log.Debugf("Found Speaker mute from fc %d: %v", s.ID, s.Value)
-				boolValue, err := strconv.ParseBool(s.Value)
-				if err != nil {
-					log.Error(err.Error())
-					return
-				}
-				c.setSpeakerEnabled(k, boolValue) //not inverted because value is mute value
+				/*
+					boolValue, err := strconv.ParseBool(s.Value)
+					if err != nil {
+						log.Error(err.Error())
+						return
+					}
+					c.setSpeakerEnabled(k, boolValue) //not inverted because value is mute value
+				*/
+			}
+
+			if spk.OutputGain.IsFcID(FocusriteId(s.ID)) {
+				// TOOD relfect gain
+			}
+
+			if spk.Meter.IsFcID(FocusriteId(s.ID)) {
+				spk.Meter.ParseItem(s)
+				// TODO Update Meter Values
 			}
 		}
 	}
@@ -207,6 +219,9 @@ func (c *Controller) handleFocusriteDeviceArrival(device focusritexml.Device) {
 		c.config.FocusriteDeviceId = device.ID
 		c.initFocusriteDevice()
 		log.Debugf("configured device with SN: %s arrived with ID ID:%d", device.SerialNumber, device.ID)
+
+		xml, _ := xml.MarshalIndent(device.Outputs.Analogues, "", "    ")
+		log.Debugln("\n" + string(xml))
 	}
 }
 
@@ -226,25 +241,14 @@ func (c *Controller) setMute(mute bool) {
 
 	c.config.Master.MuteSwitch.Value = mute
 
-	for _, sw := range c.config.Master.MuteSwitch.McuButtonsList {
-		log.Debugf("Setting Led: %d to %t", sw, mute)
-		c.setLedBool(sw, mute)
-	}
+	c.UpdateAllLeds(c.config.Master.MuteSwitch.McuButtonsList, mute)
 
-	fcUpdateSet, err := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	if err != nil {
-		return
-	}
-
+	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	fcUpdateSet.AddItemBool(int(c.config.Master.MuteSwitch.FcId), mute)
-
-	for _, spk := range c.config.Speaker {
-		state := mute || spk.Mute.Value
-		fcUpdateSet.AddItemBool(int(spk.Mute.FcId), state)
-	}
 	c.toFocusrite <- *fcUpdateSet
-	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
 
+	c.updateSpeakerMute()
+	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
 }
 
 // Dim function
@@ -261,11 +265,7 @@ func (c *Controller) setDim(dim bool) {
 		c.setLedBool(sw, dim)
 	}
 
-	fcUpdateSet, err := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	if err != nil {
-		return
-	}
-
+	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	c.AddItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
 	c.updateSpeakerVolume()
 	c.toFocusrite <- *fcUpdateSet
@@ -309,20 +309,14 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 		}
 	}
 
-	fcUpdateItems := []focusritexml.Item{}
-
-	state := mute || c.config.Master.MuteSwitch.Value //mute speaker or master muter
-	fcUpdateItems = append(fcUpdateItems, focusritexml.Item{ID: int(speaker.Mute.FcId), Value: fmt.Sprintf("%t", state)})
-
-	c.toFocusrite <- focusritexml.Set{Items: fcUpdateItems}
-	log.Debugf("Send: %v", fcUpdateItems)
-
+	c.updateSpeakerMute()
 	for _, v := range speaker.Mute.McuButtonsList {
 		c.setLedBool(v, enabled)
 	}
 
 	c.FromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: enabled}
 }
+
 func (c *Controller) toggleSpeakerEnabled(id int) {
 	speaker, ok := c.config.Speaker[id]
 	if !ok {
@@ -356,31 +350,39 @@ func (c *Controller) setMasterVolumeDB(vol int) {
 }
 
 func (c *Controller) updateSpeakerVolume() {
-
-	fcUpdateSet, err := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	if err != nil {
-		return
-	}
-
 	volume := int(c.config.Master.VolumeDB)
+	if volume >= 0 {
+		volume = 0
+	}
+	if volume < -127 {
+		volume = 127
+	}
 	if c.config.Master.DimSwitch.Value {
 		volume = volume - int(c.config.Master.DimVolumeOffset)
 	}
 
-	if volume >= 0 {
-		volume = 0
-	}
-
-	if volume < -127 {
-		volume = 127
-	}
-
+	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	for _, spk := range c.config.Speaker {
 		fcUpdateSet.AddItemInt(int(spk.OutputGain.FcId), volume)
 	}
-
 	c.toFocusrite <- *fcUpdateSet
+
 	log.Debugf("setting focusrite speaker Level to %d", volume)
+}
+
+func (c *Controller) updateSpeakerMute() {
+
+	mute := c.config.Master.MuteSwitch.Value
+
+	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
+	fcUpdateSet.AddItemBool(int(c.config.Master.MuteSwitch.FcId), mute)
+
+	for k, spk := range c.config.Speaker {
+		state := mute || spk.Mute.Value
+		fcUpdateSet.AddItemBool(int(spk.Mute.FcId), state)
+		log.Debugf("setting focusrite speaker %d Level to %t", k, state)
+	}
+	c.toFocusrite <- *fcUpdateSet
 
 }
 
@@ -394,6 +396,38 @@ func (c *Controller) setLed(sw gomcu.Switch, state gomcu.State) {
 		c.mcuLedState[sw] = state
 		c.toMcu <- mcu.LedCommand{Led: sw, State: state}
 	}
+}
+
+func (c *Controller) UpdateAllLeds(switches []gomcu.Switch, state bool) {
+	for _, led := range switches {
+		c.setLedBool(led, state)
+	}
+}
+
+func (c *Controller) UpdateAllFader(channel []gomcu.Channel, value uint16) {
+	for _, fader := range channel {
+		c.toMcu <- mcu.FaderSelectCommand{Channel: gomcu.Channel(fader), ChnnalValue: value}
+		c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(fader), Value: value}
+	}
+}
+
+// make Focusrite update Set from Mapping Items
+func (c *Controller) AddItemsToSet(set *focusritexml.Set, item Mapping) {
+	if item.GetFcID() == 0 {
+		return
+	}
+	set.AddItem(focusritexml.Item{ID: int(item.GetFcID()), Value: item.ValueString()})
+}
+
+// TODO add more updates here
+func (c *Controller) initFocusriteDevice() {
+	updateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
+	c.AddItemsToSet(updateSet, &c.config.Master.MuteSwitch)
+	c.AddItemsToSet(updateSet, &c.config.Master.DimSwitch)
+
+	c.toFocusrite <- *updateSet
+
+	c.updateSpeakerVolume()
 }
 
 // TODO  update MCU Values for init
@@ -411,41 +445,15 @@ func (c *Controller) initMcu() {
 	}
 
 	// send Fader Values
-	for _, v := range c.config.Master.VolumeMcuChannel {
-		c.toMcu <- mcu.FaderSelectCommand{Channel: v, ChnnalValue: DEFAULT.Master.VolumeMcuRaw}
-		c.toMcu <- mcu.FaderCommand{Fader: v, Value: c.config.Master.VolumeMcuRaw}
-	}
+
+	c.UpdateAllFader(c.config.Master.VolumeMcuChannel, c.config.Master.VolumeMcuRaw)
 
 	//Speaker Updates
 	// send Speaker States
 	for _, speaker := range c.config.Speaker {
-		for _, mId := range speaker.Mute.McuButtonsList {
-			c.setLedBool(mId, !speaker.Mute.Value)
-		}
+		c.UpdateAllLeds(speaker.Mute.McuButtonsList, !speaker.Mute.Value)
 	}
 
-}
-
-// TODO add more updates here
-func (c *Controller) initFocusriteDevice() {
-	updateSet, err := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	if err != nil {
-		return
-	}
-	c.AddItemsToSet(updateSet, &c.config.Master.MuteSwitch)
-	c.AddItemsToSet(updateSet, &c.config.Master.DimSwitch)
-
-	c.toFocusrite <- *updateSet
-
-	c.updateSpeakerVolume()
-}
-
-// make Focusrite update Set from Mapping Items
-func (c *Controller) AddItemsToSet(set *focusritexml.Set, item Mapping) {
-	if item.GetFcID() == 0 {
-		return
-	}
-	set.AddItem(focusritexml.Item{ID: int(item.GetFcID()), Value: item.ValueString()})
 }
 
 /*

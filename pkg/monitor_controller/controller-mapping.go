@@ -1,6 +1,7 @@
 package monitorcontroller
 
 import (
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/gomcu"
 )
 
@@ -13,6 +14,7 @@ type Mapping interface {
 
 	IsMcuID(id gomcu.Switch) bool
 	IsFcID(id FocusriteId) bool
+	ParseItem(item focusritexml.Item)
 }
 
 // MappingInt struct

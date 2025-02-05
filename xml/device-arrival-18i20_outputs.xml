@@ -1,0 +1,60 @@
+<analogue id="0" supports-talkback="" hidden="" name="Monitor Output 1" stereo-name="Monitor Outputs 1-2">
+    <nickname id="1456"></nickname>
+    <mute id="1453"></mute>
+    <gain id="1458"></gain>
+    <meter id="1450"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Monitor Output 2" stereo-name="">
+    <nickname id="1466"></nickname>
+    <mute id="1463"></mute>
+    <gain id="1468"></gain>
+    <meter id="1460"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 3" stereo-name="Line Outputs 3-4">
+    <nickname id="1476"></nickname>
+    <mute id="1473"></mute>
+    <gain id="1478"></gain>
+    <meter id="1470"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 4" stereo-name="">
+    <nickname id="1486"></nickname>
+    <mute id="1483"></mute>
+    <gain id="1488"></gain>
+    <meter id="1480"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 5" stereo-name="Line Outputs 5-6">
+    <nickname id="1496"></nickname>
+    <mute id="1493"></mute>
+    <gain id="1498"></gain>
+    <meter id="1490"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 6" stereo-name="">
+    <nickname id="1506"></nickname>
+    <mute id="1503"></mute>
+    <gain id="1508"></gain>
+    <meter id="1500"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 7" stereo-name="Line Outputs 7-8">
+    <nickname id="1516"></nickname>
+    <mute id="1513"></mute>
+    <gain id="1518"></gain>
+    <meter id="1510"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 8" stereo-name="">
+    <nickname id="1526"></nickname>
+    <mute id="1523"></mute>
+    <gain id="1528"></gain>
+    <meter id="1520"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 9" stereo-name="Line Outputs 9-10">
+    <nickname id="1536"></nickname>
+    <mute id="1533"></mute>
+    <gain id="1538"></gain>
+    <meter id="1530"></meter>
+</analogue>
+<analogue id="0" supports-talkback="" hidden="" name="Line Output 10" stereo-name="">
+    <nickname id="1546"></nickname>
+    <mute id="1543"></mute>
+    <gain id="1548"></gain>
+    <meter id="1540"></meter>
+</analogue>

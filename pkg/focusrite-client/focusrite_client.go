@@ -172,7 +172,6 @@ func (fc *FocusriteClient) handleXmlPacket(packet string) {
 
 	switch dd := d.(type) {
 	case focusritexml.Set:
-		log.Debugf("Got device Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))
 		device, ok := fc.DeviceList.GetDevice(dd.DevID)
 		if !ok {
 			log.Warningf("Unknown device to Update with ID: %d (%d Items)\n", dd.DevID, len(dd.Items))

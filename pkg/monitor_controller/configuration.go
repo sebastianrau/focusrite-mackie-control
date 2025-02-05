@@ -34,12 +34,13 @@ type SpeakerConfig struct {
 type MasterConfig struct {
 	MuteSwitch MappingBool
 	DimSwitch  MappingBool
-	//Meter      MappingInt
 
 	VolumeMcuChannel []gomcu.Channel
 	VolumeMcuRaw     uint16
 	VolumeDB         int
 	DimVolumeOffset  int
+
+	MeterLevel int
 }
 
 type Configuration struct {

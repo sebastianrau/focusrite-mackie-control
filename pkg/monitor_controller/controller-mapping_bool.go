@@ -3,7 +3,9 @@ package monitorcontroller
 import (
 	"fmt"
 	"slices"
+	"strconv"
 
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/gomcu"
 )
 
@@ -32,4 +34,16 @@ func (m *MappingBool) ValueString() string {
 
 func (m *MappingBool) GetFcID() FocusriteId {
 	return m.FcId
+}
+
+func (m *MappingBool) ParseItem(item focusritexml.Item) {
+	if m.FcId != FocusriteId(item.ID) {
+		return
+	}
+	boolValue, err := strconv.ParseBool(item.Value)
+	if err != nil {
+		log.Error(err.Error())
+		return
+	}
+	m.Value = boolValue
 }

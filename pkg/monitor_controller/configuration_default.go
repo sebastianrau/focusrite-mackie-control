@@ -18,7 +18,8 @@ var (
 					FcId: 1456,
 				},
 				Mute: MappingBool{
-					FcId:           1453,
+					FcId: 1453,
+
 					McuButtonsList: []gomcu.Switch{ /*gomcu.AssignTrack,*/ gomcu.Trim},
 					Value:          true,
 				},
@@ -26,7 +27,8 @@ var (
 					FcId: 1458,
 				},
 				Meter: MappingInt{
-					FcId:           1450,
+					FcId: 1450,
+
 					McuButtonsList: []gomcu.Switch{},
 				},
 				Type:      Speaker,
@@ -37,7 +39,8 @@ var (
 					FcId: 1476,
 				},
 				Mute: MappingBool{
-					FcId:           1473,
+					FcId: 1473,
+
 					McuButtonsList: []gomcu.Switch{ /*gomcu.AssignSend,*/ gomcu.Touch},
 					Value:          true,
 				},
@@ -45,8 +48,9 @@ var (
 					FcId: 1478,
 				},
 				Meter: MappingInt{
+					FcId: 1470,
+
 					McuButtonsList: []gomcu.Switch{},
-					FcId:           1470,
 				},
 				Type:      Speaker,
 				Exclusive: true,
@@ -70,7 +74,7 @@ var (
 			},
 			SpeakerD: {
 				Name: MappingString{
-					FcId: 1518,
+					FcId: 1516,
 				},
 				Mute: MappingBool{
 					FcId:           1513,

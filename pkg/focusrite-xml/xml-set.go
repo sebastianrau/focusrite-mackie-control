@@ -16,16 +16,11 @@ type Item struct {
 	Value string `xml:"value,attr"`
 }
 
-func NewSet(deviceId int) (*Set, error) {
-
-	if deviceId == 0 {
-		return nil, fmt.Errorf("no device id given")
-	}
-
+func NewSet(deviceId int) *Set {
 	return &Set{
 		DevID: deviceId,
 		Items: make([]Item, 0),
-	}, nil
+	}
 }
 
 func (s *Set) AddItem(i Item) *Set {
