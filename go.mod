@@ -3,10 +3,10 @@ module github.com/sebastianrau/focusrite-mackie-control
 go 1.23.5
 
 require (
-	github.com/sebastianrau/gomcu v1.0.0
 	github.com/ECUST-XX/xml v1.20.2
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/go-vgo/robotgo v0.110.5
+	github.com/sebastianrau/gomcu v1.0.2
 	github.com/sirupsen/logrus v1.9.3
 	gitlab.com/gomidi/midi/v2 v2.2.19
 	gopkg.in/yaml.v2 v2.4.0
@@ -14,12 +14,12 @@ require (
 
 require (
 	github.com/dblohm7/wingoes v0.0.0-20240820181039-f2b84150679e // indirect
-	github.com/ebitengine/purego v0.8.0 // indirect
+	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/gen2brain/shm v0.1.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
-	github.com/kbinani/screenshot v0.0.0-20240820160931-a8a2c5d0e191 // indirect
+	github.com/kbinani/screenshot v0.0.0-20250118074034-a3924b7bbc8c // indirect
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20240909124753-873cd0166683 // indirect
@@ -29,9 +29,8 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/robotn/xgb v0.10.0 // indirect
 	github.com/robotn/xgbutil v0.10.0 // indirect
-	github.com/sebastianrau/gomcu v0.0.0-20250205091600-be2f881e62f2 // indirect
-	github.com/shirou/gopsutil/v4 v4.24.9 // indirect
-	github.com/tailscale/win v0.0.0-20240926211701-28f7e73c7afb // indirect
+	github.com/shirou/gopsutil/v4 v4.25.1 // indirect
+	github.com/tailscale/win v0.0.0-20241018163102-cfd3289ef17f // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.9.0 // indirect
 	github.com/vcaesar/gops v0.40.0 // indirect
@@ -39,11 +38,9 @@ require (
 	github.com/vcaesar/keycode v0.10.1 // indirect
 	github.com/vcaesar/tt v0.20.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/exp v0.0.0-20241004190924-225e2abe05e6 // indirect
-	golang.org/x/image v0.21.0 // indirect
-	golang.org/x/lint v0.0.0-20241112194109-818c5a804067 // indirect
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
+	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/tools v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )

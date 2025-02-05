@@ -8,9 +8,8 @@ type FocusriteId int
 
 type Mapping interface {
 	ValueString() string
-
 	McuButtons() []gomcu.Switch
-	FcIds() []FocusriteId
+	GetFcID() FocusriteId
 
 	IsMcuID(id gomcu.Switch) bool
 	IsFcID(id FocusriteId) bool

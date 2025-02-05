@@ -10,15 +10,11 @@ import (
 type MappingInt struct {
 	Value          int
 	McuButtonsList []gomcu.Switch
-	FcIdsList      []FocusriteId
+	FcId           FocusriteId
 }
 
 func (m *MappingInt) McuButtons() []gomcu.Switch {
 	return m.McuButtonsList
-}
-
-func (m *MappingInt) FcIds() []FocusriteId {
-	return m.FcIdsList
 }
 
 func (m *MappingInt) IsMcuID(id gomcu.Switch) bool {
@@ -26,9 +22,13 @@ func (m *MappingInt) IsMcuID(id gomcu.Switch) bool {
 }
 
 func (m *MappingInt) IsFcID(id FocusriteId) bool {
-	return slices.Contains(m.FcIdsList, id)
+	return m.FcId == id
 }
 
 func (m *MappingInt) ValueString() string {
 	return fmt.Sprintf("%d", m.Value)
+}
+
+func (m *MappingInt) GetFcID() FocusriteId {
+	return m.FcId
 }

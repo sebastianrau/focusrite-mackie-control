@@ -18,6 +18,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TODO add controller config to main config
+// TODO add all values to config
+// TODO Check Mute functions
+// TODO Add Meter Functions
+// TODO Add Name Functions
+// TODO Set Display Text
+
 var log *logrus.Entry = logger.WithPackage("monitor-controller")
 
 type Controller struct {
@@ -155,7 +162,10 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 	log.Debugf("New Raw Update Device Arrived. Items: %d", len(set.Items))
 
 	for _, s := range set.Items {
-		if slices.Contains(c.config.Master.DimSwitch.FcIdsList, FocusriteId(s.ID)) {
+
+		fcID := FocusriteId(s.ID)
+
+		if c.config.Master.DimSwitch.IsFcID(fcID) {
 			log.Debugf("Found Dim ID %d", s.ID)
 			boolValue, err := strconv.ParseBool(s.Value)
 			if err != nil {
@@ -165,7 +175,7 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 			return
 		}
 
-		if slices.Contains(c.config.Master.MuteSwitch.FcIdsList, FocusriteId(s.ID)) {
+		if c.config.Master.MuteSwitch.IsFcID(fcID) {
 			log.Debugf("Found Mute ID %d: %v", s.ID, s.Value)
 			boolValue, err := strconv.ParseBool(s.Value)
 			if err != nil {
@@ -226,15 +236,11 @@ func (c *Controller) setMute(mute bool) {
 		return
 	}
 
-	for _, fc := range c.config.Master.MuteSwitch.FcIdsList {
-		fcUpdateSet.AddItemBool(int(fc), mute)
-	}
+	fcUpdateSet.AddItemBool(int(c.config.Master.MuteSwitch.FcId), mute)
 
 	for _, spk := range c.config.Speaker {
-		for _, spkMuteId := range spk.Mute.FcIdsList {
-			state := mute || spk.Mute.Value
-			fcUpdateSet.AddItemBool(int(spkMuteId), state)
-		}
+		state := mute || spk.Mute.Value
+		fcUpdateSet.AddItemBool(int(spk.Mute.FcId), state)
 	}
 	c.toFocusrite <- *fcUpdateSet
 	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
@@ -304,10 +310,10 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 	}
 
 	fcUpdateItems := []focusritexml.Item{}
-	for _, fcID := range speaker.Mute.FcIdsList {
-		state := mute || c.config.Master.MuteSwitch.Value //mute speaker or master muter
-		fcUpdateItems = append(fcUpdateItems, focusritexml.Item{ID: int(fcID), Value: fmt.Sprintf("%t", state)})
-	}
+
+	state := mute || c.config.Master.MuteSwitch.Value //mute speaker or master muter
+	fcUpdateItems = append(fcUpdateItems, focusritexml.Item{ID: int(speaker.Mute.FcId), Value: fmt.Sprintf("%t", state)})
+
 	c.toFocusrite <- focusritexml.Set{Items: fcUpdateItems}
 	log.Debugf("Send: %v", fcUpdateItems)
 
@@ -370,9 +376,7 @@ func (c *Controller) updateSpeakerVolume() {
 	}
 
 	for _, spk := range c.config.Speaker {
-		for _, fcId := range spk.OutputGain.FcIdsList {
-			fcUpdateSet.AddItemInt(int(fcId), volume)
-		}
+		fcUpdateSet.AddItemInt(int(spk.OutputGain.FcId), volume)
 	}
 
 	c.toFocusrite <- *fcUpdateSet
@@ -438,9 +442,10 @@ func (c *Controller) initFocusriteDevice() {
 
 // make Focusrite update Set from Mapping Items
 func (c *Controller) AddItemsToSet(set *focusritexml.Set, item Mapping) {
-	for _, id := range item.FcIds() {
-		set.AddItem(focusritexml.Item{ID: int(id), Value: item.ValueString()})
+	if item.GetFcID() == 0 {
+		return
 	}
+	set.AddItem(focusritexml.Item{ID: int(item.GetFcID()), Value: item.ValueString()})
 }
 
 /*

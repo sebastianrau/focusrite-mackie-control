@@ -27,6 +27,7 @@ type SpeakerConfig struct {
 	Name       MappingString
 	Mute       MappingBool
 	OutputGain MappingInt
+	Meter      MappingInt
 	Type       SpeakerType
 	Exclusive  bool
 }
