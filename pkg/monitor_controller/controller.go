@@ -267,8 +267,9 @@ func (c *Controller) setDim(dim bool) {
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	c.AddItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
-	c.updateSpeakerVolume()
 	c.toFocusrite <- *fcUpdateSet
+
+	c.updateSpeakerVolume()
 	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
 
 }
@@ -354,11 +355,11 @@ func (c *Controller) updateSpeakerVolume() {
 	if volume >= 0 {
 		volume = 0
 	}
-	if volume < -127 {
-		volume = 127
-	}
 	if c.config.Master.DimSwitch.Value {
 		volume = volume - int(c.config.Master.DimVolumeOffset)
+	}
+	if volume < -127 {
+		volume = -127
 	}
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
