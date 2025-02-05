@@ -3,6 +3,12 @@ package monitorcontroller
 import "github.com/sebastianrau/gomcu"
 
 var (
+	ALL_GOMCU_MUTES         []gomcu.Switch  = []gomcu.Switch{gomcu.Mute1, gomcu.Mute2, gomcu.Mute3, gomcu.Mute4, gomcu.Mute5, gomcu.Mute6, gomcu.Mute7, gomcu.Mute8}
+	ALL_GOMUC_SOLO          []gomcu.Switch  = []gomcu.Switch{gomcu.Solo1, gomcu.Solo2, gomcu.Solo3, gomcu.Solo4, gomcu.Solo5, gomcu.Solo6, gomcu.Solo7, gomcu.Solo8}
+	ALL_GOMCU_FADER_CHANNEL []gomcu.Channel = []gomcu.Channel{gomcu.Channel1, gomcu.Channel2, gomcu.Channel3, gomcu.Channel4, gomcu.Channel5, gomcu.Channel6, gomcu.Channel7, gomcu.Channel8, gomcu.Master}
+)
+
+var (
 	DEFAULT Configuration = Configuration{
 
 		Speaker: map[int]*SpeakerConfig{
@@ -26,7 +32,6 @@ var (
 				Type:      Speaker,
 				Exclusive: true,
 			},
-
 			SpeakerB: {
 				Name: MappingString{
 					FcId: 1476,
@@ -81,7 +86,7 @@ var (
 				Type:      Speaker,
 				Exclusive: true,
 			},
-			SubA: {
+			Sub: {
 				Name: MappingString{
 					FcId: 1536,
 				},
@@ -99,38 +104,22 @@ var (
 				Type:      Subwoofer,
 				Exclusive: false,
 			},
-			SubB: {
-				Name: MappingString{
-					FcId: 0,
-				},
-				Mute: MappingBool{
-					FcId:           0,
-					McuButtonsList: []gomcu.Switch{ /*gomcu.AssignInstrument*/ },
-					Value:          true,
-				},
-				Type:      Subwoofer,
-				Exclusive: false,
-			},
 		},
 		Master: MasterConfig{
 			MuteSwitch: MappingBool{
-				McuButtonsList: []gomcu.Switch{gomcu.Mute1, gomcu.Mute2, gomcu.Mute3, gomcu.Mute4, gomcu.Mute5, gomcu.Mute6, gomcu.Mute7, gomcu.Mute8},
+				McuButtonsList: ALL_GOMCU_MUTES,
 				FcId:           1679,
 			},
 			DimSwitch: MappingBool{
-				McuButtonsList: []gomcu.Switch{gomcu.Solo1, gomcu.Solo2, gomcu.Solo3, gomcu.Solo4, gomcu.Solo5, gomcu.Solo6, gomcu.Solo7, gomcu.Solo8},
+				McuButtonsList: ALL_GOMUC_SOLO,
 				FcId:           1678,
 			},
-			/* TODO add Meter Level
-			Meter: MappingInt{
-				McuButtonsList: []gomcu.Switch{},
-				FcId:      ,
-			},
-			*/
-			VolumeMcuChannel: []gomcu.Channel{gomcu.Channel1, gomcu.Channel2, gomcu.Channel3, gomcu.Channel4, gomcu.Channel5, gomcu.Channel6, gomcu.Channel7, gomcu.Channel8, gomcu.Master},
+			VolumeMcuRaw:     0,
+			VolumeDB:         -127,
+			VolumeMcuChannel: ALL_GOMCU_FADER_CHANNEL,
 			DimVolumeOffset:  20.0,
 		},
-		FocusriteSerialNumber: "P9EAC6K250F325", // my 18i20
+		FocusriteSerialNumber: "P9EAC6K250F325",
 	}
 )
 

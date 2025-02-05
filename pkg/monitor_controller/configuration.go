@@ -10,8 +10,7 @@ const (
 	SpeakerB
 	SpeakerC
 	SpeakerD
-	SubA
-	SubB
+	Sub
 
 	SPEAKER_LEN
 )
@@ -61,5 +60,4 @@ func (c *Configuration) DefaultValues() {
 		spk.Mute.Value = true
 		spk.OutputGain.Value = -127
 	}
-
 }
