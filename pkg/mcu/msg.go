@@ -1,6 +1,6 @@
 package mcu
 
-import "github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+import "github.com/sebastianrau/gomcu"
 
 // ----------------------- TO MCU -----------------------
 

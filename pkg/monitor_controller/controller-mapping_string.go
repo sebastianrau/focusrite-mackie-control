@@ -3,7 +3,7 @@ package monitorcontroller
 import (
 	"slices"
 
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+	"github.com/sebastianrau/gomcu"
 )
 
 type MappingString struct {

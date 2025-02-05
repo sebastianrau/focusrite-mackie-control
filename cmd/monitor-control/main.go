@@ -10,11 +10,13 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	"github.com/sebastianrau/gomcu"
+
+	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	monitorcontroller "github.com/sebastianrau/focusrite-mackie-control/pkg/monitor_controller"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -85,6 +87,7 @@ func main() {
 			switch f := fm.(type) {
 
 			case monitorcontroller.TransportMessage:
+
 				switch gomcu.Switch(f) {
 				case gomcu.Play:
 					err := robotgo.KeyTap(robotgo.AudioPlay)

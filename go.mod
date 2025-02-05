@@ -1,13 +1,14 @@
 module github.com/sebastianrau/focusrite-mackie-control
 
-go 1.23.1
+go 1.23.5
 
 require (
+	github.com/sebastianrau/gomcu v1.0.0
 	github.com/ECUST-XX/xml v1.20.2
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/go-vgo/robotgo v0.110.5
 	github.com/sirupsen/logrus v1.9.3
-	gitlab.com/gomidi/midi/v2 v2.2.10
+	gitlab.com/gomidi/midi/v2 v2.2.19
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -28,6 +29,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/robotn/xgb v0.10.0 // indirect
 	github.com/robotn/xgbutil v0.10.0 // indirect
+	github.com/sebastianrau/gomcu v0.0.0-20250205091600-be2f881e62f2 // indirect
 	github.com/shirou/gopsutil/v4 v4.24.9 // indirect
 	github.com/tailscale/win v0.0.0-20240926211701-28f7e73c7afb // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect

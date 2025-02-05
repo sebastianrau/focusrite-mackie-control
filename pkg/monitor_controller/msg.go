@@ -1,7 +1,7 @@
 package monitorcontroller
 
 import (
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+	"github.com/sebastianrau/gomcu"
 )
 
 type SpeakerEnabledMessage struct {

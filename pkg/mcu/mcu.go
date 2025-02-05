@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
-	"github.com/sirupsen/logrus"
 
+	"github.com/sebastianrau/gomcu"
+	"github.com/sirupsen/logrus"
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver

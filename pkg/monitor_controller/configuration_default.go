@@ -1,6 +1,6 @@
 package monitorcontroller
 
-import "github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+import "github.com/sebastianrau/gomcu"
 
 var (
 	DEFAULT Configuration = Configuration{

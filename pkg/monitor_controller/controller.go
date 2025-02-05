@@ -12,9 +12,9 @@ import (
 	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	"github.com/sebastianrau/gomcu"
 	"github.com/sirupsen/logrus"
 )
 

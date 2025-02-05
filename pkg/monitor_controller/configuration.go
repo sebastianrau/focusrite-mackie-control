@@ -2,7 +2,7 @@ package monitorcontroller
 
 import (
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gomcu"
+	"github.com/sebastianrau/gomcu"
 )
 
 const (
