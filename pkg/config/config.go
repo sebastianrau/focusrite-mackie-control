@@ -1,28 +1,26 @@
 package config
 
 import (
-	"bufio"
-	"fmt"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
+
 	"github.com/sirupsen/logrus"
-	"gitlab.com/gomidi/midi/v2"
 	"gopkg.in/yaml.v2"
 )
 
 var log *logrus.Entry = logger.WithPackage("focusrite-config")
 
 const (
-	subfolder string = ".monitor-controller"
+	subfolder string = "Monitor-Controller"
 	filename  string = "monitor-controller.yaml"
 )
 
 type Config struct {
-	MidiInputPort  string `yaml:"MidiInputPort"`
-	MidiOutputPort string `yaml:"MidiOnputPort"`
+	Midi       *mcu.Configuration
+	Controller *monitorcontroller.Configuration
 }
 
 func getPath() (string, error) {
@@ -44,8 +42,8 @@ func getPathAndFile() (string, error) {
 
 func Default() *Config {
 	return &Config{
-		MidiInputPort:  "PreSonus FP2",
-		MidiOutputPort: "PreSonus FP2",
+		Midi:       &mcu.DEFAULT_CONFIGURATION,
+		Controller: &monitorcontroller.DEFAULT_CONFIGURATION,
 	}
 }
 
@@ -105,6 +103,7 @@ func (c *Config) Save() error {
 	return nil
 }
 
+/*
 func UserConfigure() (*Config, bool) {
 
 	config := &Config{}
@@ -171,3 +170,4 @@ func getMidiInputs() []string {
 	}
 	return names
 }
+*/

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"reflect"
@@ -10,12 +8,11 @@ import (
 
 	"github.com/go-vgo/robotgo"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/focusriteclient"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 	"github.com/sebastianrau/gomcu"
-
-	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
-	monitorcontroller "github.com/sebastianrau/focusrite-mackie-control/pkg/monitor_controller"
 
 	"github.com/sirupsen/logrus"
 )
@@ -29,42 +26,25 @@ var log *logrus.Entry = logger.WithPackage("main")
 
 func main() {
 	var (
-		showMidi, configureMidi, showHelp bool
-		cfg                               *config.Config
-		waitGroup                         sync.WaitGroup
+		cfg       *config.Config
+		waitGroup sync.WaitGroup
 	)
 
-	flag.BoolVar(&showMidi, "l", false, "List all installed MIDI devices")
-	flag.BoolVar(&configureMidi, "c", false, "Configure and start")
-	flag.BoolVar(&showHelp, "h", false, "Show Help")
-	flag.Parse()
 	log.Infof("Monitor Controller %v", Version)
 
-	if showHelp {
-		fmt.Println("Usage: monitor-controller [options]")
-		flag.PrintDefaults()
-		os.Exit(0)
-	}
-
-	if configureMidi {
-		c, success := config.UserConfigure()
-		if !success {
-			log.Errorln("Configuration failed.")
-			os.Exit(1)
-		}
+	c, err := config.Load()
+	if err == nil {
 		cfg = c
-	}
-
-	if cfg == nil {
-		c, err := config.Load()
+	} else {
+		log.Errorln("Loading configuration failed. Loading default values")
+		cfg = config.Default()
+		err := cfg.Save()
 		if err != nil {
-			log.Errorln("Loading configuration failed.")
-			os.Exit(1)
+			log.Errorln("Configuration could not be stored")
 		}
-		cfg = c
 	}
 
-	if cfg.MidiInputPort == "" {
+	if cfg.Midi.MidiInputPort == "" {
 		log.Errorln("No Midi port configured.")
 		os.Exit(-1)
 	}
@@ -72,17 +52,16 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mcu := mcu.InitMcu(interrupt, &waitGroup, *cfg)
+	mcu := mcu.InitMcu(interrupt, &waitGroup, *cfg.Midi)
 	fc := focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
 
 	control := monitorcontroller.NewController(
 		mcu.ToMcu, mcu.FromMcu,
-		fc.ToFocusrite, fc.FromFocusrite)
+		fc.ToFocusrite, fc.FromFocusrite,
+		cfg.Controller)
 
 	for {
-
 		select {
-
 		case fm := <-control.FromController:
 			switch f := fm.(type) {
 
@@ -106,10 +85,6 @@ func main() {
 					}
 				case gomcu.Stop:
 					// Ignore Stop
-					// err := robotgo.KeyTap(robotgo.Audio)
-					// if err != nil {
-					// 	log.Errorf("Keytab error %s", err.Error())
-					// }
 				}
 
 			case monitorcontroller.MuteMessage:

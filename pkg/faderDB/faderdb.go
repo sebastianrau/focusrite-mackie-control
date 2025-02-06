@@ -13,10 +13,10 @@ var faderToDBTable = []struct {
 	{4240, -30},
 	{6128, -20},
 	{7904, -10},
-	{9808, -5},
-	{11872, 0},
-	{14112, 5},
-	{16384, 10}, // Maximalwert bleibt gleich
+	{9808, -7},
+	{11872, -5},
+	{14112, -3},
+	{16384, 0},
 }
 
 // FaderToDB konvertiert einen Faderwert (0 bis 16384) in Dezibel (dB) mithilfe einer Lookup-Tabelle und Interpolation.

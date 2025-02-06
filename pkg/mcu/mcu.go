@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 
 	"github.com/sebastianrau/gomcu"
@@ -19,7 +18,7 @@ import (
 var log *logrus.Entry = logger.WithPackage("mcu")
 
 type Mcu struct {
-	config       *config.Config
+	config       *Configuration
 	waitGroup    *sync.WaitGroup
 	midiInput    drivers.In
 	midiOutput   drivers.Out
@@ -39,7 +38,7 @@ type Mcu struct {
 }
 
 // Initialize the MCU runloop
-func InitMcu(interrupt chan os.Signal, wg *sync.WaitGroup, cfg config.Config) *Mcu {
+func InitMcu(interrupt chan os.Signal, wg *sync.WaitGroup, cfg Configuration) *Mcu {
 	m := Mcu{
 		config:             &cfg,
 		waitGroup:          wg,

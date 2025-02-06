@@ -9,7 +9,7 @@ var (
 )
 
 var (
-	DEFAULT Configuration = Configuration{
+	DEFAULT_CONFIGURATION Configuration = Configuration{
 
 		Speaker: map[int]*SpeakerConfig{
 
@@ -39,8 +39,7 @@ var (
 					FcId: 1476,
 				},
 				Mute: MappingBool{
-					FcId: 1473,
-
+					FcId:           1473,
 					McuButtonsList: []gomcu.Switch{ /*gomcu.AssignSend,*/ gomcu.Touch},
 					Value:          true,
 				},
@@ -49,8 +48,6 @@ var (
 				},
 				Meter: MappingInt{
 					FcId: 1470,
-
-					McuButtonsList: []gomcu.Switch{},
 				},
 				Type:      Speaker,
 				Exclusive: true,
@@ -129,5 +126,5 @@ var (
 
 // TODO For Testing only
 func DefaultConfiguration() *Configuration {
-	return &DEFAULT
+	return &DEFAULT_CONFIGURATION
 }

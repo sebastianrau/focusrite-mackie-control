@@ -3,14 +3,15 @@ package monitorcontroller
 // TODO: remove Fader fpr Speaker Level
 
 import (
+	"math"
 	"reflect"
 	"slices"
 	"strconv"
 
 	"github.com/ECUST-XX/xml"
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
-	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-client"
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/focusriteclient"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
@@ -18,17 +19,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// TODO add controller config to main config
-// TODO add all values to config
-// TODO Check Mute functions
 // TODO Add Meter Functions
-// TODO Add Name Functions
-// TODO Set Display Text
+// TODO Add Name Functions & Set Display Text
 
 var log *logrus.Entry = logger.WithPackage("monitor-controller")
 
 type Controller struct {
-	config Configuration
+	config *Configuration
 
 	toMcu   chan interface{}
 	fromMcu chan interface{}
@@ -37,8 +34,6 @@ type Controller struct {
 	fromFocusrite chan interface{}
 
 	FromController chan interface{}
-
-	mcuLedState map[gomcu.Switch]gomcu.State
 }
 
 // NewMcuState creates a new McuState
@@ -46,19 +41,18 @@ func NewController(
 	toMcu chan interface{},
 	fromMcu chan interface{},
 	toFocusrite chan focusritexml.Set,
-	fromFocusrite chan interface{}) *Controller {
+	fromFocusrite chan interface{}, config *Configuration) *Controller {
 
 	c := Controller{
-		config: DEFAULT,
+		config: config,
 
 		toMcu:   toMcu,
 		fromMcu: fromMcu,
 
-		toFocusrite:    toFocusrite,
-		fromFocusrite:  fromFocusrite,
-		FromController: make(chan interface{}, 100),
+		toFocusrite:   toFocusrite,
+		fromFocusrite: fromFocusrite,
 
-		mcuLedState: make(map[gomcu.Switch]gomcu.State),
+		FromController: make(chan interface{}, 100),
 	}
 	c.config.DefaultValues()
 
@@ -328,14 +322,13 @@ func (c *Controller) toggleSpeakerEnabled(id int) {
 
 // Volume function
 func (c *Controller) setMasterVolumeRawValue(vol uint16) {
-	if c.config.Master.VolumeMcuRaw == vol {
+	if math.Abs(float64(c.config.Master.VolumeMcuRaw-vol)) < 50 { //skip small changes for performance reasons
 		return
 	}
 
 	db := faderdb.FaderToDB(vol)
 	c.config.Master.VolumeMcuRaw = vol
 	c.config.Master.VolumeDB = int(db)
-	log.Debugf("New Master Volume %d (%d db)", c.config.Master.VolumeMcuRaw, c.config.Master.VolumeDB)
 
 	c.updateSpeakerVolume()
 }
@@ -367,8 +360,6 @@ func (c *Controller) updateSpeakerVolume() {
 		fcUpdateSet.AddItemInt(int(spk.OutputGain.FcId), volume)
 	}
 	c.toFocusrite <- *fcUpdateSet
-
-	log.Debugf("setting focusrite speaker Level to %d", volume)
 }
 
 func (c *Controller) updateSpeakerMute() {
@@ -392,11 +383,7 @@ func (c *Controller) setLedBool(sw gomcu.Switch, state bool) {
 	c.setLed(sw, mcu.Bool2State(state))
 }
 func (c *Controller) setLed(sw gomcu.Switch, state gomcu.State) {
-	s, ok := c.mcuLedState[sw]
-	if s != state || !ok { //new state or new entry
-		c.mcuLedState[sw] = state
-		c.toMcu <- mcu.LedCommand{Led: sw, State: state}
-	}
+	c.toMcu <- mcu.LedCommand{Led: sw, State: state}
 }
 
 func (c *Controller) UpdateAllLeds(switches []gomcu.Switch, state bool) {
