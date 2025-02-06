@@ -8,88 +8,124 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+const (
+	SpeakerA ButtonID = iota
+	SpeakerB
+	SpeakerC
+	SpeakerD
+	Sub
+	Spacer
+	Mute
+	Dim
+
+	LEN
+)
+
+type buttonConfig struct {
+	ID       ButtonID
+	Name     string
+	Color    color.RGBA
+	Disabled bool
+}
+
+var (
+	GREEN  = color.RGBA{0, 255, 0, 255}
+	YELLOW = color.RGBA{255, 255, 0, 255} // Yellow
+	RED    = color.RGBA{255, 0, 0, 255}   // Red
+	BLACK  = color.RGBA{0, 0, 0, 0}
+
+	btnDefinition = []buttonConfig{
+		{ID: SpeakerA, Name: "Speaker A", Color: GREEN},
+		{ID: SpeakerB, Name: "Speaker B", Color: GREEN},
+		{ID: SpeakerC, Name: "Speaker B", Color: GREEN},
+		{ID: SpeakerD, Name: "Speaker D", Color: GREEN},
+		{ID: Sub, Name: "Sub", Color: GREEN},
+		{ID: Spacer, Name: "", Color: BLACK, Disabled: true},
+		{ID: Mute, Name: "Mute", Color: RED},
+		{ID: Dim, Name: "Dim", Color: YELLOW},
+	}
+)
+
 type MainGui struct {
 	fader           *AudioLevelMeter
 	buttonContainer *fyne.Container
-	buttons         map[string]*ToggleButton
+	buttons         map[ButtonID]*ToggleButton
+
+	masterValueChanged chan AudioLevelChanged
+	buttonPressed      chan ButtonEvent
+	guiEvents          chan interface{}
 }
 
 func NewAppWindow(
 	myApp fyne.App,
-	masterValueChanged chan AudioLevelChanged,
-	buttonPressed chan ButtonEvent,
+	guiEvents chan interface{},
 	minLevel float64,
 	maxLevel float64,
 ) (*MainGui, *fyne.Container) {
 
+	colorGradient := NewGradient([]ColorValuePair{
+		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},   // Dark green
+		{Value: -5, Color: color.RGBA{255, 255, 0, 255}},  // Yellow
+		{Value: -15, Color: color.RGBA{255, 255, 0, 255}}, // Light Green
+		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},     // Red
+	})
+
 	mainGui := &MainGui{
-		fader:           NewAudioFaderMeter(minLevel, maxLevel, minLevel, 0, "Master", "dB", masterValueChanged),
-		buttonContainer: container.NewVBox(),
+		guiEvents:          guiEvents,
+		masterValueChanged: make(chan AudioLevelChanged, 100),
+		buttonPressed:      make(chan ButtonEvent, 100),
 	}
 
-	// Speaker and Sub Buttons
+	mainGui.fader = NewAudioFaderMeter(minLevel, maxLevel, minLevel, 0, "Master", "dB", mainGui.masterValueChanged)
+	mainGui.fader.SetGradient(colorGradient)
 
-	speakerButtons := []string{"Speaker A", "Speaker B", "Speaker C", "Speaker D", "Sub"}
-	for _, v := range speakerButtons {
-		btn := NewToggleButton(
-			v,
-			color.RGBA{0, 255, 0, 255}, //Green
-			buttonPressed,
-		)
-		//mainGui.buttons[v] = btn
-		mainGui.buttonContainer.Add(btn)
+	mainGui.buttonContainer = container.NewVBox()
+
+	// Action Buttons
+	for _, b := range btnDefinition {
+		if !b.Disabled {
+			btn := NewToggleButton(
+				b.ID,
+				b.Name,
+				b.Color,
+				mainGui.buttonPressed,
+			)
+			mainGui.buttonContainer.Add(btn)
+		} else {
+			btn := widget.NewButton("", nil)
+			btn.Importance = widget.LowImportance
+			btn.Disable()
+			mainGui.buttonContainer.Add(btn)
+		}
 	}
 
-	spacerButton := widget.NewButton("", nil)
-	spacerButton.Importance = widget.LowImportance
-	spacerButton.Disable()
-	mainGui.buttonContainer.Add(spacerButton)
-
-	muteBtn := NewToggleButton(
-		"Mute",
-		color.RGBA{255, 0, 0, 255}, // Red
-		buttonPressed,
-	)
-	mainGui.buttonContainer.Add(muteBtn)
-
-	dimBtn := NewToggleButton(
-		"Dim",
-		color.RGBA{255, 255, 0, 255}, // Yellow
-		buttonPressed,
-	)
-	mainGui.buttonContainer.Add(dimBtn)
-
-	// Layout
+	// Layouts
 	content := container.NewGridWithColumns(2,
 		mainGui.fader,
 		mainGui.buttonContainer,
 	)
+	go mainGui.run()
+
 	return mainGui, content
 }
 
-func (g *MainGui) SetLevel(level float64) {
-
-	scaledLevel := (level - g.fader.minLevel) / (g.fader.maxLevel - g.fader.minLevel)
-
-	if scaledLevel < 0.0 {
-		scaledLevel = 0.0
-	} else if scaledLevel > 1.0 {
-		scaledLevel = 1.0
+func (g *MainGui) run() {
+	for {
+		select {
+		case v := <-g.masterValueChanged:
+			g.guiEvents <- v
+		case v := <-g.buttonPressed:
+			g.guiEvents <- v
+		}
 	}
-	g.fader.SetLevel(scaledLevel)
 }
 
-/*
-func (g *MainGui) SetButton(button string, state bool) {
-	b, ok := g.buttons[button]
-	if !ok {
-		return
-	}
-	b.Set(state)
-}*/
+func (g *MainGui) SetLevel(level float64) {
+	g.fader.SetLevel(level)
+}
 
-func (g *MainGui) SetButtonlabel(button string, label string) {
-	b, ok := g.buttons[button]
+func (g *MainGui) SetButtonlabel(id ButtonID, label string) {
+	b, ok := g.buttons[id]
 	if !ok {
 		return
 	}

@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+type ButtonID int
+
 type ButtonEvent struct {
 	Label  string
 	Button *ToggleButton
@@ -17,6 +19,7 @@ type ButtonEvent struct {
 
 type ToggleButton struct {
 	widget.BaseWidget
+	ID            ButtonID
 	State         bool
 	Button        *widget.Button
 	LabelWidget   *canvas.Text
@@ -26,9 +29,10 @@ type ToggleButton struct {
 	ButtonPressed chan ButtonEvent
 }
 
-func NewToggleButton(label string, onColor color.Color, eventChan chan ButtonEvent) *ToggleButton {
+func NewToggleButton(id ButtonID, label string, onColor color.Color, eventChan chan ButtonEvent) *ToggleButton {
 
 	toggleBtn := &ToggleButton{
+		ID:            id,
 		State:         false,
 		OnColor:       onColor,
 		OffColor:      theme.Color(theme.ColorNameForeground),
