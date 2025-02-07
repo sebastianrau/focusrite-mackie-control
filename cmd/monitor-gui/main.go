@@ -56,13 +56,16 @@ func main() {
 					}
 
 				case gui.AudioLevelChanged:
+					//mainGui.SetLevel(ev.Value)
 					fmt.Printf("Value Changed on Slider: %.1f\n", ev.Value)
 				}
 			}
 		}
 	}()
 
+	mainGui.SetLevel(0)
 	// TODO Remove Audio value Simulation
+
 	go func() {
 		for {
 			time.Sleep(time.Second / 5)
@@ -107,7 +110,8 @@ func MakeApp() (fyne.App, fyne.Window, error) {
 	w.SetMaster()
 
 	w.SetTitle(APP_TITLE)
-	w.FixedSize()
-	w.Resize(fyne.NewSize(200, 300))
+	w.SetFixedSize(true)
+
+	w.Resize(fyne.NewSize(280, 300))
 	return app, w, nil
 }

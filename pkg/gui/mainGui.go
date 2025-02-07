@@ -1,11 +1,12 @@
 package gui
 
 import (
+	"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 )
 
 const (
@@ -22,10 +23,9 @@ const (
 )
 
 type buttonConfig struct {
-	ID       ButtonID
-	Name     string
-	Color    color.RGBA
-	Disabled bool
+	ID    ButtonID
+	Name  string
+	Color color.RGBA
 }
 
 var (
@@ -40,14 +40,15 @@ var (
 		{ID: SpeakerC, Name: "Speaker B", Color: GREEN},
 		{ID: SpeakerD, Name: "Speaker D", Color: GREEN},
 		{ID: Sub, Name: "Sub", Color: GREEN},
-		{ID: Spacer, Name: "", Color: BLACK, Disabled: true},
+		{ID: Spacer, Name: "", Color: BLACK},
 		{ID: Mute, Name: "Mute", Color: RED},
 		{ID: Dim, Name: "Dim", Color: YELLOW},
 	}
 )
 
 type MainGui struct {
-	fader           *AudioLevelMeter
+	fader           *AudioFader
+	levelMeter      *AudioMeter
 	buttonContainer *fyne.Container
 	buttons         map[ButtonID]*ToggleButton
 
@@ -76,14 +77,26 @@ func NewAppWindow(
 		buttonPressed:      make(chan ButtonEvent, 100),
 	}
 
-	mainGui.fader = NewAudioFaderMeter(minLevel, maxLevel, minLevel, 0, "Master", "dB", mainGui.masterValueChanged)
-	mainGui.fader.SetGradient(colorGradient)
+	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
+	mainGui.fader.SetLevel(-20)
+
+	mainGui.levelMeter = NewAudioMeterBar(0)
+	mainGui.levelMeter.SetGradient(colorGradient)
+	mainGui.levelMeter.Decay = false
 
 	mainGui.buttonContainer = container.NewVBox()
 
 	// Action Buttons
 	for _, b := range btnDefinition {
-		if !b.Disabled {
+
+		//imgSize := mainGui.buttonContainer.Size().Width
+
+		if b.ID == Spacer {
+			img := canvas.NewImageFromFile("logo.png")
+			img.FillMode = canvas.ImageFillContain
+			img.SetMinSize(fyne.NewSize(100, 100))
+			mainGui.buttonContainer.Add(img)
+		} else {
 			btn := NewToggleButton(
 				b.ID,
 				b.Name,
@@ -91,20 +104,21 @@ func NewAppWindow(
 				mainGui.buttonPressed,
 			)
 			mainGui.buttonContainer.Add(btn)
-		} else {
-			btn := widget.NewButton("", nil)
-			btn.Importance = widget.LowImportance
-			btn.Disable()
-			mainGui.buttonContainer.Add(btn)
 		}
+
 	}
 
 	// Layouts
-	content := container.NewGridWithColumns(2,
+	content := container.NewBorder(
+		nil, // top
+		nil, // bot
 		mainGui.fader,
+		mainGui.levelMeter,
 		mainGui.buttonContainer,
 	)
 	go mainGui.run()
+
+	fmt.Printf("Fader Size w/h: %.0f %.0f ", mainGui.fader.MinSize().Width, mainGui.fader.MinSize().Height)
 
 	return mainGui, content
 }
@@ -121,13 +135,22 @@ func (g *MainGui) run() {
 }
 
 func (g *MainGui) SetLevel(level float64) {
+	g.levelMeter.SetValue(level)
+}
+func (g *MainGui) SetFader(level float64) {
 	g.fader.SetLevel(level)
 }
-
 func (g *MainGui) SetButtonlabel(id ButtonID, label string) {
 	b, ok := g.buttons[id]
 	if !ok {
 		return
 	}
 	b.Label = label
+}
+func (g *MainGui) SetButton(id ButtonID, state bool) {
+	b, ok := g.buttons[id]
+	if !ok {
+		return
+	}
+	b.State = state
 }
