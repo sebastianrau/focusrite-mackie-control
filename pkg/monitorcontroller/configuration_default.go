@@ -106,7 +106,7 @@ var (
 				Exclusive: false,
 			},
 		},
-		Master: MasterConfig{
+		Master: &MasterConfig{
 			MuteSwitch: MappingBool{
 				McuButtonsList: ALL_GOMCU_MUTES,
 				FcId:           1679,

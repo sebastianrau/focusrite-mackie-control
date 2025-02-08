@@ -9,13 +9,12 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 
 	"github.com/sebastianrau/gomcu"
-	"github.com/sirupsen/logrus"
 	"gitlab.com/gomidi/midi/v2"
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // autoregisters driver
 )
 
-var log *logrus.Entry = logger.WithPackage("mcu")
+var log *logger.CustomLogger = logger.WithPackage("mcu")
 
 type Mcu struct {
 	config       *Configuration

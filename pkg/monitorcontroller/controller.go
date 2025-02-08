@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/ECUST-XX/xml"
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/faderDB"
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/focusriteclient"
@@ -16,13 +15,12 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	"github.com/sebastianrau/gomcu"
-	"github.com/sirupsen/logrus"
 )
 
 // TODO Add Meter Functions
 // TODO Add Name Functions & Set Display Text
 
-var log *logrus.Entry = logger.WithPackage("monitor-controller")
+var log *logger.CustomLogger = logger.WithPackage("monitor-controller")
 
 type Controller struct {
 	config *Configuration
@@ -33,7 +31,10 @@ type Controller struct {
 	toFocusrite   chan focusritexml.Set
 	fromFocusrite chan interface{}
 
-	FromController chan interface{}
+	fromRemoteController chan interface{}
+
+	toController     chan interface{} //Command interface for Remote Controller
+	remoteController []RemoteController
 }
 
 // NewMcuState creates a new McuState
@@ -52,15 +53,15 @@ func NewController(
 		toFocusrite:   toFocusrite,
 		fromFocusrite: fromFocusrite,
 
-		FromController: make(chan interface{}, 100),
+		toController: make(chan interface{}, 100),
 	}
 	c.config.DefaultValues()
 
-	go c.Run()
+	go c.run()
 	return &c
 }
 
-func (c *Controller) Run() {
+func (c *Controller) run() {
 	for {
 		select {
 		case mcu := <-c.fromMcu:
@@ -68,7 +69,11 @@ func (c *Controller) Run() {
 
 		case focusrite := <-c.fromFocusrite:
 			c.handleFocusrite(focusrite)
+
+		case remote := <-c.fromRemoteController:
+			c.handleRemoteControl(remote)
 		}
+
 	}
 }
 
@@ -106,15 +111,17 @@ func (c *Controller) handleMcu(msg interface{}) {
 			}
 		}
 
-		switch f.KeyNumber {
-		case gomcu.Play,
-			gomcu.Stop,
-			gomcu.FastFwd,
-			gomcu.Rewind:
-			c.FromController <- TransportMessage(f.KeyNumber)
-		}
-		log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
-
+		// FIXME: remove from controller
+		/*
+			switch f.KeyNumber {
+			case gomcu.Play,
+				gomcu.Stop,
+				gomcu.FastFwd,
+				gomcu.Rewind:
+				c.FromController <- TransportMessage(f.KeyNumber)
+			}
+			log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
+		*/
 	case mcu.RawFaderMessage:
 		if slices.Contains(c.config.Master.VolumeMcuChannel, f.FaderNumber) {
 			c.setMasterVolumeRawValue(f.FaderValue)
@@ -176,11 +183,11 @@ func (c *Controller) handleFocusriteUpdate(set focusritexml.Set) {
 			return
 		}
 
-		for _, spk := range c.config.Speaker {
+		for id, spk := range c.config.Speaker {
 			if spk.Name.IsFcID(FocusriteId(s.ID)) {
 				log.Debugf("Found Speaker Name from fc %d: %s", s.ID, s.Value)
 				spk.Name.ParseItem(s)
-				// TODO Update MCU Displays
+				c.fireSpeakerUpdate(id, spk)
 			}
 
 			if spk.Mute.IsFcID(FocusriteId(s.ID)) {
@@ -213,9 +220,6 @@ func (c *Controller) handleFocusriteDeviceArrival(device focusritexml.Device) {
 		c.config.FocusriteDeviceId = device.ID
 		c.initFocusriteDevice()
 		log.Debugf("configured device with SN: %s arrived with ID ID:%d", device.SerialNumber, device.ID)
-
-		xml, _ := xml.MarshalIndent(device.Outputs.Analogues, "", "    ")
-		log.Debugln("\n" + string(xml))
 	}
 }
 
@@ -224,6 +228,89 @@ func (c *Controller) handleFocusriteDeviceRemoval(deviceId int) {
 	if deviceId != 0 && deviceId == c.config.FocusriteDeviceId {
 		c.config.FocusriteDeviceId = 0
 	}
+}
+
+//Remote Controls
+
+func (c *Controller) RegisterRemoteController(r RemoteController) *Controller {
+	c.remoteController = append(c.remoteController, r)
+	c.fireAllUpdate()
+	return c
+}
+
+func (c *Controller) handleRemoteControl(remote interface{}) {
+	switch r := remote.(type) {
+	case RcUpdateRequest:
+
+	case RcSetMute:
+		c.setMute(bool(r))
+	case RcSetDim:
+		c.setDim(bool(r))
+	case RcSetVolume:
+		c.setMasterVolumeDB(int(r))
+	case RcSpeakerSelect:
+		c.setSpeakerEnabled(r.id, r.state)
+	}
+}
+
+func (c *Controller) fireDeviceArrival(dev *focusritexml.Device) {
+	for _, rc := range c.remoteController {
+		rc.HandleDeviceArrival(dev)
+	}
+}
+func (c *Controller) fireDeviceRemoval() {
+	for _, rc := range c.remoteController {
+		rc.HandleDeviceRemoval()
+	}
+}
+
+func (c *Controller) fireDim(state bool) {
+	for _, rc := range c.remoteController {
+		rc.HandleDim(state)
+	}
+}
+func (c *Controller) fireMute(state bool) {
+	for _, rc := range c.remoteController {
+		rc.HandleMute(state)
+	}
+}
+func (c *Controller) fireVolume(vol int) {
+	for _, rc := range c.remoteController {
+		rc.HandleVolume(vol)
+	}
+}
+func (c *Controller) fireMeter(level int) {
+	for _, rc := range c.remoteController {
+		rc.HandleMeter(level)
+	}
+}
+func (c *Controller) fireSpeakerSelect(id SpeakerID, state bool) {
+	for _, rc := range c.remoteController {
+		rc.HandleSpeakerSelect(id, state)
+	}
+}
+func (c *Controller) fireSpeakerUpdate(id SpeakerID, spk *SpeakerConfig) {
+	for _, rc := range c.remoteController {
+		rc.HandleSpeakerUpdate(id, spk)
+	}
+
+}
+func (c *Controller) fireMasterUpdate(master *MasterConfig) {
+	for _, rc := range c.remoteController {
+		rc.HandleMasterUpdate(master)
+	}
+}
+
+func (c *Controller) fireAllUpdate() {
+	for spkId, spk := range c.config.Speaker {
+		for _, rc := range c.remoteController {
+			rc.HandleSpeakerUpdate(spkId, spk)
+		}
+	}
+	for _, rc := range c.remoteController {
+		rc.HandleMasterUpdate(c.config.Master)
+	}
+
 }
 
 // Mute function
@@ -235,14 +322,14 @@ func (c *Controller) setMute(mute bool) {
 
 	c.config.Master.MuteSwitch.Value = mute
 
-	c.UpdateAllLeds(c.config.Master.MuteSwitch.McuButtonsList, mute)
+	c.updateAllLeds(c.config.Master.MuteSwitch.McuButtonsList, mute)
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	fcUpdateSet.AddItemBool(int(c.config.Master.MuteSwitch.FcId), mute)
 	c.toFocusrite <- *fcUpdateSet
 
 	c.updateSpeakerMute()
-	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
+	c.fireMute(c.config.Master.MuteSwitch.Value)
 }
 
 // Dim function
@@ -260,11 +347,11 @@ func (c *Controller) setDim(dim bool) {
 	}
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	c.AddItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
+	c.addItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
 	c.toFocusrite <- *fcUpdateSet
 
 	c.updateSpeakerVolume()
-	c.FromController <- MuteMessage(c.config.Master.MuteSwitch.Value)
+	c.fireDim(dim)
 
 }
 
@@ -309,7 +396,7 @@ func (c *Controller) setSpeakerEnabled(id SpeakerID, enabled bool) {
 		c.setLedBool(v, enabled)
 	}
 
-	c.FromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: enabled}
+	c.fireSpeakerSelect(id, enabled)
 }
 
 func (c *Controller) toggleSpeakerEnabled(id SpeakerID) {
@@ -330,6 +417,7 @@ func (c *Controller) setMasterVolumeRawValue(vol uint16) {
 	c.config.Master.VolumeMcuRaw = vol
 	c.config.Master.VolumeDB = int(db)
 
+	c.fireVolume(c.config.Master.VolumeDB)
 	c.updateSpeakerVolume()
 }
 
@@ -340,6 +428,7 @@ func (c *Controller) setMasterVolumeDB(vol int) {
 	c.config.Master.VolumeDB = vol
 	c.config.Master.VolumeMcuRaw = faderdb.DBToFader(float64(vol))
 
+	c.fireVolume(c.config.Master.VolumeDB)
 	c.updateSpeakerVolume()
 }
 
@@ -382,17 +471,18 @@ func (c *Controller) updateSpeakerMute() {
 func (c *Controller) setLedBool(sw gomcu.Switch, state bool) {
 	c.setLed(sw, mcu.Bool2State(state))
 }
+
 func (c *Controller) setLed(sw gomcu.Switch, state gomcu.State) {
 	c.toMcu <- mcu.LedCommand{Led: sw, State: state}
 }
 
-func (c *Controller) UpdateAllLeds(switches []gomcu.Switch, state bool) {
+func (c *Controller) updateAllLeds(switches []gomcu.Switch, state bool) {
 	for _, led := range switches {
 		c.setLedBool(led, state)
 	}
 }
 
-func (c *Controller) UpdateAllFader(channel []gomcu.Channel, value uint16) {
+func (c *Controller) updateAllFader(channel []gomcu.Channel, value uint16) {
 	for _, fader := range channel {
 		c.toMcu <- mcu.FaderSelectCommand{Channel: gomcu.Channel(fader), ChnnalValue: value}
 		c.toMcu <- mcu.FaderCommand{Fader: gomcu.Channel(fader), Value: value}
@@ -400,7 +490,7 @@ func (c *Controller) UpdateAllFader(channel []gomcu.Channel, value uint16) {
 }
 
 // make Focusrite update Set from Mapping Items
-func (c *Controller) AddItemsToSet(set *focusritexml.Set, item Mapping) {
+func (c *Controller) addItemsToSet(set *focusritexml.Set, item Mapping) {
 	if item.GetFcID() == 0 {
 		return
 	}
@@ -410,8 +500,8 @@ func (c *Controller) AddItemsToSet(set *focusritexml.Set, item Mapping) {
 // TODO add more updates here
 func (c *Controller) initFocusriteDevice() {
 	updateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
-	c.AddItemsToSet(updateSet, &c.config.Master.MuteSwitch)
-	c.AddItemsToSet(updateSet, &c.config.Master.DimSwitch)
+	c.addItemsToSet(updateSet, &c.config.Master.MuteSwitch)
+	c.addItemsToSet(updateSet, &c.config.Master.DimSwitch)
 
 	c.toFocusrite <- *updateSet
 
@@ -434,12 +524,12 @@ func (c *Controller) initMcu() {
 
 	// send Fader Values
 
-	c.UpdateAllFader(c.config.Master.VolumeMcuChannel, c.config.Master.VolumeMcuRaw)
+	c.updateAllFader(c.config.Master.VolumeMcuChannel, c.config.Master.VolumeMcuRaw)
 
 	//Speaker Updates
 	// send Speaker States
 	for _, speaker := range c.config.Speaker {
-		c.UpdateAllLeds(speaker.Mute.McuButtonsList, !speaker.Mute.Value)
+		c.updateAllLeds(speaker.Mute.McuButtonsList, !speaker.Mute.Value)
 	}
 
 }

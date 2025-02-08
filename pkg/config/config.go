@@ -7,11 +7,10 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
-var log *logrus.Entry = logger.WithPackage("focusrite-config")
+var log *logger.CustomLogger = logger.WithPackage("focusrite-config")
 
 const (
 	subfolder string = "Monitor-Controller"

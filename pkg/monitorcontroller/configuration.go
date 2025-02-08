@@ -47,7 +47,7 @@ type MasterConfig struct {
 
 type Configuration struct {
 	Speaker map[SpeakerID]*SpeakerConfig
-	Master  MasterConfig
+	Master  *MasterConfig
 
 	FocusriteSerialNumber string
 	FocusriteDeviceId     int

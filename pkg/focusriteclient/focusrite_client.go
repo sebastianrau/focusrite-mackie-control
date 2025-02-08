@@ -9,10 +9,9 @@ import (
 
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
-	"github.com/sirupsen/logrus"
 )
 
-var log *logrus.Entry = logger.WithPackage("focusriteclient")
+var log *logger.CustomLogger = logger.WithPackage("focusriteclient")
 
 type State int
 
