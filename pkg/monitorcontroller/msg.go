@@ -5,7 +5,7 @@ import (
 )
 
 type SpeakerEnabledMessage struct {
-	SpeakerID      int
+	SpeakerID      SpeakerID
 	SpeakerEnabled bool
 }
 

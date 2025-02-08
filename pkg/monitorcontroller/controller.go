@@ -269,7 +269,7 @@ func (c *Controller) setDim(dim bool) {
 }
 
 // Speaker Enable functions
-func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
+func (c *Controller) setSpeakerEnabled(id SpeakerID, enabled bool) {
 	mute := !enabled
 	speaker, ok := c.config.Speaker[id]
 	if !ok || mute == speaker.Mute.Value {
@@ -312,7 +312,7 @@ func (c *Controller) setSpeakerEnabled(id int, enabled bool) {
 	c.FromController <- SpeakerEnabledMessage{SpeakerID: id, SpeakerEnabled: enabled}
 }
 
-func (c *Controller) toggleSpeakerEnabled(id int) {
+func (c *Controller) toggleSpeakerEnabled(id SpeakerID) {
 	speaker, ok := c.config.Speaker[id]
 	if !ok {
 		return

@@ -5,8 +5,10 @@ import (
 	"github.com/sebastianrau/gomcu"
 )
 
+type SpeakerID int
+
 const (
-	SpeakerA = iota
+	SpeakerA SpeakerID = iota
 	SpeakerB
 	SpeakerC
 	SpeakerD
@@ -44,7 +46,7 @@ type MasterConfig struct {
 }
 
 type Configuration struct {
-	Speaker map[int]*SpeakerConfig
+	Speaker map[SpeakerID]*SpeakerConfig
 	Master  MasterConfig
 
 	FocusriteSerialNumber string

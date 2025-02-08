@@ -11,7 +11,7 @@ var (
 var (
 	DEFAULT_CONFIGURATION Configuration = Configuration{
 
-		Speaker: map[int]*SpeakerConfig{
+		Speaker: map[SpeakerID]*SpeakerConfig{
 
 			SpeakerA: {
 				Name: MappingString{
