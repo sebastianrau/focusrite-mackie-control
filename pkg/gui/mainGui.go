@@ -3,11 +3,16 @@ package gui
 import (
 	"fmt"
 	"image/color"
+	"os"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 )
+
+const APP_TITLE string = "Monitor Controller"
 
 const (
 	SpeakerA ButtonID = iota
@@ -65,10 +70,10 @@ func NewAppWindow(
 ) (*MainGui, *fyne.Container) {
 
 	colorGradient := NewGradient([]ColorValuePair{
-		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},   // Dark green
-		{Value: -5, Color: color.RGBA{255, 255, 0, 255}},  // Yellow
-		{Value: -15, Color: color.RGBA{255, 255, 0, 255}}, // Light Green
-		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},     // Red
+		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
+		{Value: -15, Color: color.RGBA{0, 180, 0, 255}},  // Light Green
+		{Value: -6, Color: color.RGBA{255, 255, 0, 255}}, // Yellow
+		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},    // Red
 	})
 
 	mainGui := &MainGui{
@@ -153,4 +158,42 @@ func (g *MainGui) SetButton(id ButtonID, state bool) {
 		return
 	}
 	b.State = state
+}
+
+func MakeApp() (fyne.App, fyne.Window, error) {
+	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
+	iconFile, err := os.ReadFile(iconPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	iconResource := fyne.NewStaticResource("appIcon", iconFile)
+
+	app := app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
+	app.SetIcon(iconResource)
+
+	w := app.NewWindow(APP_TITLE)
+
+	if desk, ok := app.(desktop.App); ok {
+		m := fyne.NewMenu(APP_TITLE,
+			fyne.NewMenuItem("Show", func() {
+				w.Show()
+			}))
+		desk.SetSystemTrayMenu(m)
+	}
+
+	w.SetCloseIntercept(func() {
+		w.Hide()
+	})
+
+	w.SetFullScreen(false)
+
+	w.SetMainMenu(fyne.NewMainMenu())
+	w.SetIcon(iconResource) // Setzt das Icon für die App
+	w.SetMaster()
+
+	w.SetTitle(APP_TITLE)
+	w.SetFixedSize(true)
+	w.SetFullScreen(false)
+	w.Resize(fyne.NewSize(280, 300))
+	return app, w, nil
 }

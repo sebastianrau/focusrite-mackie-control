@@ -7,22 +7,18 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/driver/desktop"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 )
 
-const (
-	APP_TITLE string = "Monitor Controller"
-)
+const ()
 
 func main() {
 
 	guiEvent := make(chan interface{}, 100)
 
-	app, window, err := MakeApp()
+	app, window, err := gui.MakeApp()
 	if err != nil {
-		fyne.LogError("Fehler beim Laden des Icons", err)
+		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)
 	}
 
@@ -56,14 +52,13 @@ func main() {
 					}
 
 				case gui.AudioLevelChanged:
-					//mainGui.SetLevel(ev.Value)
+					// HACK mainGui.SetLevel(ev.Value)
 					fmt.Printf("Value Changed on Slider: %.1f\n", ev.Value)
 				}
 			}
 		}
 	}()
 
-	mainGui.SetLevel(0)
 	// TODO Remove Audio value Simulation
 
 	go func() {
@@ -76,42 +71,4 @@ func main() {
 
 	window.SetContent(content)
 	window.ShowAndRun()
-}
-
-func MakeApp() (fyne.App, fyne.Window, error) {
-	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
-	iconFile, err := os.ReadFile(iconPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	iconResource := fyne.NewStaticResource("appIcon", iconFile)
-
-	app := app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
-	app.SetIcon(iconResource)
-
-	w := app.NewWindow(APP_TITLE)
-
-	if desk, ok := app.(desktop.App); ok {
-		m := fyne.NewMenu(APP_TITLE,
-			fyne.NewMenuItem("Show", func() {
-				w.Show()
-			}))
-		desk.SetSystemTrayMenu(m)
-	}
-
-	w.SetCloseIntercept(func() {
-		w.Hide()
-	})
-
-	w.SetFullScreen(false)
-
-	w.SetMainMenu(fyne.NewMainMenu())
-	w.SetIcon(iconResource) // Setzt das Icon für die App
-	w.SetMaster()
-
-	w.SetTitle(APP_TITLE)
-	w.SetFixedSize(true)
-
-	w.Resize(fyne.NewSize(280, 300))
-	return app, w, nil
 }
