@@ -1,0 +1,7 @@
+<hardware-controls exclusive="true" min-gain="-128" max-gain="0">
+    <gain id="1677"/>
+    <dim id="1678"/>
+    <mute id="1679"/>
+    <alt-enable id="1680"/>
+    <alt id="1681"/>
+</hardware-controls>
