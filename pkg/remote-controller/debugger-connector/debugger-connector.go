@@ -60,14 +60,14 @@ func (dc *DebuggerConnector) HandleSpeakerSelect(id monitorcontroller.SpeakerID,
 	dc.log.Debugf("Speaker %d: %t", id, state)
 }
 
-func (dc *DebuggerConnector) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monitorcontroller.SpeakerConfig) {
-	dc.log.Debugf("Speaker Update id %d: %s gain: %d dB", id, spk.Name.Value, spk.OutputGain.Value)
+func (dc *DebuggerConnector) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monitorcontroller.SpeakerState) {
+	dc.log.Debugf("Speaker Update id %d: %s selected: %t", id, spk.Name, spk.Selected)
 	dc.log.Debugf("%v", spk)
 }
-func (dc *DebuggerConnector) HandleMasterUpdate(master *monitorcontroller.MasterConfig) {
+func (dc *DebuggerConnector) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	dc.log.Debugf("master Update: Mute %t, Dim %t, Volume :%d dB",
-		master.MuteSwitch.Value,
-		master.DimSwitch.Value,
+		master.Mute,
+		master.Dim,
 		master.VolumeDB,
 	)
 	dc.log.Debugf("%v", master)

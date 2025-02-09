@@ -57,7 +57,6 @@ func NewAudioFaderMeter(min, max, faderValue float64, scaleLog bool, valueChange
 	f.fader.OnChanged = func(f *AudioFader) func(float64) {
 		return func(value float64) {
 			val := 0.0
-			fmt.Println(value)
 			if f.scaleLog {
 				val = linearToLog(value/FADER_MAX, min, max)
 			} else {
@@ -74,13 +73,14 @@ func NewAudioFaderMeter(min, max, faderValue float64, scaleLog bool, valueChange
 	return f
 }
 
+// FIXMME - Fader will no be updated
 func (f *AudioFader) SetLevel(level float64) {
 	if f.scaleLog {
-		f.fader.SetValue(logToLinear(level, f.minLevel, f.maxLevel) * FADER_MAX)
+		f.fader.Value = logToLinear(level, f.minLevel, f.maxLevel) * FADER_MAX
 	} else {
-		f.fader.SetValue(normalise(level, f.minLevel, f.maxLevel) * FADER_MAX)
+		f.fader.Value = normalise(level, f.minLevel, f.maxLevel) * FADER_MAX
 	}
-
+	f.fader.Refresh()
 	f.faderValueString.Set(fmt.Sprintf("%.1f dB", level))
 }
 

@@ -34,7 +34,16 @@ type Mcu struct {
 }
 
 // Initialize the MCU runloop
-func InitMcu(cfg *Configuration) *Mcu {
+func InitMcu(cfg *Configuration) (*Mcu, error) {
+
+	if cfg.MidiInputPort == "" {
+		return nil, fmt.Errorf("no input port configured")
+	}
+
+	if cfg.MidiOutputPort == "" {
+		return nil, fmt.Errorf("no output port configured")
+	}
+
 	m := Mcu{
 		config:             cfg,
 		FromMcu:            make(chan interface{}, 100),
@@ -53,7 +62,7 @@ func InitMcu(cfg *Configuration) *Mcu {
 
 	m.connection <- 0
 	go m.run()
-	return &m
+	return &m, nil
 }
 
 // connects to the MCU, called from runloop

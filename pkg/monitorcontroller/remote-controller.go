@@ -12,12 +12,11 @@ type RemoteController interface {
 	HandleVolume(int)                         // Volume -127 .. 0 dB
 	HandleMeter(int)                          // Meter Value in DB
 	HandleSpeakerSelect(SpeakerID, bool)      // Speaker with given ID new selection State
-	HandleSpeakerUpdate(SpeakerID, *SpeakerConfig)
-	HandleMasterUpdate(*MasterConfig)
+	HandleSpeakerUpdate(SpeakerID, *SpeakerState)
+	HandleMasterUpdate(*MasterState)
 }
 
 type RcUpdateRequest bool
-
 type RcSetMute bool
 type RcSetDim bool
 type RcSetVolume int

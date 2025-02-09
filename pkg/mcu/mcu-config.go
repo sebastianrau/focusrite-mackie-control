@@ -7,7 +7,7 @@ type Configuration struct {
 
 var (
 	DEFAULT_CONFIGURATION Configuration = Configuration{
-		MidiInputPort:  "PreSonus FP2",
-		MidiOutputPort: "PreSonus FP2",
+		MidiInputPort:  "",
+		MidiOutputPort: "",
 	}
 )

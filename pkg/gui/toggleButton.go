@@ -19,28 +19,29 @@ type ButtonEvent struct {
 
 type ToggleButton struct {
 	widget.BaseWidget
-	ID            ButtonID
-	State         bool
-	Button        *widget.Button
-	LabelWidget   *canvas.Text
-	OnColor       color.Color
-	OffColor      color.Color
-	Label         string
+	ID          ButtonID
+	state       bool
+	Button      *widget.Button
+	LabelWidget *canvas.Text
+	OnColor     color.Color
+	OffColor    color.Color
+	//label         string
 	ButtonPressed chan ButtonEvent
 }
 
 func NewToggleButton(id ButtonID, label string, onColor color.Color, eventChan chan ButtonEvent) *ToggleButton {
 
 	toggleBtn := &ToggleButton{
-		ID:            id,
-		State:         false,
-		OnColor:       onColor,
-		OffColor:      theme.Color(theme.ColorNameForeground),
-		Label:         label,
+		ID:       id,
+		state:    false,
+		OnColor:  onColor,
+		OffColor: theme.Color(theme.ColorNameForeground),
+		//label:         label,
 		ButtonPressed: eventChan,
 	}
 
 	btn := widget.NewButton("", nil)
+
 	//btn.Importance = widget.HighImportance
 	btn.OnTapped = func() {
 		eventChan <- ButtonEvent{Label: label, Button: toggleBtn}
@@ -55,8 +56,8 @@ func NewToggleButton(id ButtonID, label string, onColor color.Color, eventChan c
 }
 
 func (tb *ToggleButton) Set(state bool) {
-	tb.State = state
-	if tb.State {
+	tb.state = state
+	if tb.state {
 		tb.LabelWidget.TextStyle = fyne.TextStyle{Bold: true}
 		tb.LabelWidget.Color = tb.OnColor
 	} else {
@@ -64,6 +65,10 @@ func (tb *ToggleButton) Set(state bool) {
 		tb.LabelWidget.Color = tb.OffColor
 	}
 	tb.LabelWidget.Refresh()
+}
+
+func (tb *ToggleButton) SetLabel(label string) {
+	tb.LabelWidget.Text = label
 }
 
 func (tb *ToggleButton) CreateRenderer() fyne.WidgetRenderer {

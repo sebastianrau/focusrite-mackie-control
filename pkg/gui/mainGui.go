@@ -1,7 +1,6 @@
 package gui
 
 import (
-	"fmt"
 	"image/color"
 	"os"
 
@@ -10,7 +9,12 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
+
+var log *logger.CustomLogger = logger.WithPackage("gui-main")
 
 const APP_TITLE string = "Monitor Controller"
 
@@ -59,105 +63,8 @@ type MainGui struct {
 
 	masterValueChanged chan AudioLevelChanged
 	buttonPressed      chan ButtonEvent
-	guiEvents          chan interface{}
-}
 
-func NewAppWindow(
-	myApp fyne.App,
-	guiEvents chan interface{},
-	minLevel float64,
-	maxLevel float64,
-) (*MainGui, *fyne.Container) {
-
-	colorGradient := NewGradient([]ColorValuePair{
-		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
-		{Value: -15, Color: color.RGBA{0, 180, 0, 255}},  // Light Green
-		{Value: -6, Color: color.RGBA{255, 255, 0, 255}}, // Yellow
-		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},    // Red
-	})
-
-	mainGui := &MainGui{
-		guiEvents:          guiEvents,
-		masterValueChanged: make(chan AudioLevelChanged, 100),
-		buttonPressed:      make(chan ButtonEvent, 100),
-	}
-
-	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
-	mainGui.fader.SetLevel(-20)
-
-	mainGui.levelMeter = NewAudioMeterBar(0)
-	mainGui.levelMeter.SetGradient(colorGradient)
-	mainGui.levelMeter.Decay = false
-
-	mainGui.buttonContainer = container.NewVBox()
-
-	// Action Buttons
-	for _, b := range btnDefinition {
-
-		//imgSize := mainGui.buttonContainer.Size().Width
-
-		if b.ID == Spacer {
-			img := canvas.NewImageFromFile("logo.png")
-			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(100, 100))
-			mainGui.buttonContainer.Add(img)
-		} else {
-			btn := NewToggleButton(
-				b.ID,
-				b.Name,
-				b.Color,
-				mainGui.buttonPressed,
-			)
-			mainGui.buttonContainer.Add(btn)
-		}
-
-	}
-
-	// Layouts
-	content := container.NewBorder(
-		nil, // top
-		nil, // bot
-		mainGui.fader,
-		mainGui.levelMeter,
-		mainGui.buttonContainer,
-	)
-	go mainGui.run()
-
-	fmt.Printf("Fader Size w/h: %.0f %.0f ", mainGui.fader.MinSize().Width, mainGui.fader.MinSize().Height)
-
-	return mainGui, content
-}
-
-func (g *MainGui) run() {
-	for {
-		select {
-		case v := <-g.masterValueChanged:
-			g.guiEvents <- v
-		case v := <-g.buttonPressed:
-			g.guiEvents <- v
-		}
-	}
-}
-
-func (g *MainGui) SetLevel(level float64) {
-	g.levelMeter.SetValue(level)
-}
-func (g *MainGui) SetFader(level float64) {
-	g.fader.SetLevel(level)
-}
-func (g *MainGui) SetButtonlabel(id ButtonID, label string) {
-	b, ok := g.buttons[id]
-	if !ok {
-		return
-	}
-	b.Label = label
-}
-func (g *MainGui) SetButton(id ButtonID, state bool) {
-	b, ok := g.buttons[id]
-	if !ok {
-		return
-	}
-	b.State = state
+	controllerChannel chan interface{}
 }
 
 func MakeApp() (fyne.App, fyne.Window, error) {
@@ -196,4 +103,160 @@ func MakeApp() (fyne.App, fyne.Window, error) {
 	w.SetFullScreen(false)
 	w.Resize(fyne.NewSize(280, 300))
 	return app, w, nil
+}
+
+func NewAppWindow(
+	myApp fyne.App,
+	minLevel float64,
+	maxLevel float64,
+) (*MainGui, *fyne.Container) {
+
+	colorGradient := NewGradient([]ColorValuePair{
+		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
+		{Value: -15, Color: color.RGBA{0, 180, 0, 255}},  // Light Green
+		{Value: -6, Color: color.RGBA{255, 255, 0, 255}}, // Yellow
+		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},    // Red
+	})
+
+	mainGui := &MainGui{
+		masterValueChanged: make(chan AudioLevelChanged, 100),
+		buttonPressed:      make(chan ButtonEvent, 100),
+		buttons:            make(map[ButtonID]*ToggleButton),
+	}
+
+	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
+	mainGui.fader.SetLevel(-20)
+
+	mainGui.levelMeter = NewAudioMeterBar(0)
+	mainGui.levelMeter.SetGradient(colorGradient)
+	mainGui.levelMeter.Decay = false
+
+	mainGui.buttonContainer = container.NewVBox()
+
+	// Action Buttons
+	for _, b := range btnDefinition {
+		if b.ID == Spacer {
+			img := canvas.NewImageFromFile("logo.png")
+			img.FillMode = canvas.ImageFillContain
+			img.SetMinSize(fyne.NewSize(100, 100))
+			mainGui.buttonContainer.Add(img)
+		} else {
+			btn := NewToggleButton(
+				b.ID,
+				b.Name,
+				b.Color,
+				mainGui.buttonPressed,
+			)
+			mainGui.buttonContainer.Add(btn)
+			mainGui.buttons[b.ID] = btn
+		}
+	}
+
+	// Layouts
+	content := container.NewBorder(
+		nil, // top
+		nil, // bot
+		mainGui.fader,
+		mainGui.levelMeter,
+		mainGui.buttonContainer,
+	)
+	go mainGui.run()
+	return mainGui, content
+}
+
+func (g *MainGui) run() {
+	for {
+		select {
+		case v := <-g.masterValueChanged:
+			if g.controllerChannel != nil {
+				g.controllerChannel <- monitorcontroller.RcSetVolume(v.Value)
+				log.Debugf("Send new Volume: %d", int(v.Value))
+			}
+		case v := <-g.buttonPressed:
+			switch v.Button.ID {
+			case SpeakerA,
+				SpeakerB,
+				SpeakerC,
+				SpeakerD,
+				Sub:
+				g.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: monitorcontroller.SpeakerID(v.Button.ID), State: !v.Button.state}
+			case Mute:
+				g.controllerChannel <- monitorcontroller.RcSetMute(!v.Button.state)
+			case Dim:
+				g.controllerChannel <- monitorcontroller.RcSetDim(!v.Button.state)
+			}
+		}
+	}
+}
+
+func (g *MainGui) SetLevel(level float64) {
+	g.levelMeter.SetValue(level)
+}
+func (g *MainGui) SetFader(level float64) {
+	g.fader.SetLevel(level)
+}
+func (g *MainGui) SetButtonlabel(id ButtonID, label string) {
+
+	b, ok := g.buttons[id]
+	if !ok {
+		return
+	}
+	b.SetLabel(label)
+}
+func (g *MainGui) SetButton(id ButtonID, state bool) {
+	log.Debugf("Setting Button: %d to %t", id, state)
+	b, ok := g.buttons[id]
+	if !ok {
+		log.Errorf("Button not found %d", id)
+		return
+	}
+	b.Set(state)
+}
+
+func (g *MainGui) SetControlChannel(controllerChannel chan interface{}) {
+	g.controllerChannel = controllerChannel
+}
+
+func (g *MainGui) HandleDeviceArrival(dev *focusritexml.Device) { /* TODO ignore for now */ }
+func (g *MainGui) HandleDeviceRemoval()                         { /* TODO ignore for now */ }
+
+// sNew Dim State
+func (g *MainGui) HandleDim(state bool) {
+	g.SetButton(Dim, state)
+}
+
+// New Mute State
+func (g *MainGui) HandleMute(state bool) {
+	g.SetButton(Mute, state)
+}
+
+// Volume -127 .. 0 dB
+func (g *MainGui) HandleVolume(volume int) {
+	g.SetFader(float64(volume))
+}
+
+// Meter Value in DB
+func (g *MainGui) HandleMeter(level int) {
+	g.SetLevel(float64(level))
+}
+
+// Speaker with given ID new selection State
+func (g *MainGui) HandleSpeakerSelect(id monitorcontroller.SpeakerID, state bool) {
+	log.Debugf("Speaker %d: %t", id, state)
+	g.SetButton(ButtonID(id), state)
+
+}
+
+func (g *MainGui) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monitorcontroller.SpeakerState) {
+	log.Debugf("Speaker Update (%d) %s : sel: %t", id, spk.Name, spk.Selected)
+
+	g.SetButton(ButtonID(id), spk.Selected)
+	g.SetButtonlabel(ButtonID(id), spk.Name)
+}
+func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
+	g.SetFader(float64(master.VolumeDB))
+	g.SetLevel(float64(master.Level))
+
+	g.SetButton(Mute, master.Mute)
+	g.SetButton(Dim, master.Dim)
 }

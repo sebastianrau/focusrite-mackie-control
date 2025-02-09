@@ -19,7 +19,7 @@ const (
 
 type Config struct {
 	Midi       *mcu.Configuration
-	Controller *monitorcontroller.Configuration
+	Controller *monitorcontroller.FcConfiguration
 }
 
 func getPath() (string, error) {
@@ -42,7 +42,7 @@ func getPathAndFile() (string, error) {
 func Default() *Config {
 	return &Config{
 		Midi:       &mcu.DEFAULT_CONFIGURATION,
-		Controller: &monitorcontroller.DEFAULT_CONFIGURATION,
+		Controller: monitorcontroller.DefaultConfiguration(),
 	}
 }
 
