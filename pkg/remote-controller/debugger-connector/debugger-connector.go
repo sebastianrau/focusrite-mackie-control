@@ -1,4 +1,4 @@
-package rcConnector
+package debuggerconnector
 
 import (
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
