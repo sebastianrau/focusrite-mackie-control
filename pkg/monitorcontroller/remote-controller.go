@@ -23,8 +23,8 @@ type RcSetDim bool
 type RcSetVolume int
 
 type RcSpeakerSelect struct {
-	id    SpeakerID
-	state bool
+	Id    SpeakerID
+	State bool
 }
 
 /* TODO add more remote contorl functions

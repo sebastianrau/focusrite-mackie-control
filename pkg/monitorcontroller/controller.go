@@ -24,12 +24,10 @@ var log *logger.CustomLogger = logger.WithPackage("monitor-controller")
 
 type Controller struct {
 	config *Configuration
+	fc     *focusriteclient.FocusriteClient
 
 	toMcu   chan interface{}
 	fromMcu chan interface{}
-
-	toFocusrite   chan focusritexml.Set
-	fromFocusrite chan interface{}
 
 	fromRemoteController chan interface{}
 
@@ -39,22 +37,21 @@ type Controller struct {
 
 // NewMcuState creates a new McuState
 func NewController(
+
 	toMcu chan interface{},
 	fromMcu chan interface{},
-	toFocusrite chan focusritexml.Set,
-	fromFocusrite chan interface{}, config *Configuration) *Controller {
+	config *Configuration) *Controller {
 
 	c := Controller{
-		config: config,
-
+		config:  config,
 		toMcu:   toMcu,
 		fromMcu: fromMcu,
 
-		toFocusrite:   toFocusrite,
-		fromFocusrite: fromFocusrite,
-
 		toController: make(chan interface{}, 100),
 	}
+
+	c.fc = focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
+
 	c.config.DefaultValues()
 
 	go c.run()
@@ -67,7 +64,7 @@ func (c *Controller) run() {
 		case mcu := <-c.fromMcu:
 			c.handleMcu(mcu)
 
-		case focusrite := <-c.fromFocusrite:
+		case focusrite := <-c.fc.FromFocusrite:
 			c.handleFocusrite(focusrite)
 
 		case remote := <-c.fromRemoteController:
@@ -249,7 +246,7 @@ func (c *Controller) handleRemoteControl(remote interface{}) {
 	case RcSetVolume:
 		c.setMasterVolumeDB(int(r))
 	case RcSpeakerSelect:
-		c.setSpeakerEnabled(r.id, r.state)
+		c.setSpeakerEnabled(r.Id, r.State)
 	}
 }
 
@@ -326,7 +323,7 @@ func (c *Controller) setMute(mute bool) {
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	fcUpdateSet.AddItemBool(int(c.config.Master.MuteSwitch.FcId), mute)
-	c.toFocusrite <- *fcUpdateSet
+	c.fc.ToFocusrite <- *fcUpdateSet
 
 	c.updateSpeakerMute()
 	c.fireMute(c.config.Master.MuteSwitch.Value)
@@ -348,7 +345,7 @@ func (c *Controller) setDim(dim bool) {
 
 	fcUpdateSet := focusritexml.NewSet(c.config.FocusriteDeviceId)
 	c.addItemsToSet(fcUpdateSet, &c.config.Master.DimSwitch)
-	c.toFocusrite <- *fcUpdateSet
+	c.fc.ToFocusrite <- *fcUpdateSet
 
 	c.updateSpeakerVolume()
 	c.fireDim(dim)
@@ -448,7 +445,7 @@ func (c *Controller) updateSpeakerVolume() {
 	for _, spk := range c.config.Speaker {
 		fcUpdateSet.AddItemInt(int(spk.OutputGain.FcId), volume)
 	}
-	c.toFocusrite <- *fcUpdateSet
+	c.fc.ToFocusrite <- *fcUpdateSet
 }
 
 func (c *Controller) updateSpeakerMute() {
@@ -463,7 +460,7 @@ func (c *Controller) updateSpeakerMute() {
 		fcUpdateSet.AddItemBool(int(spk.Mute.FcId), state)
 		log.Debugf("setting focusrite speaker %d Level to %t", k, state)
 	}
-	c.toFocusrite <- *fcUpdateSet
+	c.fc.ToFocusrite <- *fcUpdateSet
 
 }
 
@@ -503,7 +500,7 @@ func (c *Controller) initFocusriteDevice() {
 	c.addItemsToSet(updateSet, &c.config.Master.MuteSwitch)
 	c.addItemsToSet(updateSet, &c.config.Master.DimSwitch)
 
-	c.toFocusrite <- *updateSet
+	c.fc.ToFocusrite <- *updateSet
 
 	c.updateSpeakerVolume()
 }
@@ -564,19 +561,6 @@ func (c *Controller) setChannelText(id int, text string, lower bool) {
 
 }
 
-
-
-func (c *Controller) SetMasterLevel(level uint16) {
-	if c.masterLevel != level {
-		c.masterLevel = level
-		c.masterLevelDB = faderdb.FaderToDB(level)
-		c.toMcu <- mcu.FaderCommand{Fader: c.mapping.Master.Mcu.Fader, Value: level}
-		c.FromController <- c.NewSpeakerLevelMessage()
-	}
-}
-
-
-
 func (c *Controller) setDisplayText(text string) {
 	if len(text) > 10 {
 		text = text[:10]
@@ -590,13 +574,5 @@ func (c *Controller) setDisplayText(text string) {
 	}
 }
 
-func (c *Controller) SetMasterMeter(valueDB float64) {
-	out := mcu.Db2MeterLevel(valueDB)
-	if c.masterMeter != out {
-		c.masterMeter = out
-		c.toMcu <- mcu.MeterCommand{Channel: c.mapping.Master.Mcu.Fader, Value: gomcu.MeterLevel(out)}
-
-	}
-}
 
 */
