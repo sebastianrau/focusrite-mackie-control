@@ -2,8 +2,6 @@ package mcu
 
 import (
 	"fmt"
-	"os"
-	"sync"
 	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
@@ -17,14 +15,13 @@ import (
 var log *logger.CustomLogger = logger.WithPackage("mcu")
 
 type Mcu struct {
-	config       *Configuration
-	waitGroup    *sync.WaitGroup
+	config *Configuration
+
 	midiInput    drivers.In
 	midiOutput   drivers.Out
 	midiStop     func()
 	connectRetry *time.Timer
 
-	interrupt  chan os.Signal
 	connection chan int
 
 	decodeButtons bool
@@ -37,13 +34,11 @@ type Mcu struct {
 }
 
 // Initialize the MCU runloop
-func InitMcu(interrupt chan os.Signal, wg *sync.WaitGroup, cfg Configuration) *Mcu {
+func InitMcu(cfg *Configuration) *Mcu {
 	m := Mcu{
-		config:             &cfg,
-		waitGroup:          wg,
+		config:             cfg,
 		FromMcu:            make(chan interface{}, 100),
 		ToMcu:              make(chan interface{}, 100),
-		interrupt:          interrupt,
 		connection:         make(chan int, 1),
 		displayStringUpper: make([]byte, 56),
 		displayStringLower: make([]byte, 56),
@@ -57,7 +52,6 @@ func InitMcu(interrupt chan os.Signal, wg *sync.WaitGroup, cfg Configuration) *M
 	m.DecodeChannelSelect(uint8(gomcu.Channel1))
 
 	m.connection <- 0
-	wg.Add(1)
 	go m.run()
 	return &m
 }
@@ -289,6 +283,7 @@ func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 
 // run the MCU
 func (m *Mcu) run() {
+	defer m.disconnect()
 	for {
 
 		var err error
@@ -300,11 +295,6 @@ func (m *Mcu) run() {
 			} else {
 				m.FromMcu <- ConnectionMessage{Connection: true}
 			}
-
-		case <-m.interrupt:
-			m.disconnect()
-			m.waitGroup.Done()
-			return
 
 		case message := <-m.ToMcu:
 			if !m.checkMidiConnection() {
