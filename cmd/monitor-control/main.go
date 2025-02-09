@@ -3,14 +3,12 @@ package main
 import (
 	"os"
 	"os/signal"
-	"sync"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/focusriteclient"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
-	mcConnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mc_connector"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
+	debuggerconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/remote-controller/debugger-connector"
 )
 
 const Version string = "v0.0.1"
@@ -22,41 +20,32 @@ var log *logger.CustomLogger = logger.WithPackage("main")
 
 func main() {
 	var (
-		cfg       *config.Config
-		waitGroup sync.WaitGroup
+		cfg *config.Config
 	)
 
 	log.Infof("Monitor Controller %v", Version)
 
-	c, err := config.Load()
-	if err == nil {
-		cfg = c
-	} else {
+	cfg, err := config.Load()
+
+	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
 		cfg = config.Default()
-		err := cfg.Save()
+		err := cfg.Save() // HACK fix me later
 		if err != nil {
 			log.Errorln("Configuration could not be stored")
 		}
 	}
 
-	if cfg.Midi.MidiInputPort == "" {
-		log.Errorln("No Midi port configured.")
-		os.Exit(-1)
-	}
-
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mcu := mcu.InitMcu(interrupt, &waitGroup, *cfg.Midi)
-
-	fc := focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
-
-	dbg := mcConnector.NewDebuggerConnector()
+	mcu := mcu.InitMcu(cfg.Midi)
+	// TODO add mcu remote controller
+	// TODO add gui remote controller
+	dbg := debuggerconnector.NewDebuggerConnector()
 
 	mc := monitorcontroller.NewController(
 		mcu.ToMcu, mcu.FromMcu,
-		fc.ToFocusrite, fc.FromFocusrite,
 		cfg.Controller)
 
 	mc.
@@ -67,27 +56,8 @@ func main() {
 		/*case fm := <-control.FromController:
 		switch f := fm.(type) {
 
-		case monitorcontroller.TransportMessage:
 
-			switch gomcu.Switch(f) {
-			case gomcu.Play:
-				err := robotgo.KeyTap(robotgo.AudioPlay)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-			case gomcu.FastFwd:
-				err := robotgo.KeyTap(robotgo.AudioNext)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-			case gomcu.Rewind:
-				err := robotgo.KeyTap(robotgo.AudioPrev)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-			case gomcu.Stop:
-				// Ignore Stop
-			}
+
 
 		case monitorcontroller.MuteMessage:
 			log.Infof("Mute: %t", f)
@@ -102,6 +72,7 @@ func main() {
 		}
 		*/
 		case <-interrupt:
+
 			os.Exit(0)
 		}
 
