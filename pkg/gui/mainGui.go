@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
@@ -65,6 +65,8 @@ type MainGui struct {
 	buttonPressed      chan ButtonEvent
 
 	controllerChannel chan interface{}
+
+	masterVolumeBuffer int
 }
 
 func MakeApp() (fyne.App, fyne.Window, error) {
@@ -129,7 +131,6 @@ func NewAppWindow(
 
 	mainGui.levelMeter = NewAudioMeterBar(0)
 	mainGui.levelMeter.SetGradient(colorGradient)
-	mainGui.levelMeter.Decay = false
 
 	mainGui.buttonContainer = container.NewVBox()
 
@@ -168,10 +169,15 @@ func (g *MainGui) run() {
 	for {
 		select {
 		case v := <-g.masterValueChanged:
-			if g.controllerChannel != nil {
-				g.controllerChannel <- monitorcontroller.RcSetVolume(v.Value)
-				log.Debugf("Send new Volume: %d", int(v.Value))
+			volume := int(v.Value)
+			if g.masterVolumeBuffer != volume {
+				g.masterVolumeBuffer = volume
+				if g.controllerChannel != nil {
+					g.controllerChannel <- monitorcontroller.RcSetVolume(v.Value)
+					log.Debugf("Send new Volume: %d", int(v.Value))
+				}
 			}
+
 		case v := <-g.buttonPressed:
 			switch v.Button.ID {
 			case SpeakerA,
@@ -244,7 +250,10 @@ func (g *MainGui) HandleMeter(level int) {
 func (g *MainGui) HandleSpeakerSelect(id monitorcontroller.SpeakerID, state bool) {
 	log.Debugf("Speaker %d: %t", id, state)
 	g.SetButton(ButtonID(id), state)
+}
 
+func (g *MainGui) HandleSpeakerName(id monitorcontroller.SpeakerID, name string) {
+	g.SetButtonlabel(ButtonID(id), name)
 }
 
 func (g *MainGui) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monitorcontroller.SpeakerState) {

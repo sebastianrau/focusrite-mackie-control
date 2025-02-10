@@ -6,18 +6,21 @@ import (
 
 	"fyne.io/fyne/v2"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
-	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/remote-controller/mcu-connector"
 )
 
 const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
-// TODO : config file command line option
-// TODO : Context Menu
+// TODO Updaste Config File and use
+// TODO Gui: Context Menu
+// TODO Gui: Make Meter Stereo
+// TODO Controller: disable speaker --> not showing in gui
 
 func main() {
 	var (
@@ -47,39 +50,19 @@ func main() {
 	}
 
 	mainGui, content := gui.NewAppWindow(app, -127, 0)
-	mcu := mcuconnector.NewMcuConnector(mcuconnector.DefaultConfiguration())
-	mc := monitorcontroller.NewController(cfg.Controller)
+	mcu := mcuconnector.NewMcuConnector(mcuconnector.DefaultConfiguration())                //TODO remove default config
+	fc := fcaudioconnector.NewAudioDeviceConnector(fcaudioconnector.DefaultConfiguration()) //TODO remove default config
+
+	mc := monitorcontroller.NewController(fc)
 
 	mc.
 		RegisterRemoteController(mcu).
 		RegisterRemoteController(mainGui)
 
 	go func() {
-		for {
-			select {
-			/*case fm := <-control.FromController:
-			switch f := fm.(type) {
+		for range interrupt {
 
-
-
-
-			case monitorcontroller.MuteMessage:
-				log.Infof("Mute: %t", f)
-			case monitorcontroller.DimMessage:
-				log.Infof("Dim: %t", f)
-			case monitorcontroller.SpeakerEnabledMessage:
-				log.Infof("Speaker %d set to %t", f.SpeakerID, f.SpeakerEnabled)
-
-			default:
-				log.Warnf("unhandled message from monitor-controller %s: %v\n", reflect.TypeOf(fm), fm)
-
-			}
-			*/
-			case <-interrupt:
-
-				os.Exit(0)
-			}
-
+			os.Exit(0)
 		}
 	}()
 

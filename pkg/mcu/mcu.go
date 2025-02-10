@@ -97,7 +97,10 @@ func (m *Mcu) connect() {
 		return
 	}
 
-	gomcu.Reset(m.midiOutput)
+	err = gomcu.Reset(m.midiOutput)
+	if err != nil {
+		log.Error(err.Error())
+	}
 
 	m.midiStop, err = midi.ListenTo(m.midiInput, m.receiveMidi)
 	if err != nil {

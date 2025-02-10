@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 )
 
@@ -122,11 +122,13 @@ func (fc *FocusriteClient) runKeepalive() {
 }
 
 func (fc *FocusriteClient) runCommandHandling() {
-	for {
-		set := <-fc.ToFocusrite
+	for set := range fc.ToFocusrite {
 		if len(set.Items) > 0 {
 			log.Infof("Sending to Focusrite %d items\n", len(set.Items))
-			fc.sendSet(set)
+			err := fc.sendSet(set)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}
 }

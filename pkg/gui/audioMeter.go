@@ -36,8 +36,8 @@ type AudioMeter struct {
 	valueMaxHold       float64
 	levelMaxUpdateTime time.Time
 
-	mu               sync.Mutex
-	Decay            bool
+	mu sync.Mutex
+	//Decay            bool
 	decayRefreshTime time.Duration
 	decayRate        float64
 }
@@ -52,8 +52,8 @@ func NewAudioMeterBar(maxValue float64) *AudioMeter {
 		valueMaxHold:       MIN_LEVEL,
 		levelMaxUpdateTime: time.Now(),
 
-		mu:               sync.Mutex{},
-		Decay:            false,
+		mu: sync.Mutex{},
+		//Decay:            true,
 		decayRefreshTime: DECAY_UPDATE_RATE,
 		decayRate:        DROP_RATE_DB_PER_SECOND / float64(time.Millisecond) * float64(DECAY_UPDATE_RATE) / float64(time.Microsecond),
 	}
@@ -71,7 +71,9 @@ func (b *AudioMeter) SetValue(v float64) {
 		v = b.maxValue
 	}
 	b.mu.Lock()
-	b.value = v
+	if b.value < v {
+		b.value = v
+	}
 	b.mu.Unlock()
 	b.Refresh()
 }
@@ -81,17 +83,16 @@ func (b *AudioMeter) runAutoDecay() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		if b.Decay {
-			b.mu.Lock()
-			if b.value > MIN_LEVEL {
-				b.value -= b.decayRate
-				if b.value < MIN_LEVEL {
-					b.value = MIN_LEVEL
-				}
-				b.Refresh()
+		b.mu.Lock()
+		if b.value > MIN_LEVEL {
+			b.value -= b.decayRate
+			if b.value < MIN_LEVEL {
+				b.value = MIN_LEVEL
 			}
-			b.mu.Unlock()
+			b.Refresh()
 		}
+		b.mu.Unlock()
+
 	}
 }
 

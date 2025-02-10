@@ -42,22 +42,9 @@ func (s *Set) AddItemString(itemId int, value string) {
 	s.AddItem(Item{ID: itemId, Value: value})
 }
 
-func (s *Set) AddItemsBool(itemIds []int, value bool) {
-	for _, i := range itemIds {
-		s.AddItemBool(i, value)
-	}
-}
-
-func (s *Set) AddItemsInt(itemIds []int, value int) {
-	for _, i := range itemIds {
-		s.AddItemInt(i, value)
-
-	}
-}
-
-func (s *Set) AddItemsString(itemIds []int, value string) {
-	for _, i := range itemIds {
-		s.AddItemString(i, value)
-
+func (s *Set) AddItems(items []Item) {
+	// not using append the check if item ID is zero
+	for _, i := range items {
+		s.AddItem(i)
 	}
 }

@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	"github.com/go-vgo/robotgo"
+
 	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/fader-nomalisation"
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
@@ -124,14 +124,6 @@ func (mc *McuConnector) SetControlChannel(controllerChannel chan interface{}) {
 	mc.controllerChannel = controllerChannel
 }
 
-func (mc *McuConnector) HandleDeviceArrival(*focusritexml.Device) {
-	// ignore
-}
-
-func (mc *McuConnector) HandleDeviceRemoval() {
-	// ignore
-}
-
 func (mc *McuConnector) HandleDim(dim bool) {
 	mc.dim = dim
 	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.dim)
@@ -155,15 +147,8 @@ func (mc *McuConnector) HandleSpeakerSelect(id monitorcontroller.SpeakerID, sel 
 	mc.updateAllLeds(mc.config.SpeakerSelect[id], sel)
 }
 
-func (mc *McuConnector) initMcu() {
-	mc.updateAllLeds(mc.config.MasterMuteSwitch, mc.mute)
-	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.dim)
-
-	for k, speaker := range mc.config.SpeakerSelect {
-		mc.updateAllLeds(speaker, mc.speakerSelect[k])
-	}
-
-	mc.updateAllFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
+func (mc *McuConnector) HandleSpeakerName(id monitorcontroller.SpeakerID, name string) {
+	mc.SetSpeakerName(id, name)
 }
 
 func (mc *McuConnector) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monitorcontroller.SpeakerState) {
@@ -202,6 +187,17 @@ func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel boo
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
 	mc.speakerName[id] = name
 	// TODO Update LCD
+}
+
+func (mc *McuConnector) initMcu() {
+	mc.updateAllLeds(mc.config.MasterMuteSwitch, mc.mute)
+	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.dim)
+
+	for k, speaker := range mc.config.SpeakerSelect {
+		mc.updateAllLeds(speaker, mc.speakerSelect[k])
+	}
+
+	mc.updateAllFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
 }
 
 // MCU Led & Fader Hacks

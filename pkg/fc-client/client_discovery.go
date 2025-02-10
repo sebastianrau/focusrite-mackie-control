@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
 )
 
 // port 30096 - 30098

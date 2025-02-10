@@ -1,7 +1,7 @@
 package focusriteclient
 
 import (
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/focusrite-xml"
+	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
 )
 
 type ApprovalMessasge bool

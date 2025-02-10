@@ -3,14 +3,13 @@ package config
 import (
 	"os"
 
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 
 	"gopkg.in/yaml.v2"
 )
 
-var log *logger.CustomLogger = logger.WithPackage("focusrite-config")
+//var log *logger.CustomLogger = logger.WithPackage("focusrite-config")
 
 const (
 	subfolder string = "Monitor-Controller"
@@ -19,7 +18,7 @@ const (
 
 type Config struct {
 	Midi       *mcu.Configuration
-	Controller *monitorcontroller.FcConfiguration
+	Controller *fcaudioconnector.FcConfiguration
 }
 
 func getPath() (string, error) {
@@ -42,7 +41,7 @@ func getPathAndFile() (string, error) {
 func Default() *Config {
 	return &Config{
 		Midi:       &mcu.DEFAULT_CONFIGURATION,
-		Controller: monitorcontroller.DefaultConfiguration(),
+		Controller: fcaudioconnector.DefaultConfiguration(),
 	}
 }
 

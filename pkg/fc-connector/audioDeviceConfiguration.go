@@ -1,4 +1,6 @@
-package monitorcontroller
+package fcaudioconnector
+
+import "github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 
 type FocusriteId int
 
@@ -15,7 +17,7 @@ type MasterFcConfig struct {
 }
 
 type FcConfiguration struct {
-	Speaker map[SpeakerID]*SpeakerFcConfig
+	Speaker map[monitorcontroller.SpeakerID]*SpeakerFcConfig
 	Master  *MasterFcConfig
 
 	FocusriteSerialNumber string
@@ -25,33 +27,33 @@ type FcConfiguration struct {
 func DefaultConfiguration() *FcConfiguration {
 	return &FcConfiguration{
 
-		Speaker: map[SpeakerID]*SpeakerFcConfig{
+		Speaker: map[monitorcontroller.SpeakerID]*SpeakerFcConfig{
 
-			SpeakerA: {
+			monitorcontroller.SpeakerA: {
 				Name:       1456,
 				Mute:       1453,
 				OutputGain: 1458,
 				Meter:      1450,
 			},
-			SpeakerB: {
+			monitorcontroller.SpeakerB: {
 				Name:       1476,
 				Mute:       1473,
 				OutputGain: 1478,
 				Meter:      1470,
 			},
-			SpeakerC: {
+			monitorcontroller.SpeakerC: {
 				Name:       1496,
 				Mute:       1493,
 				Meter:      1490,
 				OutputGain: 1498,
 			},
-			SpeakerD: {
+			monitorcontroller.SpeakerD: {
 				Name:       1516,
 				Mute:       1513,
 				OutputGain: 1518,
 				Meter:      1510,
 			},
-			Sub: {
+			monitorcontroller.Sub: {
 				Name:       1536,
 				Mute:       1533,
 				OutputGain: 1538,

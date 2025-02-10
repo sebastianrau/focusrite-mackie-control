@@ -52,7 +52,10 @@ func NewAudioFaderMeter(min, max, faderValue float64, scaleLog bool, valueChange
 		f.fader.SetValue(normalise(faderValue, min, max) * FADER_MAX)
 	}
 
-	f.faderValueString.Set(fmt.Sprintf("%.1f dB", faderValue))
+	err := f.faderValueString.Set(fmt.Sprintf("%.1f dB", faderValue))
+	if err != nil {
+		log.Error(err)
+	}
 
 	f.fader.OnChanged = func(f *AudioFader) func(float64) {
 		return func(value float64) {
@@ -62,7 +65,10 @@ func NewAudioFaderMeter(min, max, faderValue float64, scaleLog bool, valueChange
 			} else {
 				val = deNormalise(value/FADER_MAX, min, max)
 			}
-			f.faderValueString.Set(fmt.Sprintf("%.1f dB", val))
+			err := f.faderValueString.Set(fmt.Sprintf("%.1f dB", val))
+			if err != nil {
+				log.Error(err)
+			}
 			f.ValueChanged <- AudioLevelChanged{LevelMeter: f, Value: val}
 		}
 	}(f)
@@ -81,7 +87,10 @@ func (f *AudioFader) SetLevel(level float64) {
 		f.fader.Value = normalise(level, f.minLevel, f.maxLevel) * FADER_MAX
 	}
 	f.fader.Refresh()
-	f.faderValueString.Set(fmt.Sprintf("%.1f dB", level))
+	err := f.faderValueString.Set(fmt.Sprintf("%.1f dB", level))
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func (f *AudioFader) CreateRenderer() fyne.WidgetRenderer {
