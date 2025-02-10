@@ -238,9 +238,6 @@ func (c *Controller) setMasterVolumeDB(vol int) {
 }
 
 func (c *Controller) setMasterLevel(vol int) {
-	if c.state.Master.Level == vol {
-		return
-	}
 	c.state.Master.Level = vol
 	c.fireLevel()
 }

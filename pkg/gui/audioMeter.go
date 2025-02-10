@@ -36,8 +36,7 @@ type AudioMeter struct {
 	valueMaxHold       float64
 	levelMaxUpdateTime time.Time
 
-	mu sync.Mutex
-	//Decay            bool
+	mu               sync.Mutex
 	decayRefreshTime time.Duration
 	decayRate        float64
 }
@@ -47,13 +46,12 @@ func NewAudioMeterBar(maxValue float64) *AudioMeter {
 		unit:     "dB",
 		minValue: MIN_LEVEL,
 		maxValue: maxValue,
-		value:    MIN_LEVEL,
+		value:    math.MinInt,
 
 		valueMaxHold:       MIN_LEVEL,
 		levelMaxUpdateTime: time.Now(),
 
-		mu: sync.Mutex{},
-		//Decay:            true,
+		mu:               sync.Mutex{},
 		decayRefreshTime: DECAY_UPDATE_RATE,
 		decayRate:        DROP_RATE_DB_PER_SECOND / float64(time.Millisecond) * float64(DECAY_UPDATE_RATE) / float64(time.Microsecond),
 	}
