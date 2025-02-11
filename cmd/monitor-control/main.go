@@ -17,10 +17,11 @@ const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
-// TODO Updaste Config File and use
+// TODO Controller: disable speaker --> not showing in gui, and can not be selected
+// TODO Update Config File and use
+// TODO Config: store and reload last state
 // TODO Gui: Context Menu
-// TODO Gui: Make Meter Stereo
-// TODO Controller: disable speaker --> not showing in gui
+// TODO Gui: add Hotkeys 1..5, D, M + Space
 
 func main() {
 	var (
