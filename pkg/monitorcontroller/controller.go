@@ -68,7 +68,7 @@ func (c *Controller) run() {
 			case AdSpeakerSelect:
 				c.setSpeakerSelected(r.Id, r.State)
 			case AdSetLevel:
-				c.setMasterLevel(int(r))
+				c.setMasterLevel(r.Left, r.Right)
 			}
 
 		case remote := <-c.fromRemoteController:
@@ -117,7 +117,7 @@ func (c *Controller) fireVolume() {
 }
 func (c *Controller) fireLevel() {
 	for _, rc := range c.remoteController {
-		go rc.HandleMeter(c.state.Master.Level)
+		go rc.HandleMeter(c.state.Master.LevelLeft, c.state.Master.LevelRight)
 	}
 }
 func (c *Controller) fireSpeakerSelect(id SpeakerID) {
@@ -237,7 +237,8 @@ func (c *Controller) setMasterVolumeDB(vol int) {
 	c.fireVolume()
 }
 
-func (c *Controller) setMasterLevel(vol int) {
-	c.state.Master.Level = vol
+func (c *Controller) setMasterLevel(left, right int) {
+	c.state.Master.LevelLeft = left
+	c.state.Master.LevelRight = right
 	c.fireLevel()
 }

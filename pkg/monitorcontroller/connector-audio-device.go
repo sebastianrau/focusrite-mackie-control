@@ -17,7 +17,11 @@ type AdUpdateRequest struct{}
 type AdSetMute bool
 type AdSetDim bool
 type AdSetVolume int
-type AdSetLevel int
+
+type AdSetLevel struct {
+	Left  int
+	Right int
+}
 
 type AdSpeakerSelect struct {
 	Id    SpeakerID

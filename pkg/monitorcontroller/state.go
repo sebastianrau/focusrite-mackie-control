@@ -16,19 +16,21 @@ type MasterState struct {
 	Mute bool
 	Dim  bool
 
-	VolumeDB  int
-	Level     int
-	DimOffset int
+	VolumeDB   int
+	LevelLeft  int
+	LevelRight int
+	DimOffset  int
 }
 
 func NewDefaultState() *ControllerSate {
 	s := &ControllerSate{
 		Master: &MasterState{
-			Mute:      true,
-			Dim:       false,
-			VolumeDB:  -127,
-			Level:     -127,
-			DimOffset: 20,
+			Mute:       true,
+			Dim:        false,
+			VolumeDB:   -127,
+			LevelLeft:  -127,
+			LevelRight: -127,
+			DimOffset:  20,
 		},
 		Speaker: make(map[SpeakerID]*SpeakerState),
 	}

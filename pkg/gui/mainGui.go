@@ -129,7 +129,7 @@ func NewAppWindow(
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
 
-	mainGui.levelMeter = NewAudioMeterBar(0)
+	mainGui.levelMeter = NewAudioMeterBar(0, true)
 	mainGui.levelMeter.SetGradient(colorGradient)
 
 	mainGui.buttonContainer = container.NewVBox()
@@ -195,9 +195,10 @@ func (g *MainGui) run() {
 	}
 }
 
-func (g *MainGui) SetLevel(level float64) {
-	g.levelMeter.SetValue(level)
+func (g *MainGui) SetLevelStereo(levelL, levelR float64) {
+	g.levelMeter.SetValueStereo(levelL, levelR)
 }
+
 func (g *MainGui) SetFader(level float64) {
 	g.fader.SetLevel(level)
 }
@@ -242,8 +243,8 @@ func (g *MainGui) HandleVolume(volume int) {
 }
 
 // Meter Value in DB
-func (g *MainGui) HandleMeter(level int) {
-	g.SetLevel(float64(level))
+func (g *MainGui) HandleMeter(left, right int) {
+	g.SetLevelStereo(float64(left), float64(right))
 }
 
 // Speaker with given ID new selection State
@@ -264,7 +265,7 @@ func (g *MainGui) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monit
 }
 func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	g.SetFader(float64(master.VolumeDB))
-	g.SetLevel(float64(master.Level))
+	g.SetLevelStereo(float64(master.LevelLeft), float64(master.LevelRight))
 
 	g.SetButton(Mute, master.Mute)
 	g.SetButton(Dim, master.Dim)

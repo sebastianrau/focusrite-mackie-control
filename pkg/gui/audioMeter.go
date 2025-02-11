@@ -28,10 +28,13 @@ type AudioMeter struct {
 	widget.BaseWidget
 	colorGradient *Gradient
 
-	value    float64
+	valueL   float64
+	valueR   float64
 	unit     string
 	minValue float64
 	maxValue float64
+
+	stereo bool
 
 	valueMaxHold       float64
 	levelMaxUpdateTime time.Time
@@ -41,12 +44,16 @@ type AudioMeter struct {
 	decayRate        float64
 }
 
-func NewAudioMeterBar(maxValue float64) *AudioMeter {
+func NewAudioMeterBar(maxValue float64, stereo bool) *AudioMeter {
 	b := &AudioMeter{
 		unit:     "dB",
 		minValue: MIN_LEVEL,
 		maxValue: maxValue,
-		value:    math.MinInt,
+
+		valueL: math.MinInt,
+		valueR: math.MinInt,
+
+		stereo: stereo,
 
 		valueMaxHold:       MIN_LEVEL,
 		levelMaxUpdateTime: time.Now(),
@@ -69,8 +76,32 @@ func (b *AudioMeter) SetValue(v float64) {
 		v = b.maxValue
 	}
 	b.mu.Lock()
-	if b.value < v {
-		b.value = v
+	if b.valueL < v {
+		b.valueL = v
+	}
+	b.mu.Unlock()
+	b.Refresh()
+}
+
+func (b *AudioMeter) SetValueStereo(l, r float64) {
+	if l < b.minValue {
+		l = b.minValue
+	} else if l > b.maxValue {
+		l = b.maxValue
+	}
+
+	if r < b.minValue {
+		r = b.minValue
+	} else if r > b.maxValue {
+		r = b.maxValue
+	}
+
+	b.mu.Lock()
+	if b.valueL < l {
+		b.valueL = l
+	}
+	if b.valueR < r {
+		b.valueR = r
 	}
 	b.mu.Unlock()
 	b.Refresh()
@@ -82,15 +113,21 @@ func (b *AudioMeter) runAutoDecay() {
 
 	for range ticker.C {
 		b.mu.Lock()
-		if b.value > MIN_LEVEL {
-			b.value -= b.decayRate
-			if b.value < MIN_LEVEL {
-				b.value = MIN_LEVEL
+		if b.valueL > MIN_LEVEL {
+			b.valueL -= b.decayRate
+			if b.valueL < MIN_LEVEL {
+				b.valueL = MIN_LEVEL
 			}
-			b.Refresh()
 		}
-		b.mu.Unlock()
+		if b.valueR > MIN_LEVEL {
+			b.valueR -= b.decayRate
+			if b.valueR < MIN_LEVEL {
+				b.valueR = MIN_LEVEL
+			}
 
+		}
+		b.Refresh()
+		b.mu.Unlock()
 	}
 }
 
@@ -101,7 +138,7 @@ func (b *AudioMeter) runMaxHold() {
 
 	for range ticker.C {
 		b.mu.Lock()
-		level := b.value
+		level := max(b.valueL, b.valueR)
 		b.mu.Unlock()
 
 		if b.valueMaxHold < level || time.Since(b.levelMaxUpdateTime) > MAX_HOLD_TIME {
@@ -115,12 +152,13 @@ func (b *AudioMeter) runMaxHold() {
 
 // Renderer
 type verticalBarRenderer struct {
-	bar        *AudioMeter
-	levelBar   *canvas.Rectangle
-	levelBarBg *canvas.Rectangle
-	border     *canvas.Rectangle
-	faderLabel *canvas.Text
-	scale      map[int]*canvas.Text
+	bar           *AudioMeter
+	levelBarLeft  *canvas.Rectangle
+	levelBarRight *canvas.Rectangle
+	levelBarBg    *canvas.Rectangle
+	border        *canvas.Rectangle
+	faderLabel    *canvas.Text
+	scale         map[int]*canvas.Text
 }
 
 func (b *AudioMeter) SetGradient(grad *Gradient) {
@@ -129,8 +167,11 @@ func (b *AudioMeter) SetGradient(grad *Gradient) {
 
 // CreateRenderer erstellt den Renderer für das Widget
 func (b *AudioMeter) CreateRenderer() fyne.WidgetRenderer {
-	levelBar := canvas.NewRectangle(color.RGBA{0, 0, 0, 255})
-	levelBar.CornerRadius = 2
+	levelBarLeft := canvas.NewRectangle(color.RGBA{0, 0, 0, 255})
+	levelBarLeft.CornerRadius = 2
+
+	LevelBarRight := canvas.NewRectangle(color.RGBA{0, 0, 0, 255})
+	LevelBarRight.CornerRadius = 2
 
 	levelBarBg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
 	levelBarBg.CornerRadius = 5
@@ -148,11 +189,12 @@ func (b *AudioMeter) CreateRenderer() fyne.WidgetRenderer {
 		scale[val] = label
 	}
 
-	return &verticalBarRenderer{bar: b, levelBar: levelBar, border: border, faderLabel: faderLabel, scale: scale, levelBarBg: levelBarBg}
+	return &verticalBarRenderer{bar: b, levelBarLeft: levelBarLeft, levelBarRight: LevelBarRight, border: border, faderLabel: faderLabel, scale: scale, levelBarBg: levelBarBg}
 }
 
 func (r *verticalBarRenderer) Layout(size fyne.Size) {
-	scaledValue := float32(r.logScale(r.bar.value, r.bar.minValue, r.bar.maxValue))
+	scaledValueL := float32(r.logScale(r.bar.valueL, r.bar.minValue, r.bar.maxValue))
+	scaledValueR := float32(r.logScale(r.bar.valueR, r.bar.minValue, r.bar.maxValue))
 
 	padding := float32(10)
 	labelHeight := float32(30.0)
@@ -165,21 +207,42 @@ func (r *verticalBarRenderer) Layout(size fyne.Size) {
 	r.faderLabel.Move(fyne.NewPos(0, 3))
 
 	rectWith := float32(10)
-	rectHight := (size.Height - 3*padding - labelHeight) * scaledValue
-	rectX := (size.Width)/2 - rectWith - padding
-	rectY := size.Height - rectHight - 2*padding
+	rectHightL := (size.Height - 3*padding - labelHeight) * scaledValueL
+	rectHightR := (size.Height - 3*padding - labelHeight) * scaledValueR
+
+	barLeftX := (size.Width)/2 - rectWith - padding
+	barRightX := (size.Width)/2 - rectWith - padding
+
+	barLeftY := size.Height - rectHightL - 2*padding
+	barRightY := size.Height - rectHightR - 2*padding
 
 	bgBorder := float32(3)
 	bgWidth := rectWith + 2*bgBorder
 	bgHeight := (size.Height - 3*padding - labelHeight) + 2*bgBorder
-	bgX := rectX - bgBorder
+
+	bgX := barLeftX - bgBorder
 	bgY := size.Height - (size.Height - 3*padding - labelHeight) - 2*padding - bgBorder
+
+	r.levelBarRight.Hidden = !r.bar.stereo
+
+	if r.bar.stereo {
+		//make BG Size bigger
+		bgWidth = bgWidth + bgBorder + rectWith
+		//	move BG to left
+		bgX = bgX - bgBorder - rectWith
+
+		//move left bar to left
+		barLeftX = barLeftX - rectWith - bgBorder
+	}
 
 	r.levelBarBg.Move(fyne.NewPos(bgX, bgY))
 	r.levelBarBg.Resize(fyne.NewSize(bgWidth, bgHeight))
 
-	r.levelBar.Move(fyne.NewPos(rectX, rectY))
-	r.levelBar.Resize(fyne.NewSize(rectWith, rectHight))
+	r.levelBarLeft.Move(fyne.NewPos(barLeftX, barLeftY))
+	r.levelBarLeft.Resize(fyne.NewSize(rectWith, rectHightL))
+
+	r.levelBarRight.Move(fyne.NewPos(barRightX, barRightY))
+	r.levelBarRight.Resize(fyne.NewSize(rectWith, rectHightR))
 
 	for dbValue, label := range r.scale {
 
@@ -202,8 +265,11 @@ func (r *verticalBarRenderer) Refresh() {
 	r.Layout(r.bar.Size())
 
 	if r.bar.colorGradient != nil {
-		c := r.bar.colorGradient.GetColor(r.bar.value)
-		r.levelBar.FillColor = c
+		leftColor := r.bar.colorGradient.GetColor(r.bar.valueL)
+		rightColor := r.bar.colorGradient.GetColor(r.bar.valueL)
+
+		r.levelBarLeft.FillColor = leftColor
+		r.levelBarRight.FillColor = rightColor
 	}
 
 	r.faderLabel.Text = fmt.Sprintf("%.1f %s", r.bar.valueMaxHold, r.bar.unit)
@@ -212,7 +278,8 @@ func (r *verticalBarRenderer) Refresh() {
 	}
 
 	canvas.Refresh(r.faderLabel)
-	canvas.Refresh(r.levelBar)
+	canvas.Refresh(r.levelBarLeft)
+	canvas.Refresh(r.levelBarRight)
 	canvas.Refresh(r.border)
 }
 
@@ -221,7 +288,8 @@ func (r *verticalBarRenderer) Objects() []fyne.CanvasObject {
 	objects := []fyne.CanvasObject{
 		r.border,
 		r.levelBarBg,
-		r.levelBar,
+		r.levelBarLeft,
+		r.levelBarRight,
 		r.faderLabel,
 	}
 	for _, label := range r.scale {

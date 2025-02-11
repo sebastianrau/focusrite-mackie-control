@@ -6,7 +6,7 @@ type RemoteController interface {
 	HandleDim(bool)                               // sNew Dim State
 	HandleMute(bool)                              // New Mute State
 	HandleVolume(int)                             // Volume -127 .. 0 dB
-	HandleMeter(int)                              // Meter Value in DB
+	HandleMeter(int, int)                         // Meter Value in DB
 	HandleSpeakerSelect(SpeakerID, bool)          // Speaker with given ID new Selection State
 	HandleSpeakerName(SpeakerID, string)          // Speaker with given ID new Name Update
 	HandleSpeakerUpdate(SpeakerID, *SpeakerState) // Send Speaker Update

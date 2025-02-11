@@ -73,7 +73,10 @@ func (ad *AudioDeviceConnector) handleFcUpdateMsg(set focusritexml.Set) {
 		return
 	}
 
-	// log.Debugf("New Raw Update Device Arrived. Items: %d", len(set.Items))
+	if len(set.Items) == 10 {
+		log.Debugf("ID: %d, ID: %d", set.Items[6].ID, set.Items[7].ID)
+	}
+
 	for _, s := range set.Items {
 		fcID := FocusriteId(s.ID)
 
@@ -106,21 +109,42 @@ func (ad *AudioDeviceConnector) handleFcUpdateMsg(set focusritexml.Set) {
 			// if spk.OutputGain == FocusriteId(s.ID) {}
 		}
 
-		// Handle Speaker Level separately and use only first speaker selected
-		for spkId, spk := range ad.config.Speaker {
-			if spk.Meter == FocusriteId(s.ID) {
-				if ad.state.Speaker[spkId].Selected && ad.state.Speaker[spkId].Type == monitorcontroller.Speaker {
-					level, err := strconv.ParseFloat(s.Value, 32)
-					if err != nil {
-						log.Error(err.Error())
-					}
-					ad.setMasterLevel(int(level))
-					continue
+	}
+
+	// Handle Speaker Level separately and use only first speaker selected
+
+	var spkForLevel *SpeakerFcConfig
+
+	for spkId, spk := range ad.config.Speaker {
+		if ad.state.Speaker[spkId].Selected && ad.state.Speaker[spkId].Type == monitorcontroller.Speaker {
+			spkForLevel = spk
+			break //break after found one speaker
+		}
+	}
+
+	if spkForLevel != nil {
+		levelL := -127.0
+		levelR := -127.0
+		var err error
+
+		for _, s := range set.Items {
+			if spkForLevel.MeterL == FocusriteId(s.ID) {
+				levelL, err = strconv.ParseFloat(s.Value, 64)
+				if err != nil {
+					log.Error(err.Error())
 				}
 			}
-		}
+			if spkForLevel.MeterR == FocusriteId(s.ID) {
+				levelR, err = strconv.ParseFloat(s.Value, 64)
+				if err != nil {
+					log.Error(err.Error())
+				}
+			}
 
+			ad.setMasterLevel(int(levelL), int(levelR))
+		}
 	}
+
 }
 
 func (ad *AudioDeviceConnector) HandleSpeakerName(spkId monitorcontroller.SpeakerID, name string) {
@@ -191,9 +215,10 @@ func (ad *AudioDeviceConnector) HandleMasterUpdate(master *monitorcontroller.Mas
 }
 
 // Setters
-func (ad *AudioDeviceConnector) setMasterLevel(level int) {
-	ad.state.Master.Level = level
-	ad.toController <- monitorcontroller.AdSetLevel(ad.state.Master.Level)
+func (ad *AudioDeviceConnector) setMasterLevel(levelLeft, levelRight int) {
+	ad.state.Master.LevelLeft = levelLeft
+	ad.state.Master.LevelRight = levelRight
+	ad.toController <- monitorcontroller.AdSetLevel{Left: ad.state.Master.LevelLeft, Right: ad.state.Master.LevelRight}
 }
 
 // Fc XNL Set generator functions
@@ -233,7 +258,7 @@ func (ad *AudioDeviceConnector) getSpeakerMuteUpdateSet() *focusritexml.Set {
 		}
 	}
 	if countEnabledSpeaker == 0 {
-		ad.setMasterLevel(-127)
+		ad.setMasterLevel(-127, -127)
 	}
 
 	for id, spk := range ad.config.Speaker {

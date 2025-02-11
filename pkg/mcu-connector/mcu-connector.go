@@ -1,6 +1,7 @@
 package mcuconnector
 
 import (
+	"math"
 	"reflect"
 	"slices"
 
@@ -137,8 +138,8 @@ func (mc *McuConnector) HandleVolume(db int) {
 	mc.SetVolume(faderdb.DBToFader(float64(db)))
 }
 
-func (mc *McuConnector) HandleMeter(db int) {
-	level := mcu.Db2MeterLevel(float64(db))
+func (mc *McuConnector) HandleMeter(left, right int) {
+	level := mcu.Db2MeterLevel(math.Max(float64(left), float64(right)))
 	mc.updateAllMeterFader(mc.config.MasterVolumeChannel, level)
 }
 

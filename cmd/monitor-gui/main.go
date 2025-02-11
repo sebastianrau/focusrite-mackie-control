@@ -25,8 +25,9 @@ func main() {
 	go func() {
 		for {
 			time.Sleep(time.Second / 5)
-			v := rand.Float64() * -127
-			mainGui.SetLevel(v)
+			l := rand.Float64() * -127
+			r := rand.Float64() * -127
+			mainGui.SetLevelStereo(l, r)
 		}
 	}()
 
