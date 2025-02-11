@@ -73,10 +73,6 @@ func (ad *AudioDeviceConnector) handleFcUpdateMsg(set focusritexml.Set) {
 		return
 	}
 
-	if len(set.Items) == 10 {
-		log.Debugf("ID: %d, ID: %d", set.Items[6].ID, set.Items[7].ID)
-	}
-
 	for _, s := range set.Items {
 		fcID := FocusriteId(s.ID)
 
@@ -112,9 +108,7 @@ func (ad *AudioDeviceConnector) handleFcUpdateMsg(set focusritexml.Set) {
 	}
 
 	// Handle Speaker Level separately and use only first speaker selected
-
 	var spkForLevel *SpeakerFcConfig
-
 	for spkId, spk := range ad.config.Speaker {
 		if ad.state.Speaker[spkId].Selected && ad.state.Speaker[spkId].Type == monitorcontroller.Speaker {
 			spkForLevel = spk
