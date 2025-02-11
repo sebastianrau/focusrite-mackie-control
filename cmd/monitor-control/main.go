@@ -51,8 +51,8 @@ func main() {
 	}
 
 	mainGui, content := gui.NewAppWindow(app, -127, 0)
-	mcu := mcuconnector.NewMcuConnector(mcuconnector.DefaultConfiguration())                //TODO remove default config
-	fc := fcaudioconnector.NewAudioDeviceConnector(fcaudioconnector.DefaultConfiguration()) //TODO remove default config
+	mcu := mcuconnector.NewMcuConnector(mcuconnector.DefaultConfiguration())                //HACK remove default config
+	fc := fcaudioconnector.NewAudioDeviceConnector(fcaudioconnector.DefaultConfiguration()) //HACK remove default config
 
 	mc := monitorcontroller.NewController(fc)
 

@@ -1,13 +1,8 @@
 package monitorcontroller
 
-// TODO: remove Fader fpr Speaker Level
-
 import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 )
-
-// TODO Add Meter Functions
-// TODO Add Name Functions & Set Display Text
 
 var log *logger.CustomLogger = logger.WithPackage("monitor-controller")
 

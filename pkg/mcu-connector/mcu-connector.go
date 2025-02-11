@@ -84,7 +84,6 @@ func (mc *McuConnector) run() {
 				}
 			}
 
-			// TODO maybe move to monitorController ?
 			switch f.KeyNumber {
 			case gomcu.Play:
 				err := robotgo.KeyTap(robotgo.AudioPlay)

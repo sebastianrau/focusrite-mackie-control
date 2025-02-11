@@ -21,7 +21,6 @@ func main() {
 
 	mainGui, content := gui.NewAppWindow(app, -127, 0)
 
-	// TODO Remove Audio value Simulation
 	go func() {
 		for {
 			time.Sleep(time.Second / 5)
