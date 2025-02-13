@@ -5,11 +5,13 @@ import (
 	"os/signal"
 
 	"fyne.io/fyne/v2"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
+	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
+
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
-	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
 

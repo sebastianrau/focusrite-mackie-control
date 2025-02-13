@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-vgo/robotgo"
 
-	faderdb "github.com/sebastianrau/focusrite-mackie-control/pkg/fader-nomalisation"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
@@ -112,7 +111,7 @@ func (mc *McuConnector) run() {
 
 		case mcu.RawFaderMessage:
 			if slices.Contains(mc.config.MasterVolumeChannel, f.FaderNumber) {
-				db := faderdb.FaderToDB(f.FaderValue)
+				db := FaderToDB(f.FaderValue)
 				mc.controllerChannel <- monitorcontroller.RcSetVolume(db)
 			}
 
@@ -137,7 +136,7 @@ func (mc *McuConnector) HandleMute(mute bool) {
 }
 
 func (mc *McuConnector) HandleVolume(db int) {
-	mc.SetVolume(faderdb.DBToFader(float64(db)))
+	mc.SetVolume(DBToFader(float64(db)))
 }
 
 func (mc *McuConnector) HandleMeter(left, right int) {
@@ -162,7 +161,7 @@ func (mc *McuConnector) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk 
 func (mc *McuConnector) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	mc.SetMute(master.Mute)
 	mc.SetDim(master.Dim)
-	mc.SetVolume(faderdb.DBToFader(float64(master.VolumeDB)))
+	mc.SetVolume(DBToFader(float64(master.VolumeDB)))
 }
 
 //Setter
