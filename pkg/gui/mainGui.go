@@ -202,6 +202,7 @@ func (g *MainGui) SetLevelStereo(levelL, levelR float64) {
 func (g *MainGui) SetFader(level float64) {
 	g.fader.SetLevel(level)
 }
+
 func (g *MainGui) SetButtonlabel(id ButtonID, label string) {
 
 	b, ok := g.buttons[id]
@@ -218,6 +219,16 @@ func (g *MainGui) SetButton(id ButtonID, state bool) {
 		return
 	}
 	b.Set(state)
+}
+
+func (g *MainGui) SetButtonDisabled(id ButtonID, state bool) {
+	log.Debugf("Setting Button: %d to %t", id, state)
+	b, ok := g.buttons[id]
+	if !ok {
+		log.Errorf("Button not found %d", id)
+		return
+	}
+	b.SetDisable(state)
 }
 
 func (g *MainGui) SetControlChannel(controllerChannel chan interface{}) {
@@ -262,6 +273,7 @@ func (g *MainGui) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk *monit
 
 	g.SetButton(ButtonID(id), spk.Selected)
 	g.SetButtonlabel(ButtonID(id), spk.Name)
+	g.SetButtonDisabled(ButtonID(id), spk.Disabled)
 }
 func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	g.SetFader(float64(master.VolumeDB))

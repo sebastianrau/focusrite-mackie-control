@@ -71,6 +71,19 @@ func (tb *ToggleButton) SetLabel(label string) {
 	tb.LabelWidget.Text = label
 }
 
+func (tb *ToggleButton) SetDisable(disable bool) {
+	if disable {
+		tb.Button.Disable()
+		tb.Button.Hide()
+		tb.LabelWidget.Hide()
+
+	} else {
+		tb.Button.Enable()
+		tb.Button.Show()
+		tb.LabelWidget.Show()
+	}
+}
+
 func (tb *ToggleButton) CreateRenderer() fyne.WidgetRenderer {
 	c := container.NewStack(tb.Button, tb.LabelWidget)
 	return widget.NewSimpleRenderer(c)

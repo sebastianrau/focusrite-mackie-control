@@ -110,7 +110,7 @@ func (ad *AudioDeviceConnector) handleFcUpdateMsg(set focusritexml.Set) {
 	// Handle Speaker Level separately and use only first speaker selected
 	var spkForLevel *SpeakerFcConfig
 	for spkId, spk := range ad.config.Speaker {
-		if ad.state.Speaker[spkId].Selected && ad.state.Speaker[spkId].Type == monitorcontroller.Speaker {
+		if !ad.state.Speaker[spkId].Disabled && ad.state.Speaker[spkId].Selected && ad.state.Speaker[spkId].Type == monitorcontroller.Speaker {
 			spkForLevel = spk
 			break //break after found one speaker
 		}
@@ -229,8 +229,11 @@ func (ad *AudioDeviceConnector) getSpeakerVolumeUpdateSet() *focusritexml.Set {
 	}
 
 	fcUpdateSet := focusritexml.NewSet(ad.config.FocusriteDeviceId)
-	for _, spk := range ad.config.Speaker {
-		fcUpdateSet.AddItemInt(int(spk.OutputGain), volume)
+	for spkId, spk := range ad.config.Speaker {
+		if !ad.state.Speaker[spkId].Disabled {
+			fcUpdateSet.AddItemInt(int(spk.OutputGain), volume)
+		}
+
 	}
 	log.Debugf("Sending speaker level %d", volume)
 	return fcUpdateSet
@@ -255,11 +258,13 @@ func (ad *AudioDeviceConnector) getSpeakerMuteUpdateSet() *focusritexml.Set {
 		ad.setMasterLevel(-127, -127)
 	}
 
-	for id, spk := range ad.config.Speaker {
-		state := mute || !ad.state.Speaker[id].Selected
-		fcUpdateSet.AddItemBool(int(spk.Mute), state)
-		log.Debugf("setting focusrite speaker %d Mute to %t", id, state)
+	for spkId, spk := range ad.config.Speaker {
+		if !ad.state.Speaker[spkId].Disabled {
+			state := mute || !ad.state.Speaker[spkId].Selected
+			fcUpdateSet.AddItemBool(int(spk.Mute), state)
+			log.Debugf("setting focusrite speaker %d Mute to %t", spkId, state)
+		}
+
 	}
 	return fcUpdateSet
-
 }

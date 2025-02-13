@@ -22,18 +22,21 @@ type McuConnector struct {
 
 	controllerChannel chan interface{}
 
-	dim           bool
-	mute          bool
+	state *monitorcontroller.ControllerSate
+
+	//dim           bool
+	//mute          bool
 	faderValueRaw uint16
-	speakerSelect []bool
-	speakerName   []string
+	//speakerSelect []bool
+	//speakerName   []string
 }
 
 func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
 	m := &McuConnector{
-		config:        config,
-		speakerSelect: make([]bool, monitorcontroller.SPEAKER_LEN),
-		speakerName:   make([]string, monitorcontroller.SPEAKER_LEN),
+		config: config,
+		state:  monitorcontroller.NewDefaultState(),
+		//		speakerSelect: make([]bool, monitorcontroller.SPEAKER_LEN),
+		//		speakerName:   make([]string, monitorcontroller.SPEAKER_LEN),
 	}
 
 	var err error
@@ -67,19 +70,19 @@ func (mc *McuConnector) run() {
 			log.Debugf("Key Msg: %s (%d)", f.HotkeyName, f.KeyNumber)
 
 			if mc.isMcuID(mc.config.MasterMuteSwitch, f.KeyNumber) {
-				mc.controllerChannel <- monitorcontroller.RcSetMute(!mc.mute)
+				mc.controllerChannel <- monitorcontroller.RcSetMute(!mc.state.Master.Mute)
 				continue
 			}
 
 			if mc.isMcuID(mc.config.MasterDimSwitch, f.KeyNumber) {
-				mc.controllerChannel <- monitorcontroller.RcSetDim(!mc.dim)
+				mc.controllerChannel <- monitorcontroller.RcSetDim(!mc.state.Master.Dim)
 				continue
 			}
 
 			for k, spk := range mc.config.SpeakerSelect {
 				if mc.isMcuID(spk, f.KeyNumber) {
 					log.Debugf("Speaker Select Button %s detected. SpeakerId %d ", f.HotkeyName, k)
-					mc.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: k, State: !mc.speakerSelect[k]}
+					mc.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: k, State: !mc.state.Speaker[k].Selected}
 					continue
 				}
 			}
@@ -125,8 +128,8 @@ func (mc *McuConnector) SetControlChannel(controllerChannel chan interface{}) {
 }
 
 func (mc *McuConnector) HandleDim(dim bool) {
-	mc.dim = dim
-	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.dim)
+	mc.state.Master.Dim = dim
+	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) HandleMute(mute bool) {
@@ -143,7 +146,7 @@ func (mc *McuConnector) HandleMeter(left, right int) {
 }
 
 func (mc *McuConnector) HandleSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
-	mc.speakerSelect[id] = sel
+	mc.state.Speaker[id].Selected = sel
 	mc.updateAllLeds(mc.config.SpeakerSelect[id], sel)
 }
 
@@ -165,13 +168,13 @@ func (mc *McuConnector) HandleMasterUpdate(master *monitorcontroller.MasterState
 //Setter
 
 func (mc *McuConnector) SetMute(mute bool) {
-	mc.mute = mute
-	mc.updateAllLeds(DefaultConfiguration().MasterMuteSwitch, mc.mute)
+	mc.state.Master.Mute = mute
+	mc.updateAllLeds(DefaultConfiguration().MasterMuteSwitch, mc.state.Master.Mute)
 }
 
 func (mc *McuConnector) SetDim(dim bool) {
-	mc.dim = dim
-	mc.updateAllLeds(DefaultConfiguration().MasterDimSwitch, mc.dim)
+	mc.state.Master.Dim = dim
+	mc.updateAllLeds(DefaultConfiguration().MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) SetVolume(vol uint16) {
@@ -180,21 +183,21 @@ func (mc *McuConnector) SetVolume(vol uint16) {
 }
 
 func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
-	mc.speakerSelect[id] = sel
+	mc.state.Speaker[id].Selected = sel
 	mc.updateAllLeds(mc.config.SpeakerSelect[id], sel)
 }
 
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
-	mc.speakerName[id] = name
+	mc.state.Speaker[id].Name = name
 	// TODO Update LCD
 }
 
 func (mc *McuConnector) initMcu() {
-	mc.updateAllLeds(mc.config.MasterMuteSwitch, mc.mute)
-	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.dim)
+	mc.updateAllLeds(mc.config.MasterMuteSwitch, mc.state.Master.Mute)
+	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 
 	for k, speaker := range mc.config.SpeakerSelect {
-		mc.updateAllLeds(speaker, mc.speakerSelect[k])
+		mc.updateAllLeds(speaker, mc.state.Speaker[k].Selected)
 	}
 
 	mc.updateAllFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)

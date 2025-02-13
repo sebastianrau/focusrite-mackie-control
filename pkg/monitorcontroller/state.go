@@ -6,6 +6,7 @@ type ControllerSate struct {
 }
 
 type SpeakerState struct {
+	Disabled  bool
 	Name      string
 	Selected  bool
 	Type      SpeakerType
@@ -45,6 +46,7 @@ func NewDefaultState() *ControllerSate {
 	}
 
 	s.Speaker[SpeakerA].Selected = true
+	s.Speaker[SpeakerD].Disabled = true
 	s.Speaker[Sub].Selected = true
 	s.Speaker[Sub].Type = Subwoofer
 

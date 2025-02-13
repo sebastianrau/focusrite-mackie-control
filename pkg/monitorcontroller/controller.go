@@ -179,6 +179,11 @@ func (c *Controller) setSpeakerSelected(id SpeakerID, sel bool) {
 		return
 	}
 
+	if speaker.Disabled {
+		log.Debugf("Speaker is disabled. no action required")
+		return
+	}
+
 	speaker.Selected = sel
 
 	if speaker.Selected {
@@ -216,6 +221,10 @@ func (c *Controller) setSpeakerName(id SpeakerID, name string) {
 		return
 	}
 
+	if speaker.Disabled {
+		log.Debugf("Speaker is disabled. no action required")
+		return
+	}
 	speaker.Name = name
 
 	c.audioDevice.HandleSpeakerUpdate(id, speaker)
