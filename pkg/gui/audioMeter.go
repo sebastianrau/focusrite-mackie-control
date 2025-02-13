@@ -13,8 +13,18 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// decay per 50ms should be 0,59db/50ms
-const DROP_RATE_DB_PER_SECOND float64 = 11.8
+type DecayRate float64
+
+const (
+	Slow      DecayRate = 4.0
+	EBU_Slow  DecayRate = 6.3
+	IEC_TypII DecayRate = 8.6
+	IEC_TypI  DecayRate = 11.8
+	Fast      DecayRate = 20.0
+
+	Default DecayRate = IEC_TypI
+)
+
 const DECAY_UPDATE_RATE time.Duration = 50 * time.Millisecond
 const MAX_HOLD_TIME = 4 * time.Second
 const MAX_HOLD_UPDATE_TIME = 100 * time.Millisecond
@@ -60,8 +70,8 @@ func NewAudioMeterBar(maxValue float64, stereo bool) *AudioMeter {
 
 		mu:               sync.Mutex{},
 		decayRefreshTime: DECAY_UPDATE_RATE,
-		decayRate:        DROP_RATE_DB_PER_SECOND / float64(time.Millisecond) * float64(DECAY_UPDATE_RATE) / float64(time.Microsecond),
 	}
+	b.SetDecayRate(Default)
 	b.ExtendBaseWidget(b)
 
 	go b.runAutoDecay()
@@ -163,6 +173,10 @@ type verticalBarRenderer struct {
 
 func (b *AudioMeter) SetGradient(grad *Gradient) {
 	b.colorGradient = grad
+}
+
+func (b *AudioMeter) SetDecayRate(rate DecayRate) {
+	b.decayRate = float64(rate) / float64(time.Millisecond) * float64(DECAY_UPDATE_RATE) / float64(time.Microsecond)
 }
 
 // CreateRenderer erstellt den Renderer für das Widget

@@ -17,13 +17,11 @@ const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
-// TODO Add Load balacer to FC Interface
-// TODO Update Config File and use
-
+// TODO Config: Update and use File and use
 // TODO Config: store and reload last state
+// TODO Config: add configuration gui
 
-// TODO Gui: Context Menu
-// TODO Gui: add Hotkeys 1..5, D, M + Space
+// TODO Gui: Context Menu --> Select, Mute, Dim
 
 func main() {
 	var (
@@ -46,7 +44,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	app, window, err := gui.MakeApp()
+	app, window, err := gui.NewApp()
 	if err != nil {
 		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)

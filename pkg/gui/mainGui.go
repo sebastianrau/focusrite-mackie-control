@@ -69,7 +69,7 @@ type MainGui struct {
 	masterVolumeBuffer int
 }
 
-func MakeApp() (fyne.App, fyne.Window, error) {
+func NewApp() (fyne.App, fyne.Window, error) {
 	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
 	iconFile, err := os.ReadFile(iconPath)
 	if err != nil {
