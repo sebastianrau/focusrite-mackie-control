@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-//var log *logger.CustomLogger = logger.WithPackage("focusrite-config")
+//var log *logger.CustomLogger = logger.WithPackage("controller-config")
 
 const (
 	subfolder string = "Monitor-Controller"

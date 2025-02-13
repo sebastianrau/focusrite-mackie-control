@@ -6,10 +6,7 @@ import (
 	"strings"
 
 	"github.com/ECUST-XX/xml"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 )
-
-var log *logger.CustomLogger = logger.WithPackage("focusrite-xml.device")
 
 type Device struct {
 	XMLName xml.Name `xml:"device"`

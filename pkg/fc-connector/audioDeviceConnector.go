@@ -203,6 +203,7 @@ func (ad *AudioDeviceConnector) HandleMasterUpdate(master *monitorcontroller.Mas
 	ad.state.Master = master
 	fcUpdateSet := focusritexml.NewSet(ad.config.FocusriteDeviceId)
 	fcUpdateSet.AddItems(ad.getSpeakerMuteUpdateSet().Items)
+	fcUpdateSet.AddItems(ad.getSpeakerVolumeUpdateSet().Items)
 	fcUpdateSet.AddItemBool(int(ad.config.Master.DimSwitch), ad.state.Master.Dim)
 	fcUpdateSet.AddItemBool(int(ad.config.Master.MuteSwitch), ad.state.Master.Mute)
 	ad.device.ToFocusrite <- *fcUpdateSet

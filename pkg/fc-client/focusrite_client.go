@@ -25,6 +25,8 @@ const (
 	SERVER_IP        string        = "localhost"
 	KEEP_ALIVE_S     time.Duration = 3 * time.Second
 	RECONNECT_TIME_S time.Duration = 5 * time.Second
+
+	FC_SEND_INTERVAL time.Duration = 75 * time.Millisecond
 )
 
 type FocusriteClientMode int
@@ -37,11 +39,11 @@ const (
 
 // FocusriteClient stellt eine TCP-Verbindung zu einem Focusrite-Server her und empfängt Daten.
 type FocusriteClient struct {
-	mutex       sync.Mutex
-	state       State
-	port        int
-	connection  net.Conn
-	isConnected bool
+	connectionMutex sync.Mutex
+	state           State
+	port            int
+	connection      net.Conn
+	isConnected     bool
 
 	DeviceList    DeviceList
 	ClientDetails focusritexml.ClientDetails
@@ -49,10 +51,8 @@ type FocusriteClient struct {
 	ToFocusrite   chan focusritexml.Set
 	FromFocusrite chan interface{}
 
-	//DeviceArrivalChannel chan *focusritexml.Device
-	//DeviceRemovalChannel chan int
-	//DeviceUpdateChannel chan *focusritexml.Device
-	//RawUpdateChannel chan *focusritexml.Set
+	sendMutex sync.Mutex
+	sendQueue map[int]focusritexml.Set
 
 	Mode FocusriteClientMode
 }
@@ -60,7 +60,10 @@ type FocusriteClient struct {
 // NewFocusriteClient erstellt einen neuen FocusriteClient.
 func NewFocusriteClient(mode FocusriteClientMode) *FocusriteClient {
 	f := &FocusriteClient{
+		connectionMutex: sync.Mutex{},
+
 		state: Discover,
+
 		ClientDetails: focusritexml.ClientDetails{
 			Hostname:  "Monitor Controller",
 			ClientKey: "123456789",
@@ -71,10 +74,14 @@ func NewFocusriteClient(mode FocusriteClientMode) *FocusriteClient {
 		FromFocusrite: make(chan interface{}, 100),
 
 		Mode: mode,
+
+		sendMutex: sync.Mutex{},
+		sendQueue: make(map[int]focusritexml.Set),
 	}
 	go f.runConnection()
 	go f.runKeepalive()
 	go f.runCommandHandling()
+	go f.runSendQueue()
 
 	return f
 }
@@ -122,14 +129,53 @@ func (fc *FocusriteClient) runKeepalive() {
 }
 
 func (fc *FocusriteClient) runCommandHandling() {
+
 	for set := range fc.ToFocusrite {
-		if len(set.Items) > 0 {
-			log.Infof("Sending to Focusrite %d items\n", len(set.Items))
-			err := fc.sendSet(set)
-			if err != nil {
-				log.Error(err)
+		if set.DevID != 0 && len(set.Items) > 0 {
+			fc.sendMutex.Lock()
+			q, ok := fc.sendQueue[set.DevID]
+			if !ok { //new set to send
+				fc.sendQueue[set.DevID] = set
+			} else {
+				for _, newItem := range set.Items {
+					updated := false
+					for qItemId, qItem := range q.Items {
+						//set contains Item --> Update Item
+						if qItem.ID == newItem.ID {
+							log.Debugf("Updating Value: %d from %s to %s", qItem.ID, qItem.Value, newItem.Value)
+							q.Items[qItemId].Value = newItem.Value
+							updated = true
+						}
+					}
+					if !updated {
+						q.Items = append(q.Items, newItem)
+					}
+				}
+			}
+			fc.sendMutex.Unlock()
+		}
+	}
+}
+
+func (fc *FocusriteClient) runSendQueue() {
+	for {
+		time.Sleep(FC_SEND_INTERVAL)
+		fc.sendMutex.Lock()
+		for qID, q := range fc.sendQueue {
+			if len(q.Items) >= 0 || q.DevID != 0 {
+
+				log.Infof("Sending to Focusrite %d items\n", len(q.Items))
+				err := fc.sendSet(q)
+				if err != nil {
+					log.Error(err)
+				}
+				//reset Buffer
+				delete(fc.sendQueue, qID)
+
 			}
 		}
+		fc.sendMutex.Unlock()
+
 	}
 }
 
@@ -234,29 +280,29 @@ func (fc *FocusriteClient) SendSubscribe(id int, subscribe bool) error {
 
 // setConnected aktualisiert den Verbindungsstatus.
 func (fc *FocusriteClient) setConnected(status bool) {
-	fc.mutex.Lock()
-	defer fc.mutex.Unlock()
+	fc.connectionMutex.Lock()
+	defer fc.connectionMutex.Unlock()
 	fc.isConnected = status
 	fc.FromFocusrite <- ConnectionStatusMessage(status)
 }
 
 // setConnected aktualisiert den Verbindungsstatus.
 func (fc *FocusriteClient) Connected() bool {
-	fc.mutex.Lock()
-	defer fc.mutex.Unlock()
+	fc.connectionMutex.Lock()
+	defer fc.connectionMutex.Unlock()
 	return fc.isConnected
 }
 
 // setConnection sets the active connection.
 func (fc *FocusriteClient) setConnection(conn net.Conn) {
-	fc.mutex.Lock()
-	defer fc.mutex.Unlock()
+	fc.connectionMutex.Lock()
+	defer fc.connectionMutex.Unlock()
 	fc.connection = conn
 }
 
 func (fc *FocusriteClient) sendXML(data interface{}) error {
-	fc.mutex.Lock()
-	defer fc.mutex.Unlock()
+	fc.connectionMutex.Lock()
+	defer fc.connectionMutex.Unlock()
 
 	if fc.connection == nil {
 		return fmt.Errorf("not connected to the server")
