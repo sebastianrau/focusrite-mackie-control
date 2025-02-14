@@ -11,6 +11,8 @@ type RemoteController interface {
 	HandleSpeakerName(SpeakerID, string)          // Speaker with given ID new Name Update
 	HandleSpeakerUpdate(SpeakerID, *SpeakerState) // Send Speaker Update
 	HandleMasterUpdate(*MasterState)              // Send Master Update
+	HandleDeviceUpdate(*DeviceInfo)               //Device Arrived / Connected etc.
+
 }
 
 type RcUpdateRequest bool
@@ -26,4 +28,12 @@ type RcSpeakerSelect struct {
 type RcSetSpeakerName struct {
 	Id   SpeakerID
 	Name string
+}
+
+type DeviceInfo struct {
+	DeviceId        int
+	Model           string
+	SampleRate      string
+	SerialNumber    string
+	ConnectionState bool
 }

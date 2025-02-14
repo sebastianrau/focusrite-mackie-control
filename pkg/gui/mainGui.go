@@ -9,7 +9,8 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
-	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
@@ -17,6 +18,9 @@ import (
 var log *logger.CustomLogger = logger.WithPackage("gui-main")
 
 const APP_TITLE string = "Monitor Controller"
+
+const INFO_NO_DEVICE string = "No device connected"
+const INFO_NO_CONNECTION string = "No Focusrite Control connection"
 
 const (
 	SpeakerA ButtonID = iota
@@ -60,6 +64,9 @@ type MainGui struct {
 	levelMeter      *AudioMeter
 	buttonContainer *fyne.Container
 	buttons         map[ButtonID]*ToggleButton
+
+	infoLabel *canvas.Text
+	infoIcon  *widget.Icon
 
 	masterValueChanged chan AudioLevelChanged
 	buttonPressed      chan ButtonEvent
@@ -134,6 +141,9 @@ func NewAppWindow(
 
 	mainGui.buttonContainer = container.NewVBox()
 
+	mainGui.infoIcon = widget.NewIcon(theme.NewDisabledResource(theme.BrokenImageIcon()))
+	mainGui.infoLabel = canvas.NewText(INFO_NO_DEVICE, theme.Color(theme.ColorNameDisabled))
+
 	// Action Buttons
 	for _, b := range btnDefinition {
 		if b.ID == Spacer {
@@ -155,11 +165,11 @@ func NewAppWindow(
 
 	// Layouts
 	content := container.NewBorder(
-		nil, // top
-		nil, // bot
-		mainGui.fader,
-		mainGui.levelMeter,
-		mainGui.buttonContainer,
+		nil, //top
+		container.NewHBox(mainGui.infoIcon, mainGui.infoLabel), // bot
+		mainGui.fader,           // left
+		mainGui.levelMeter,      // right
+		mainGui.buttonContainer, // center
 	)
 	go mainGui.run()
 	return mainGui, content
@@ -231,12 +241,30 @@ func (g *MainGui) SetButtonDisabled(id ButtonID, state bool) {
 	b.SetDisable(state)
 }
 
+func (g *MainGui) UpdateStatusText(dev *monitorcontroller.DeviceInfo) {
+	if dev.ConnectionState {
+		if dev.DeviceId == 0 {
+			g.infoLabel.Text = INFO_NO_DEVICE
+			g.infoIcon.SetResource(theme.NewDisabledResource(theme.WarningIcon()))
+		} else {
+			g.infoLabel.Text = dev.Model
+			g.infoIcon.SetResource(theme.NewDisabledResource(theme.VolumeUpIcon()))
+		}
+	} else {
+		g.infoLabel.Text = INFO_NO_CONNECTION
+		g.infoIcon.SetResource(theme.NewDisabledResource(theme.BrokenImageIcon()))
+	}
+
+	g.infoLabel.Refresh()
+}
+
 func (g *MainGui) SetControlChannel(controllerChannel chan interface{}) {
 	g.controllerChannel = controllerChannel
 }
 
-func (g *MainGui) HandleDeviceArrival(dev *focusritexml.Device) { /* TODO ignore for now */ }
-func (g *MainGui) HandleDeviceRemoval()                         { /* TODO ignore for now */ }
+func (g *MainGui) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
+	g.UpdateStatusText(dev)
+}
 
 // sNew Dim State
 func (g *MainGui) HandleDim(state bool) {

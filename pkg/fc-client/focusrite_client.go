@@ -164,7 +164,7 @@ func (fc *FocusriteClient) runSendQueue() {
 		for qID, q := range fc.sendQueue {
 			if len(q.Items) >= 0 || q.DevID != 0 {
 
-				log.Infof("Sending to Focusrite %d items\n", len(q.Items))
+				log.Debugf("Sending to Focusrite %d items\n", len(q.Items))
 				err := fc.sendSet(q)
 				if err != nil {
 					log.Error(err)

@@ -49,7 +49,6 @@ func (c *Controller) run() {
 				for spkId, spk := range c.state.Speaker {
 					c.audioDevice.HandleSpeakerUpdate(spkId, spk)
 				}
-				log.Warn("RcUpdate not handled")
 			case AdSetMute:
 				log.Debugf("setting mute: %t", bool(r))
 				c.setMute(bool(r))
@@ -64,6 +63,9 @@ func (c *Controller) run() {
 				c.setSpeakerSelected(r.Id, r.State)
 			case AdSetLevel:
 				c.setMasterLevel(r.Left, r.Right)
+			case AdSetDeviceStatus:
+				c.fireDeviceUpdate(r)
+
 			}
 
 		case remote := <-c.fromRemoteController:
@@ -131,6 +133,20 @@ func (c *Controller) fireMasterUpdate(master *MasterState) {
 		go rc.HandleMasterUpdate(master)
 	}
 }
+
+func (c *Controller) fireDeviceUpdate(status AdSetDeviceStatus) {
+
+	dev := &DeviceInfo{
+		DeviceId:        status.DeviceId,
+		SerialNumber:    status.SerialNumber,
+		Model:           status.Model,
+		ConnectionState: status.ConnectionState,
+	}
+	for _, rc := range c.remoteController {
+		go rc.HandleDeviceUpdate(dev)
+	}
+}
+
 func (c *Controller) fireAllUpdate() {
 	for spkId, spk := range c.state.Speaker {
 		for _, rc := range c.remoteController {

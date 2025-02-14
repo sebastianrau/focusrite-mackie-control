@@ -32,3 +32,11 @@ type AdSetSpeakerName struct {
 	Id   SpeakerID
 	Name string
 }
+
+type AdSetDeviceStatus struct {
+	DeviceId        int
+	Model           string
+	SerialNumber    string
+	SampleRate      string
+	ConnectionState bool
+}

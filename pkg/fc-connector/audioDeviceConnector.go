@@ -1,6 +1,7 @@
 package fcaudioconnector
 
 import (
+	"reflect"
 	"strconv"
 
 	focusriteclient "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-client"
@@ -43,8 +44,41 @@ func (ad *AudioDeviceConnector) run() {
 
 		case focusriteclient.RawUpdateMessage:
 			ad.handleFcUpdateMsg(focusritexml.Set(m))
+
+		case focusriteclient.DeviceUpdateMessage:
+			log.Debugf("Got Device Upadte Message")
+			ad.toController <- monitorcontroller.AdSetDeviceStatus{
+				DeviceId:        m.ID,
+				Model:           m.Model,
+				SerialNumber:    m.SerialNumber,
+				SampleRate:      m.Clocking.SampleRate.Value,
+				ConnectionState: ad.device.Connected(),
+			}
+
+		case focusriteclient.ApprovalMessasge:
+			if m {
+				log.Info("got positive approval from Focusrite Controller Server")
+			} else {
+				log.Warn("app has no approval from Focusrite Control.")
+			}
+			// TODO reflect on gui
+
+		case focusriteclient.ConnectionStatusMessage:
+			if !m { //connection to Fc Control Server lost
+				log.Debugf("Connection to Focusrite Device Control Server lost")
+				ad.config.FocusriteDeviceId = 0
+				ad.toController <- monitorcontroller.AdSetDeviceStatus{
+					DeviceId:        0,
+					ConnectionState: ad.device.Connected(),
+				}
+			}
+
+		default:
+			log.Warnf("unhadled %s message", reflect.TypeOf(msg).String())
 		}
+
 	}
+
 }
 
 func (ad *AudioDeviceConnector) SetControlChannel(controllerChannel chan interface{}) {
@@ -55,8 +89,15 @@ func (ad *AudioDeviceConnector) handleFcDeviceArrivalMsg(device focusritexml.Dev
 	log.Debugf("New Focusrite Device Arrived ID:%d SN:%s", device.ID, device.SerialNumber)
 	if device.SerialNumber == ad.config.FocusriteSerialNumber {
 		log.Debugf("configured device with SN: %s arrived with ID ID:%d", device.SerialNumber, device.ID)
-
 		ad.config.FocusriteDeviceId = device.ID
+
+		ad.toController <- monitorcontroller.AdSetDeviceStatus{
+			DeviceId:        device.ID,
+			Model:           device.Model,
+			SerialNumber:    device.SerialNumber,
+			SampleRate:      device.Clocking.SampleRate.Value,
+			ConnectionState: ad.device.Connected(),
+		}
 		ad.toController <- monitorcontroller.AdUpdateRequest{}
 	}
 }
@@ -65,6 +106,13 @@ func (ad *AudioDeviceConnector) handleFcDeviceRemovalMsg(deviceId int) {
 	log.Debugf("Focusrite Device removed ID:%d", deviceId)
 	if deviceId != 0 && deviceId == ad.config.FocusriteDeviceId {
 		ad.config.FocusriteDeviceId = 0
+	}
+
+	ad.toController <- monitorcontroller.AdSetDeviceStatus{
+		DeviceId:        0,
+		Model:           "",
+		SerialNumber:    "",
+		ConnectionState: ad.device.Connected(),
 	}
 }
 
