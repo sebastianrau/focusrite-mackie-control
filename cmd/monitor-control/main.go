@@ -19,6 +19,7 @@ const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
+// TODO MUC: Check reconnection
 // TODO Config: Update and use File and use
 // TODO Config: store and reload last state
 // TODO Config: add configuration gui

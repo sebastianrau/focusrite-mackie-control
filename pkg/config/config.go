@@ -4,7 +4,7 @@ import (
 	"os"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
+	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
 	"gopkg.in/yaml.v2"
 )
@@ -17,7 +17,7 @@ const (
 )
 
 type Config struct {
-	Midi       *mcu.Configuration
+	Midi       *mcuconnector.McuConnectorConfig
 	Controller *fcaudioconnector.FcConfiguration
 }
 
@@ -40,7 +40,7 @@ func getPathAndFile() (string, error) {
 
 func Default() *Config {
 	return &Config{
-		Midi:       &mcu.DEFAULT_CONFIGURATION,
+		Midi:       mcuconnector.DefaultConfiguration(),
 		Controller: fcaudioconnector.DefaultConfiguration(),
 	}
 }

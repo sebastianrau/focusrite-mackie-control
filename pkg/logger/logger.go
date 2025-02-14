@@ -13,10 +13,10 @@ var packageLogLevels = map[string]logrus.Level{
 
 	"controller-config": logrus.WarnLevel,
 
-	"focusriteclient": logrus.DebugLevel,
+	"focusriteclient": logrus.InfoLevel,
 	"fc-audio":        logrus.WarnLevel,
 
-	"focusrite-xml":    logrus.DebugLevel,
+	"focusrite-xml":    logrus.WarnLevel,
 	"focusrite-config": logrus.WarnLevel,
 
 	"gui-main": logrus.WarnLevel,
