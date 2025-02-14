@@ -111,7 +111,14 @@ func (mc *McuConnector) run() {
 
 		case mcu.RawFaderMessage:
 			if slices.Contains(mc.config.MasterVolumeChannel, f.FaderNumber) {
-				db := FaderToDB(f.FaderValue)
+
+				db := 0.0
+				if mc.config.FaderScaleLog {
+					db = FaderToDBLog(f.FaderValue)
+				} else {
+					db = FaderToDB(f.FaderValue)
+				}
+
 				mc.controllerChannel <- monitorcontroller.RcSetVolume(db)
 			}
 
@@ -136,7 +143,13 @@ func (mc *McuConnector) HandleMute(mute bool) {
 }
 
 func (mc *McuConnector) HandleVolume(db int) {
-	mc.SetVolume(DBToFader(float64(db)))
+
+	if mc.config.FaderScaleLog {
+		mc.SetVolume(DBToFaderLog(float64(db)))
+	} else {
+		mc.SetVolume(DBToFader(float64(db)))
+	}
+
 }
 
 func (mc *McuConnector) HandleMeter(left, right int) {
@@ -161,7 +174,17 @@ func (mc *McuConnector) HandleSpeakerUpdate(id monitorcontroller.SpeakerID, spk 
 func (mc *McuConnector) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	mc.SetMute(master.Mute)
 	mc.SetDim(master.Dim)
-	mc.SetVolume(DBToFader(float64(master.VolumeDB)))
+
+	if mc.config.FaderScaleLog {
+		mc.SetVolume(DBToFaderLog(float64(master.VolumeDB)))
+	} else {
+		mc.SetVolume(DBToFader(float64(master.VolumeDB)))
+	}
+
+}
+
+func (mc *McuConnector) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
+	// TODO implement
 }
 
 //Setter

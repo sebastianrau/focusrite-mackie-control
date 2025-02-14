@@ -20,7 +20,8 @@ var faderToDBTable = []struct {
 }
 
 // FaderToDB konvertiert einen Faderwert (0 bis 16384) in Dezibel (dB) mithilfe einer Lookup-Tabelle und Interpolation.
-func FaderToDB(faderValue uint16) float64 {
+
+func FaderToDBLog(faderValue uint16) float64 {
 	if faderValue <= 0 {
 		return -127.0
 	}
@@ -45,7 +46,8 @@ func FaderToDB(faderValue uint16) float64 {
 }
 
 // DBToFader konvertiert einen Dezibel-Wert (dB) zurück in einen Faderwert (0 bis 16384) mithilfe einer Lookup-Tabelle und Interpolation.
-func DBToFader(dbValue float64) uint16 {
+
+func DBToFaderLog(dbValue float64) uint16 {
 	if dbValue <= -80 {
 		return 0 // Minimalwert
 	}
@@ -65,4 +67,18 @@ func DBToFader(dbValue float64) uint16 {
 	}
 
 	return 16384 // Fallback (sollte nie erreicht werden)
+}
+
+func FaderToDB(faderValue uint16) float64 {
+	return float64(faderValue)*127.0/16384 - 127
+}
+
+func DBToFader(dbValue float64) uint16 {
+	if dbValue <= -127 {
+		return 0 // Minimalwert
+	}
+	if dbValue >= 0 {
+		return 16384 // Maximalwert
+	}
+	return uint16((dbValue + 127.0) * 16384.0 / 127.0)
 }

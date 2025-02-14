@@ -20,13 +20,17 @@ type McuConnectorConfig struct {
 	MasterMuteSwitch    []gomcu.Switch
 	MasterDimSwitch     []gomcu.Switch
 	MasterVolumeChannel []gomcu.Channel
+
+	FaderScaleLog bool
 }
 
 func DefaultConfiguration() *McuConnectorConfig {
 
 	c := &McuConnectorConfig{
-		MidiInputPort:  "PreSonus FP2",
-		MidiOutputPort: "PreSonus FP2",
+		//MidiInputPort:  "PreSonus FP2",
+		//MidiOutputPort: "PreSonus FP2",
+		MidiInputPort:  "IAC StreamDeckToController",
+		MidiOutputPort: "IAC ControllerToStreamDeck",
 		SpeakerSelect: map[monitorcontroller.SpeakerID][]gomcu.Switch{
 			monitorcontroller.SpeakerA: {gomcu.Trim},
 			monitorcontroller.SpeakerB: {gomcu.Touch},
@@ -37,6 +41,7 @@ func DefaultConfiguration() *McuConnectorConfig {
 		MasterMuteSwitch:    ALL_GOMCU_MUTES,
 		MasterDimSwitch:     ALL_GOMUC_SOLO,
 		MasterVolumeChannel: ALL_GOMCU_FADER_CHANNEL,
+		FaderScaleLog:       false,
 	}
 
 	return c
