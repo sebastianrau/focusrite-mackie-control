@@ -4,6 +4,8 @@ import (
 	"math"
 	"reflect"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/go-vgo/robotgo"
 
@@ -15,6 +17,8 @@ import (
 
 var log *logger.CustomLogger = logger.WithPackage("mcu-connector")
 
+const LEVEL_RATE_LIMIT_TIME time.Duration = 100 * time.Millisecond
+
 type McuConnector struct {
 	mcu    *mcu.Mcu
 	config *McuConnectorConfig
@@ -22,12 +26,15 @@ type McuConnector struct {
 	controllerChannel chan interface{}
 
 	state *monitorcontroller.ControllerSate
-
 	//dim           bool
 	//mute          bool
 	faderValueRaw uint16
 	//speakerSelect []bool
 	//speakerName   []string
+
+	mu                 sync.Mutex
+	meterValue         gomcu.MeterLevel
+	meterUpdateRequest bool
 }
 
 func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
@@ -45,10 +52,12 @@ func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
 	}
 
 	go m.run()
+	go m.runSendMeterValues()
 	return m
 }
 
 func (mc *McuConnector) run() {
+
 	for msg := range mc.mcu.FromMcu {
 		switch f := msg.(type) {
 
@@ -129,6 +138,20 @@ func (mc *McuConnector) run() {
 	}
 }
 
+func (mc *McuConnector) runSendMeterValues() {
+	for {
+		time.Sleep(LEVEL_RATE_LIMIT_TIME)
+		mc.mu.Lock()
+		if mc.meterUpdateRequest {
+			for _, fader := range mc.config.MasterVolumeChannel {
+				mc.mcu.ToMcu <- mcu.MeterCommand{Channel: fader, Value: mc.meterValue}
+			}
+			mc.meterUpdateRequest = false
+		}
+		mc.mu.Unlock()
+	}
+}
+
 func (mc *McuConnector) SetControlChannel(controllerChannel chan interface{}) {
 	mc.controllerChannel = controllerChannel
 }
@@ -154,7 +177,7 @@ func (mc *McuConnector) HandleVolume(db int) {
 
 func (mc *McuConnector) HandleMeter(left, right int) {
 	level := mcu.Db2MeterLevel(math.Max(float64(left), float64(right)))
-	mc.updateAllMeterFader(mc.config.MasterVolumeChannel, level)
+	mc.updateAllMeterFader(level)
 }
 
 func (mc *McuConnector) HandleSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
@@ -184,7 +207,7 @@ func (mc *McuConnector) HandleMasterUpdate(master *monitorcontroller.MasterState
 }
 
 func (mc *McuConnector) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
-	// TODO implement
+	mc.initMcu()
 }
 
 //Setter
@@ -211,7 +234,6 @@ func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel boo
 
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
 	mc.state.Speaker[id].Name = name
-	// TODO Update LCD
 }
 
 func (mc *McuConnector) initMcu() {
@@ -247,10 +269,11 @@ func (mc *McuConnector) updateAllFader(channel []gomcu.Channel, value uint16) {
 	}
 }
 
-func (mc *McuConnector) updateAllMeterFader(channel []gomcu.Channel, level gomcu.MeterLevel) {
-	for _, fader := range channel {
-		mc.mcu.ToMcu <- mcu.MeterCommand{Channel: fader, Value: level}
-	}
+func (mc *McuConnector) updateAllMeterFader(level gomcu.MeterLevel) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+	mc.meterValue = max(mc.meterValue, level)
+	mc.meterUpdateRequest = true
 }
 
 func (mc *McuConnector) isMcuID(a []gomcu.Switch, k gomcu.Switch) bool {

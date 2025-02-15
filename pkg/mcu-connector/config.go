@@ -38,9 +38,12 @@ func DefaultConfiguration() *McuConnectorConfig {
 			monitorcontroller.SpeakerD: {},
 			monitorcontroller.Sub:      {gomcu.Read},
 		},
-		MasterMuteSwitch:    ALL_GOMCU_MUTES,
-		MasterDimSwitch:     ALL_GOMUC_SOLO,
-		MasterVolumeChannel: ALL_GOMCU_FADER_CHANNEL,
+		// MasterMuteSwitch:    ALL_GOMCU_MUTES,
+		// MasterDimSwitch:     ALL_GOMUC_SOLO,
+		// MasterVolumeChannel: ALL_GOMCU_FADER_CHANNEL,
+		MasterMuteSwitch:    []gomcu.Switch{gomcu.Mute1},
+		MasterDimSwitch:     []gomcu.Switch{gomcu.Solo1},
+		MasterVolumeChannel: []gomcu.Channel{gomcu.Channel1},
 		FaderScaleLog:       false,
 	}
 
