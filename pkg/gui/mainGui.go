@@ -2,7 +2,6 @@ package gui
 
 import (
 	"image/color"
-	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -42,9 +41,9 @@ type buttonConfig struct {
 }
 
 var (
-	GREEN  = color.RGBA{0, 255, 0, 255}
-	YELLOW = color.RGBA{255, 255, 0, 255} // Yellow
-	RED    = color.RGBA{255, 0, 0, 255}   // Red
+	GREEN  = color.RGBA{140, 140, 0, 255}
+	YELLOW = color.RGBA{238, 210, 0, 255} // Yellow
+	RED    = color.RGBA{140, 0, 0, 255}   // Red
 	BLACK  = color.RGBA{0, 0, 0, 0}
 
 	btnDefinition = []buttonConfig{
@@ -76,44 +75,18 @@ type MainGui struct {
 	masterValueChanged chan AudioLevelChanged
 	buttonPressed      chan ButtonEvent
 
-	controllerChannel chan interface{}
-
+	controllerChannel  chan interface{}
 	masterVolumeBuffer int
-}
 
-func NewApp() (fyne.App, fyne.Window, error) {
-	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
-	iconFile, err := os.ReadFile(iconPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	iconResource := fyne.NewStaticResource("appIcon", iconFile)
-
-	app := app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
-	app.SetIcon(iconResource)
-
-	w := app.NewWindow(APP_TITLE)
-
-	w.SetFullScreen(false)
-
-	w.SetMainMenu(fyne.NewMainMenu())
-	w.SetIcon(iconResource) // Setzt das Icon für die App
-	w.SetMaster()
-
-	w.SetTitle(APP_TITLE)
-	w.SetFixedSize(true)
-	w.SetFullScreen(false)
-	w.Resize(fyne.NewSize(280, 300))
-	return app, w, nil
+	app    fyne.App
+	window fyne.Window
 }
 
 func NewAppWindow(
-	myApp fyne.App,
-	window fyne.Window,
 	closeFunction func(),
 	minLevel float64,
 	maxLevel float64,
-) (*MainGui, *fyne.Container) {
+) (*MainGui, error) {
 
 	colorGradient := NewGradient([]ColorValuePair{
 		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
@@ -127,6 +100,22 @@ func NewAppWindow(
 		buttonPressed:      make(chan ButtonEvent, 100),
 		buttons:            make(map[ButtonID]*ToggleButton),
 	}
+
+	iconResource := resourceIconPng
+
+	//App
+	mainGui.app = app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
+	mainGui.app.SetIcon(iconResource)
+
+	//Window
+	mainGui.window = mainGui.app.NewWindow(APP_TITLE)
+	mainGui.window.SetFullScreen(false)
+	mainGui.window.SetMainMenu(fyne.NewMainMenu())
+	mainGui.window.SetIcon(iconResource) // Setzt das Icon für die App
+	mainGui.window.SetMaster()
+	mainGui.window.SetTitle(APP_TITLE)
+	mainGui.window.SetFixedSize(true)
+	mainGui.window.Resize(fyne.NewSize(280, 300))
 
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
@@ -158,17 +147,7 @@ func NewAppWindow(
 		}
 	}
 
-	// Layouts
-	content := container.NewBorder(
-		nil, //top
-		container.NewHBox(mainGui.infoIcon, mainGui.infoLabel), // bot
-		mainGui.fader,           // left
-		mainGui.levelMeter,      // right
-		mainGui.buttonContainer, // center
-	)
-
 	// Context menu
-
 	mainGui.menuMute = fyne.NewMenuItem("Mute", func() {
 		mainGui.controllerChannel <- monitorcontroller.RcSetMute(!mainGui.menuMute.Checked)
 
@@ -179,20 +158,21 @@ func NewAppWindow(
 	})
 
 	mainGui.menuShow = fyne.NewMenuItem("Show", func() {
-		window.Show()
+		mainGui.window.Show()
 		mainGui.menuShow.Disabled = true
 		mainGui.menuSystemTray.Refresh()
 	})
+
 	//Gui shown initally
 	mainGui.menuShow.Disabled = true
 
-	if desk, ok := myApp.(desktop.App); ok {
+	if desk, ok := mainGui.app.(desktop.App); ok {
 
 		exit := fyne.NewMenuItem("Exit", func() {
 			if closeFunction != nil {
 				closeFunction()
 			}
-			myApp.Quit()
+			mainGui.app.Quit()
 		})
 		exit.IsQuit = true
 
@@ -208,14 +188,26 @@ func NewAppWindow(
 		desk.SetSystemTrayMenu(mainGui.menuSystemTray)
 	}
 
-	window.SetCloseIntercept(func() {
-		window.Hide()
+	mainGui.window.SetCloseIntercept(func() {
+		mainGui.window.Hide()
 		mainGui.menuShow.Disabled = false
 		mainGui.menuSystemTray.Refresh()
 	})
 
+	// Layouts
+	content := container.NewBorder(
+		nil, //top
+		container.NewHBox(mainGui.infoIcon, mainGui.infoLabel), // bot
+		mainGui.fader,           // left
+		mainGui.levelMeter,      // right
+		mainGui.buttonContainer, // center
+	)
+	mainGui.window.SetContent(content)
+
+	// Worker
 	go mainGui.run()
-	return mainGui, content
+
+	return mainGui, nil
 }
 
 func (g *MainGui) run() {
@@ -360,4 +352,8 @@ func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	g.menuMute.Checked = master.Mute
 	g.menuDim.Checked = master.Dim
 	g.menuSystemTray.Refresh()
+}
+
+func (g *MainGui) ShowAndRun() {
+	g.window.ShowAndRun()
 }

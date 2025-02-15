@@ -13,14 +13,11 @@ const ()
 
 func main() {
 
-	app, window, err := gui.NewApp()
+	mainGui, err := gui.NewAppWindow(nil, -127, 0)
 	if err != nil {
 		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)
 	}
-
-	mainGui, content := gui.NewAppWindow(app, window, nil, -127, 0)
-
 	go func() {
 		for {
 			time.Sleep(time.Second / 5)
@@ -30,6 +27,5 @@ func main() {
 		}
 	}()
 
-	window.SetContent(content)
-	window.ShowAndRun()
+	mainGui.ShowAndRun()
 }

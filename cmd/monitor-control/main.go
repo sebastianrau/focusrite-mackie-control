@@ -42,20 +42,16 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	app, window, err := gui.NewApp()
-
-	if err != nil {
-		log.Error("Loading App error: ", err)
-		os.Exit(-1)
-	}
-
-	mainGui, content := gui.NewAppWindow(
-		app,
-		window, func() {
+	mainGui, err := gui.NewAppWindow(
+		func() {
 			cfg.Save()
 		},
 		-127,
 		0)
+	if err != nil {
+		log.Error(err)
+		os.Exit(-1)
+	}
 
 	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
 	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)
@@ -73,6 +69,5 @@ func main() {
 		}
 	}()
 
-	window.SetContent(content)
-	window.ShowAndRun()
+	mainGui.ShowAndRun()
 }
