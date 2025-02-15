@@ -22,7 +22,7 @@ type FcConfiguration struct {
 	Master  *MasterFcConfig
 
 	FocusriteSerialNumber string
-	FocusriteDeviceId     int
+	FocusriteDeviceId     int `yaml:"-"`
 }
 
 func DefaultConfiguration() *FcConfiguration {

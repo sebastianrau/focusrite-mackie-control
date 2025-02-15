@@ -16,14 +16,14 @@ type AudioDeviceConnector struct {
 	device *focusriteclient.FocusriteClient
 	config *FcConfiguration
 
-	state        monitorcontroller.ControllerSate
+	state        *monitorcontroller.ControllerSate
 	toController chan interface{}
 }
 
 func NewAudioDeviceConnector(cfg *FcConfiguration) *AudioDeviceConnector {
 	ad := &AudioDeviceConnector{
-		config: DefaultConfiguration(), //TODO
-		state:  *monitorcontroller.NewDefaultState(),
+		config: cfg, //TODO
+		state:  monitorcontroller.NewDefaultState(),
 	}
 
 	ad.device = focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)

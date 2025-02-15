@@ -2,23 +2,31 @@ package config
 
 import (
 	"os"
+	"time"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
+	"github.com/snksoft/crc"
+
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 
 	"gopkg.in/yaml.v2"
 )
 
-//var log *logger.CustomLogger = logger.WithPackage("controller-config")
+var log *logger.CustomLogger = logger.WithPackage("config")
 
 const (
-	subfolder string = "Monitor-Controller"
-	filename  string = "monitor-controller.yaml"
+	subfolder    string        = "Monitor-Controller"
+	filename     string        = "monitor-controller.yaml"
+	autoSaveTime time.Duration = 1 * time.Minute
 )
 
 type Config struct {
-	Midi       *mcuconnector.McuConnectorConfig
-	Controller *fcaudioconnector.FcConfiguration
+	Midi              *mcuconnector.McuConnectorConfig
+	FocusriteDevice   *fcaudioconnector.FcConfiguration
+	MonitorController *monitorcontroller.ControllerSate
+	crc               uint64 `yaml:"-"`
 }
 
 func getPath() (string, error) {
@@ -39,10 +47,13 @@ func getPathAndFile() (string, error) {
 }
 
 func Default() *Config {
-	return &Config{
-		Midi:       mcuconnector.DefaultConfiguration(),
-		Controller: fcaudioconnector.DefaultConfiguration(),
+	c := &Config{
+		Midi:              mcuconnector.DefaultConfiguration(),
+		FocusriteDevice:   fcaudioconnector.DefaultConfiguration(),
+		MonitorController: monitorcontroller.NewDefaultState(),
 	}
+	go c.runAutoSave()
+	return c
 }
 
 func Load() (*Config, error) {
@@ -63,7 +74,26 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	go config.runAutoSave()
+
 	return &config, nil
+}
+
+func (c *Config) runAutoSave() {
+	for {
+		time.Sleep(autoSaveTime)
+
+		if c.UpdateChanged() {
+			err := c.Save()
+			if err != nil {
+				log.Error(err)
+			}
+			log.Debugf("Auto save done.")
+		} else {
+			log.Debug("No change. Autosave skipped")
+		}
+
+	}
 }
 
 func (c *Config) Save() error {
@@ -98,7 +128,20 @@ func (c *Config) Save() error {
 		return err
 	}
 
+	log.Debugf("Config file saved to %s", path)
 	return nil
+}
+
+func (c *Config) UpdateChanged() bool {
+	buf, err := yaml.Marshal(c)
+	if err != nil {
+		log.Error(err)
+	}
+	crc := crc.CalculateCRC(crc.CCITT, buf)
+	change := c.crc != crc
+	c.crc = crc
+	log.Debugf("CRC is 0x%04X - changed: %t", crc, change) // prints "CRC is 0x29B1"
+	return change
 }
 
 /*

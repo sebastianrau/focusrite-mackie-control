@@ -9,6 +9,7 @@ require (
 	github.com/go-vgo/robotgo v0.110.5
 	github.com/sebastianrau/gomcu v1.0.2
 	github.com/sirupsen/logrus v1.9.3
+	github.com/snksoft/crc v1.1.0
 	gitlab.com/gomidi/midi/v2 v2.2.19
 	gopkg.in/yaml.v2 v2.4.0
 )

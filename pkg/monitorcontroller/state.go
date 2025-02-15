@@ -18,8 +18,8 @@ type MasterState struct {
 	Dim  bool
 
 	VolumeDB   int
-	LevelLeft  int
-	LevelRight int
+	LevelLeft  int `yaml:"-"`
+	LevelRight int `yaml:"-"`
 	DimOffset  int
 }
 

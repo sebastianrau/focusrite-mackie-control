@@ -76,7 +76,7 @@ type MainGui struct {
 	masterVolumeBuffer int
 }
 
-func NewApp() (fyne.App, fyne.Window, error) {
+func NewApp(closeFunction func()) (fyne.App, fyne.Window, error) {
 	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
 	iconFile, err := os.ReadFile(iconPath)
 	if err != nil {
@@ -90,10 +90,24 @@ func NewApp() (fyne.App, fyne.Window, error) {
 	w := app.NewWindow(APP_TITLE)
 
 	if desk, ok := app.(desktop.App); ok {
+
+		show := fyne.NewMenuItem("Show", func() {
+			w.Show()
+		})
+
+		exit := fyne.NewMenuItem("Exit", func() {
+			if closeFunction != nil {
+				closeFunction()
+			}
+			app.Quit()
+		})
+
 		m := fyne.NewMenu(APP_TITLE,
-			fyne.NewMenuItem("Show", func() {
-				w.Show()
-			}))
+			show,
+			exit,
+		)
+		m.Items[1].IsQuit = true
+
 		desk.SetSystemTrayMenu(m)
 	}
 

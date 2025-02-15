@@ -17,9 +17,9 @@ type Controller struct {
 }
 
 // NewMcuState creates a new McuState
-func NewController(audioDevice AudioDevice) *Controller {
+func NewController(audioDevice AudioDevice, config *ControllerSate) *Controller {
 	c := &Controller{
-		state: NewDefaultState(),
+		state: config,
 
 		fromAudioInterface: make(chan interface{}, 100),
 		audioDevice:        audioDevice,

@@ -13,7 +13,7 @@ const ()
 
 func main() {
 
-	app, window, err := gui.NewApp()
+	app, window, err := gui.NewApp(nil)
 	if err != nil {
 		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)

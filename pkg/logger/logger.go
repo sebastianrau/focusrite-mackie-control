@@ -9,9 +9,8 @@ var log = logrus.New()
 
 // Register packages here, default debug Level should not be used
 var packageLogLevels = map[string]logrus.Level{
-	"main": logrus.DebugLevel,
-
-	"controller-config": logrus.WarnLevel,
+	"main":   logrus.DebugLevel,
+	"config": logrus.DebugLevel,
 
 	"focusriteclient": logrus.InfoLevel,
 	"fc-audio":        logrus.WarnLevel,
@@ -25,7 +24,9 @@ var packageLogLevels = map[string]logrus.Level{
 	"mcu-connector": logrus.WarnLevel,
 
 	"monitor-controller": logrus.WarnLevel,
-	"default":            logrus.DebugLevel,
+	"controller-config":  logrus.WarnLevel,
+
+	"default": logrus.DebugLevel,
 }
 
 type CustomLogger struct {

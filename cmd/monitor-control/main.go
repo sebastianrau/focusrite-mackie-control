@@ -4,8 +4,6 @@ import (
 	"os"
 	"os/signal"
 
-	"fyne.io/fyne/v2"
-
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
@@ -20,10 +18,7 @@ const Version string = "v0.0.1"
 var log *logger.CustomLogger = logger.WithPackage("main")
 
 // TODO MUC: Check reconnection
-// TODO Config: Update and use File and use
-// TODO Config: store and reload last state
 // TODO Config: add configuration gui
-
 // TODO Gui: Context Menu --> Select, Mute, Dim
 
 func main() {
@@ -38,7 +33,7 @@ func main() {
 	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
 		cfg = config.Default()
-		err := cfg.Save() // HACK fix me later
+		err := cfg.Save()
 		if err != nil {
 			log.Errorln("Configuration could not be stored")
 		}
@@ -47,17 +42,20 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	app, window, err := gui.NewApp()
+	app, window, err := gui.NewApp(func() {
+		cfg.Save()
+	})
+
 	if err != nil {
-		fyne.LogError("Loading App error: ", err)
+		log.Error("Loading App error: ", err)
 		os.Exit(-1)
 	}
 
 	mainGui, content := gui.NewAppWindow(app, -127, 0)
-	mcu := mcuconnector.NewMcuConnector(mcuconnector.DefaultConfiguration())                //HACK remove default config
-	fc := fcaudioconnector.NewAudioDeviceConnector(fcaudioconnector.DefaultConfiguration()) //HACK remove default config
+	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
+	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)
 
-	mc := monitorcontroller.NewController(fc)
+	mc := monitorcontroller.NewController(fc, cfg.MonitorController)
 
 	mc.
 		RegisterRemoteController(mcu).
@@ -65,7 +63,7 @@ func main() {
 
 	go func() {
 		for range interrupt {
-
+			cfg.Save()
 			os.Exit(0)
 		}
 	}()
