@@ -68,6 +68,11 @@ type MainGui struct {
 	infoLabel *canvas.Text
 	infoIcon  *widget.Icon
 
+	menuShow       *fyne.MenuItem
+	menuMute       *fyne.MenuItem
+	menuDim        *fyne.MenuItem
+	menuSystemTray *fyne.Menu
+
 	masterValueChanged chan AudioLevelChanged
 	buttonPressed      chan ButtonEvent
 
@@ -76,7 +81,7 @@ type MainGui struct {
 	masterVolumeBuffer int
 }
 
-func NewApp(closeFunction func()) (fyne.App, fyne.Window, error) {
+func NewApp() (fyne.App, fyne.Window, error) {
 	iconPath := "Icon.png" // Stelle sicher, dass der Pfad stimmt
 	iconFile, err := os.ReadFile(iconPath)
 	if err != nil {
@@ -88,32 +93,6 @@ func NewApp(closeFunction func()) (fyne.App, fyne.Window, error) {
 	app.SetIcon(iconResource)
 
 	w := app.NewWindow(APP_TITLE)
-
-	if desk, ok := app.(desktop.App); ok {
-
-		show := fyne.NewMenuItem("Show", func() {
-			w.Show()
-		})
-
-		exit := fyne.NewMenuItem("Exit", func() {
-			if closeFunction != nil {
-				closeFunction()
-			}
-			app.Quit()
-		})
-
-		m := fyne.NewMenu(APP_TITLE,
-			show,
-			exit,
-		)
-		m.Items[1].IsQuit = true
-
-		desk.SetSystemTrayMenu(m)
-	}
-
-	w.SetCloseIntercept(func() {
-		w.Hide()
-	})
 
 	w.SetFullScreen(false)
 
@@ -130,6 +109,8 @@ func NewApp(closeFunction func()) (fyne.App, fyne.Window, error) {
 
 func NewAppWindow(
 	myApp fyne.App,
+	window fyne.Window,
+	closeFunction func(),
 	minLevel float64,
 	maxLevel float64,
 ) (*MainGui, *fyne.Container) {
@@ -185,6 +166,54 @@ func NewAppWindow(
 		mainGui.levelMeter,      // right
 		mainGui.buttonContainer, // center
 	)
+
+	// Context menu
+
+	mainGui.menuMute = fyne.NewMenuItem("Mute", func() {
+		mainGui.controllerChannel <- monitorcontroller.RcSetMute(!mainGui.menuMute.Checked)
+
+	})
+
+	mainGui.menuDim = fyne.NewMenuItem("Dim", func() {
+		mainGui.controllerChannel <- monitorcontroller.RcSetDim(!mainGui.menuDim.Checked)
+	})
+
+	mainGui.menuShow = fyne.NewMenuItem("Show", func() {
+		window.Show()
+		mainGui.menuShow.Disabled = true
+		mainGui.menuSystemTray.Refresh()
+	})
+	//Gui shown initally
+	mainGui.menuShow.Disabled = true
+
+	if desk, ok := myApp.(desktop.App); ok {
+
+		exit := fyne.NewMenuItem("Exit", func() {
+			if closeFunction != nil {
+				closeFunction()
+			}
+			myApp.Quit()
+		})
+		exit.IsQuit = true
+
+		mainGui.menuSystemTray = fyne.NewMenu(APP_TITLE,
+			mainGui.menuShow,
+			fyne.NewMenuItemSeparator(),
+			mainGui.menuDim,
+			mainGui.menuMute,
+			fyne.NewMenuItemSeparator(),
+			exit,
+		)
+
+		desk.SetSystemTrayMenu(mainGui.menuSystemTray)
+	}
+
+	window.SetCloseIntercept(func() {
+		window.Hide()
+		mainGui.menuShow.Disabled = false
+		mainGui.menuSystemTray.Refresh()
+	})
+
 	go mainGui.run()
 	return mainGui, content
 }
@@ -283,11 +312,15 @@ func (g *MainGui) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
 // sNew Dim State
 func (g *MainGui) HandleDim(state bool) {
 	g.SetButton(Dim, state)
+	g.menuDim.Checked = state
+	g.menuSystemTray.Refresh()
 }
 
 // New Mute State
 func (g *MainGui) HandleMute(state bool) {
 	g.SetButton(Mute, state)
+	g.menuMute.Checked = state
+	g.menuSystemTray.Refresh()
 }
 
 // Volume -127 .. 0 dB
@@ -323,4 +356,8 @@ func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 
 	g.SetButton(Mute, master.Mute)
 	g.SetButton(Dim, master.Dim)
+
+	g.menuMute.Checked = master.Mute
+	g.menuDim.Checked = master.Dim
+	g.menuSystemTray.Refresh()
 }

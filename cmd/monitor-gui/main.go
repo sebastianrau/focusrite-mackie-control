@@ -13,13 +13,13 @@ const ()
 
 func main() {
 
-	app, window, err := gui.NewApp(nil)
+	app, window, err := gui.NewApp()
 	if err != nil {
 		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)
 	}
 
-	mainGui, content := gui.NewAppWindow(app, -127, 0)
+	mainGui, content := gui.NewAppWindow(app, window, nil, -127, 0)
 
 	go func() {
 		for {
