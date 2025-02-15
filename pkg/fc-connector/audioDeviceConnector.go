@@ -22,7 +22,7 @@ type AudioDeviceConnector struct {
 
 func NewAudioDeviceConnector(cfg *FcConfiguration) *AudioDeviceConnector {
 	ad := &AudioDeviceConnector{
-		config: cfg, //TODO
+		config: cfg,
 		state:  monitorcontroller.NewDefaultState(),
 	}
 
@@ -243,10 +243,12 @@ func (ad *AudioDeviceConnector) HandleSpeakerUpdate(spkId monitorcontroller.Spea
 
 	fcUpdateSet := focusritexml.NewSet(ad.config.FocusriteDeviceId)
 	fcUpdateSet.AddItems(ad.getSpeakerMuteUpdateSet().Items)
-	// TODO Check names
+	fcUpdateSet.AddItems(ad.getSpeakerNameUpdateSet().Items)
+
 	ad.device.ToFocusrite <- *fcUpdateSet
 
 }
+
 func (ad *AudioDeviceConnector) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 	ad.state.Master = master
 	fcUpdateSet := focusritexml.NewSet(ad.config.FocusriteDeviceId)
@@ -314,6 +316,16 @@ func (ad *AudioDeviceConnector) getSpeakerMuteUpdateSet() *focusritexml.Set {
 			log.Debugf("setting focusrite speaker %d Mute to %t", spkId, state)
 		}
 
+	}
+	return fcUpdateSet
+}
+
+func (ad *AudioDeviceConnector) getSpeakerNameUpdateSet() *focusritexml.Set {
+	fcUpdateSet := focusritexml.NewSet(ad.config.FocusriteDeviceId)
+	for spkId, spk := range ad.config.Speaker {
+		name := ad.state.Speaker[spkId].Name
+		fcUpdateSet.AddItemString(int(spk.Name), name)
+		log.Debugf("setting focusrite speaker %d name to %s", spkId, name)
 	}
 	return fcUpdateSet
 }
