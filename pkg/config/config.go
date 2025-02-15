@@ -80,9 +80,8 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) runAutoSave() {
-	for {
-		time.Sleep(autoSaveTime)
-
+	t := time.NewTicker(autoSaveTime)
+	for range t.C {
 		if c.UpdateChanged() {
 			err := c.Save()
 			if err != nil {
@@ -92,7 +91,6 @@ func (c *Config) runAutoSave() {
 		} else {
 			log.Debug("No change. Autosave skipped")
 		}
-
 	}
 }
 

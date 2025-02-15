@@ -23,7 +23,7 @@ const (
 
 const (
 	SERVER_IP        string        = "localhost"
-	KEEP_ALIVE_S     time.Duration = 3 * time.Second
+	KEEP_ALIVE_TIME  time.Duration = 3 * time.Second
 	RECONNECT_TIME_S time.Duration = 5 * time.Second
 
 	FC_SEND_INTERVAL time.Duration = 75 * time.Millisecond
@@ -117,14 +117,16 @@ func (fc *FocusriteClient) runConnection() {
 }
 
 func (fc *FocusriteClient) runKeepalive() {
-	for {
+	t := time.NewTicker(KEEP_ALIVE_TIME)
+	defer t.Stop()
+
+	for range t.C {
 		if fc.isConnected {
 			err := fc.sendXML(focusritexml.KeepAlive{})
 			if err != nil {
 				log.Error(err.Error())
 			}
 		}
-		time.Sleep(KEEP_ALIVE_S)
 	}
 }
 
@@ -158,8 +160,9 @@ func (fc *FocusriteClient) runCommandHandling() {
 }
 
 func (fc *FocusriteClient) runSendQueue() {
-	for {
-		time.Sleep(FC_SEND_INTERVAL)
+
+	t := time.NewTicker(FC_SEND_INTERVAL)
+	for range t.C {
 		fc.sendMutex.Lock()
 		for qID, q := range fc.sendQueue {
 			if len(q.Items) >= 0 || q.DevID != 0 {

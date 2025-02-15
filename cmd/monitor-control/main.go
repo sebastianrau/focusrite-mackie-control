@@ -5,10 +5,10 @@ import (
 	"os/signal"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
@@ -42,12 +42,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mainGui, err := gui.NewAppWindow(
-		func() {
-			cfg.Save()
-		},
-		-127,
-		0)
+	mainGui, err := gui.NewAppWindow(func() { cfg.Save() }, -127, 0)
 	if err != nil {
 		log.Error(err)
 		os.Exit(-1)

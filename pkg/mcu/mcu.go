@@ -297,8 +297,8 @@ func (m *Mcu) DecodeButtons(k uint8, v uint8) {
 func (m *Mcu) run() {
 	defer m.disconnect()
 	for {
-
 		var err error
+
 		select {
 		case state := <-m.connection:
 			if state == 0 {
