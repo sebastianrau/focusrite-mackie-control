@@ -120,7 +120,7 @@ func NewAppWindow(
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
 
-	mainGui.levelMeter = NewAudioMeterBar(0, true)
+	mainGui.levelMeter = NewAudioMeterBar(true)
 	mainGui.levelMeter.SetGradient(colorGradient)
 
 	mainGui.buttonContainer = container.NewVBox()
