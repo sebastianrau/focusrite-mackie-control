@@ -46,6 +46,10 @@ app.linux64:
 app.linuxArm:
 	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
 
+
+streamdeck.icons:
+	cd streamdeck/ && zip -vr 'Monitor Control Icons.streamDeckIconPack' com.github.sebastianraufocusrite-mackie-control.sdIconPack/ -x "*.DS_Store"
+
 cli-lint:
 	golangci-lint run  cmd/... pkg/...
 
