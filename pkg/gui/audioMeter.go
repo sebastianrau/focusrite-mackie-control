@@ -204,10 +204,10 @@ func (b *AudioMeter) SetDecayRate(rate DecayRate) {
 
 // CreateRenderer erstellt den Renderer für das Widget
 func (b *AudioMeter) CreateRenderer() fyne.WidgetRenderer {
-	levelBarLeft := canvas.NewRectangle(color.RGBA{128, 128, 128, 255})
+	levelBarLeft := canvas.NewRectangle(GREY)
 	levelBarLeft.CornerRadius = 2
 
-	LevelBarRight := canvas.NewRectangle(color.RGBA{128, 128, 128, 255})
+	LevelBarRight := canvas.NewRectangle(GREY)
 	LevelBarRight.CornerRadius = 2
 
 	levelBarBg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))

@@ -99,10 +99,10 @@ func (g *Gradient) GetColor(value float64) color.Color {
 
 			// Interpolate correctly in the 0-255 range
 			r := uint8(lowR8 + normalized*(highR8-lowR8))
-			gVal := uint8(lowG8 + normalized*(highG8-lowG8))
+			g := uint8(lowG8 + normalized*(highG8-lowG8))
 			b := uint8(lowB8 + normalized*(highB8-lowB8))
 
-			return color.RGBA{r, gVal, b, 255}
+			return color.RGBA{r, g, b, 255}
 		}
 	}
 	return color.Black // Fallback (sollte nie passieren)

@@ -41,11 +41,18 @@ type buttonConfig struct {
 }
 
 var (
-	GREEN  = color.RGBA{140, 140, 0, 255}
-	YELLOW = color.RGBA{238, 210, 0, 255} // Yellow
-	RED    = color.RGBA{140, 0, 0, 255}   // Red
-	BLACK  = color.RGBA{0, 0, 0, 0}
+	//Color Set
+	DARK_GREEN = color.RGBA{0, 102, 0, 225}
+	GREEN      = color.RGBA{51, 255, 51, 255}  // Green
+	YELLOW     = color.RGBA{255, 255, 51, 255} // Yellow
+	ORANGE     = color.RGBA{255, 153, 51, 255} // Orange
+	RED        = color.RGBA{255, 51, 0, 255}   // Red
 
+	GREY  = color.RGBA{128, 128, 128, 255}
+	BLACK = color.RGBA{0, 0, 0, 0}
+)
+
+var (
 	btnDefinition = []buttonConfig{
 		{ID: SpeakerA, Name: "Speaker A", Color: GREEN},
 		{ID: SpeakerB, Name: "Speaker B", Color: GREEN},
@@ -89,10 +96,10 @@ func NewAppWindow(
 ) (*MainGui, error) {
 
 	colorGradient := NewGradient([]ColorValuePair{
-		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
-		{Value: -15, Color: color.RGBA{0, 180, 0, 255}},  // Light Green
-		{Value: -6, Color: color.RGBA{255, 255, 0, 255}}, // Yellow
-		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},    // Red
+		{Value: -127, Color: DARK_GREEN}, // Dark green
+		{Value: -15, Color: GREEN},       // Light Green
+		{Value: -6, Color: YELLOW},       // Yellow
+		{Value: 0, Color: ORANGE},        // Red
 	})
 
 	mainGui := &MainGui{
