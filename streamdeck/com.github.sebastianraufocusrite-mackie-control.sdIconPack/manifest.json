@@ -1,0 +1,9 @@
+{
+    "Name": "Monitor Controller",
+    "Version": "1.0.3",
+    "Description": "Focusrite Monitor Controller Icon Pack ",
+    "Author": "Sebastian Rau",
+    "URL": "https://github.com/sebastianrau/focusrite-mackie-control/",
+    "Icon": "icon.png",
+    "License": "license.txt"
+}
