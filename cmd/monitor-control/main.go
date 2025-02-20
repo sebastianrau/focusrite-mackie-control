@@ -13,6 +13,25 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
 
+/*
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework Cocoa
+#import <Cocoa/Cocoa.h>
+
+int
+SetActivationPolicy(void) {
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    return 0;
+}
+*/
+import "C"
+
+// Workaround for hiding app symbol and having only system tray
+func setActivationPolicy() {
+	log.Debugln("Setting ActivationPolicy")
+	C.SetActivationPolicy()
+}
+
 const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
@@ -47,6 +66,10 @@ func main() {
 		log.Error(err)
 		os.Exit(-1)
 	}
+
+	mainGui.Lifecycle().SetOnStarted(func() {
+		setActivationPolicy()
+	})
 
 	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
 	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)

@@ -364,3 +364,7 @@ func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 func (g *MainGui) ShowAndRun() {
 	g.window.ShowAndRun()
 }
+
+func (g *MainGui) Lifecycle() fyne.Lifecycle {
+	return g.app.Lifecycle()
+}
