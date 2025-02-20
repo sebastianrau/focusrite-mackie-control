@@ -52,8 +52,6 @@ type AudioMeter struct {
 
 	oldSize fyne.Size
 
-	lastUpdate time.Time
-
 	//debug only ups int
 }
 

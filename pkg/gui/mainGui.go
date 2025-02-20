@@ -89,11 +89,7 @@ type MainGui struct {
 	window fyne.Window
 }
 
-func NewAppWindow(
-	closeFunction func(),
-	minLevel float64,
-	maxLevel float64,
-) (*MainGui, error) {
+func NewAppWindow(closeFunction func()) (*MainGui, error) {
 
 	colorGradient := NewGradient([]ColorValuePair{
 		{Value: -127, Color: DARK_GREEN}, // Dark green

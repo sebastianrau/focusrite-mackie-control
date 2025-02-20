@@ -61,7 +61,13 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mainGui, err := gui.NewAppWindow(func() { cfg.Save() }, -127, 0)
+	mainGui, err := gui.NewAppWindow(func() {
+		err := cfg.Save()
+		if err != nil {
+			log.Error(err.Error())
+		}
+	})
+
 	if err != nil {
 		log.Error(err)
 		os.Exit(-1)
@@ -82,7 +88,10 @@ func main() {
 
 	go func() {
 		for range interrupt {
-			cfg.Save()
+			err := cfg.Save()
+			if err != nil {
+				log.Error(err.Error())
+			}
 			os.Exit(0)
 		}
 	}()
