@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 )
 
@@ -13,7 +14,7 @@ const ()
 
 func main() {
 
-	mainGui, err := gui.NewAppWindow(nil)
+	mainGui, err := gui.NewAppWindow(config.Default(), nil)
 	if err != nil {
 		fyne.LogError("Loading App error: ", err)
 		os.Exit(-1)

@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	guiconfig "github.com/sebastianrau/focusrite-mackie-control/pkg/gui-config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
@@ -17,6 +19,7 @@ import (
 var log *logger.CustomLogger = logger.WithPackage("gui-main")
 
 const APP_TITLE string = "Monitor Controller"
+const APP_TITLE_CFG string = "Monitor Controller Configuration"
 
 const INFO_NO_DEVICE string = "No device connected"
 const INFO_NO_CONNECTION string = "No Focusrite Control connection"
@@ -77,6 +80,7 @@ type MainGui struct {
 	menuShow       *fyne.MenuItem
 	menuMute       *fyne.MenuItem
 	menuDim        *fyne.MenuItem
+	menuConfig     *fyne.MenuItem
 	menuSystemTray *fyne.Menu
 
 	masterValueChanged chan AudioLevelChanged
@@ -85,11 +89,12 @@ type MainGui struct {
 	controllerChannel  chan interface{}
 	masterVolumeBuffer int
 
-	app    fyne.App
-	window fyne.Window
+	app          fyne.App
+	window       fyne.Window
+	windowConfig fyne.Window
 }
 
-func NewAppWindow(closeFunction func()) (*MainGui, error) {
+func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	colorGradient := NewGradient([]ColorValuePair{
 		{Value: -127, Color: DARK_GREEN}, // Dark green
@@ -119,6 +124,14 @@ func NewAppWindow(closeFunction func()) (*MainGui, error) {
 	mainGui.window.SetTitle(APP_TITLE)
 	mainGui.window.SetFixedSize(true)
 	mainGui.window.Resize(fyne.NewSize(280, 300))
+
+	mainGui.windowConfig = mainGui.app.NewWindow(APP_TITLE_CFG)
+	mainGui.windowConfig.Resize(fyne.NewSize(450, 600))
+
+	cfgGui := guiconfig.NewConfigApp(mainGui.app, cfg, func() {
+		mainGui.windowConfig.Hide()
+	})
+	mainGui.windowConfig.SetContent(cfgGui.Content)
 
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
@@ -169,6 +182,10 @@ func NewAppWindow(closeFunction func()) (*MainGui, error) {
 	//Gui shown initally
 	mainGui.menuShow.Disabled = true
 
+	mainGui.menuConfig = fyne.NewMenuItem("Configuration", func() {
+		mainGui.windowConfig.Show()
+	})
+
 	if desk, ok := mainGui.app.(desktop.App); ok {
 
 		exit := fyne.NewMenuItem("Exit", func() {
@@ -184,6 +201,8 @@ func NewAppWindow(closeFunction func()) (*MainGui, error) {
 			fyne.NewMenuItemSeparator(),
 			mainGui.menuDim,
 			mainGui.menuMute,
+			fyne.NewMenuItemSeparator(),
+			mainGui.menuConfig,
 			fyne.NewMenuItemSeparator(),
 			exit,
 		)

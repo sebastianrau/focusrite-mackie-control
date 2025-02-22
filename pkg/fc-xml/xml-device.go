@@ -62,7 +62,7 @@ func (d *Device) UpdateSet(set Set) int {
 				log.Errorf("item could not be updated: %d (String Value: %s): %s", v.ID, v.Value, err.Error())
 			}
 		} else {
-			log.Warnf("unknown ID to update: %d with name %s\n", v.ID, v.Value)
+			log.Warnf("unknown ID to update: %d with value %s\n", v.ID, v.Value)
 		}
 	}
 	return updateCount
@@ -84,6 +84,10 @@ func UpdateAllMaps(v interface{}, elementsMap map[int]Elements, level int) {
 		return
 
 	case ElementString:
+		elementsMap[e.Id()] = &e
+		return
+
+	case ElementFloat:
 		elementsMap[e.Id()] = &e
 		return
 	}

@@ -38,7 +38,6 @@ var log *logger.CustomLogger = logger.WithPackage("main")
 
 // TODO MUC: Check reconnection
 // TODO Config: add configuration gui
-// TODO Gui: Context Menu --> Select, Mute, Dim
 
 func main() {
 	var (
@@ -48,6 +47,7 @@ func main() {
 	log.Infof("Monitor Controller %v", Version)
 
 	cfg, err := config.Load()
+	go cfg.RunAutoSave()
 
 	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
@@ -61,7 +61,7 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mainGui, err := gui.NewAppWindow(func() {
+	mainGui, err := gui.NewAppWindow(cfg, func() {
 		err := cfg.Save()
 		if err != nil {
 			log.Error(err.Error())
@@ -78,13 +78,29 @@ func main() {
 	})
 
 	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
+	if mcu == nil {
+		log.Warnf("could not open Midi System")
+	}
+
 	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)
+	if fc == nil {
+		log.Errorf("Could not load Audio Connector")
+		os.Exit(-1)
+	}
 
 	mc := monitorcontroller.NewController(fc, cfg.MonitorController)
+	if mc == nil {
+		log.Errorf("Could not load monitor Controller")
+		os.Exit(-3)
+	}
 
-	mc.
-		RegisterRemoteController(mcu).
-		RegisterRemoteController(mainGui)
+	if mcu != nil {
+		mc.RegisterRemoteController(mcu)
+	}
+
+	if mainGui != nil {
+		mc.RegisterRemoteController(mainGui)
+	}
 
 	go func() {
 		for range interrupt {
