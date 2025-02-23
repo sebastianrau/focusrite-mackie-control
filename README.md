@@ -41,12 +41,6 @@ Start the application with:
 The application allows you to control your Focusrite device via your Mackie Control surface.
 
 ## Supported Devices
-
-This project is designed for use with Focusrite devices. Tested with:
+This project is designed for use with Focusrite Scarlet devices. Tested with:
 - Focusrite Scarlett 4i4 3rd Gen
 - Focusrite Scarlett 18i20 3rd Gen
-
-## License
-
-Due to 
-This project is licensed under the MIT License.
