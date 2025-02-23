@@ -2,6 +2,8 @@ package gui
 
 import (
 	"image/color"
+	"os"
+	"os/exec"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -128,10 +130,27 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 	mainGui.windowConfig = mainGui.app.NewWindow(APP_TITLE_CFG)
 	mainGui.windowConfig.Resize(fyne.NewSize(450, 600))
 
-	cfgGui := guiconfig.NewConfigApp(mainGui.app, cfg, func() {
-		mainGui.windowConfig.Hide()
-	})
-	mainGui.windowConfig.SetContent(cfgGui.Content)
+	guiconfig.NewConfigApp(
+		mainGui.windowConfig,
+		cfg,
+		func() { // on restart app from Config Dialog
+			exe, err := os.Executable()
+			if err != nil {
+				log.Error(err.Error())
+			}
+			log.Debugf("Restarting App: %s", exe)
+			cmd := exec.Command(exe)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Start()
+
+			mainGui.app.Quit()
+		},
+
+		func() { // on Close of Config Dialog
+			mainGui.windowConfig.Hide()
+		},
+	)
 
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)

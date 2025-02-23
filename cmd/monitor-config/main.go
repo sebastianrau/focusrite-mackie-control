@@ -25,9 +25,11 @@ func main() {
 	myWindow := myApp.NewWindow("Config GUI")
 	myWindow.Resize(fyne.NewSize(450, 600))
 
-	myConfigApp := guiconfig.NewConfigApp(myApp, cfg, func() {
-		myApp.Quit()
-	})
+	myConfigApp := guiconfig.NewConfigApp(myWindow, cfg,
+		func() {},
+		func() {
+			myApp.Quit()
+		})
 
 	myWindow.SetContent(myConfigApp.Content)
 

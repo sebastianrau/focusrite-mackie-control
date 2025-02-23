@@ -61,12 +61,17 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mainGui, err := gui.NewAppWindow(cfg, func() {
-		err := cfg.Save()
-		if err != nil {
-			log.Error(err.Error())
-		}
-	})
+	var mainGui *gui.MainGui
+
+	mainGui, err = gui.NewAppWindow(
+		cfg,
+		// On Close
+		func() {
+			err := cfg.Save()
+			if err != nil {
+				log.Error(err.Error())
+			}
+		})
 
 	if err != nil {
 		log.Error(err)

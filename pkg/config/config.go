@@ -138,3 +138,14 @@ func (c *Config) UpdateChanged() bool {
 	log.Debugf("CRC is 0x%04X - changed: %t", crc, change) // prints "CRC is 0x29B1"
 	return change
 }
+
+func (c *Config) DeepCopy() (*Config, error) {
+	var dst Config
+
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(data, &dst)
+	return &dst, err
+}
