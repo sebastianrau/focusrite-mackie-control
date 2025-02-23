@@ -10,37 +10,10 @@ This project enables remote control of Focusrite devices via a Mackie Control su
 - [Fyne](https://fyne.io/) as GUI framework
 
 ## Installation
-
-1. Clone the repository:
-   
-   ```bash
-   git clone https://github.com/sebastianrau/focusrite-mackie-control.git
-   cd focusrite-mackie-control
-   ```
-
-2. Install dependencies:
-   
-   ```bash
-   go mod tidy
-   ```
-
-3. Build the application:
-   
-   ```bash
-   make
-   ```
-
-## Usage
-
-Start the application with:
-
-```bash
-./build/bin/focusrite-mackie-control
-```
-
-The application allows you to control your Focusrite device via your Mackie Control surface.
+ - Download lastest app from release and open it.
 
 ## Supported Devices
-This project is designed for use with Focusrite Scarlet devices. Tested with:
+This project is designed for use with Focusrite Scarlett devices. 
+Tested with:
 - Focusrite Scarlett 4i4 3rd Gen
 - Focusrite Scarlett 18i20 3rd Gen
