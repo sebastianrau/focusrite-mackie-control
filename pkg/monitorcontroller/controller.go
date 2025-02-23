@@ -213,7 +213,7 @@ func (c *Controller) setSpeakerSelected(id SpeakerID, sel bool) {
 		} else {
 			//Check if other speakers set set to eclusive and must be deselected
 			for spkId, spk := range c.state.Speaker {
-				if speaker.Type == spk.Type && id != spkId && spk.Exclusive && !spk.Selected {
+				if speaker.Type == spk.Type && id != spkId && spk.Exclusive && spk.Selected {
 					c.setSpeakerSelected(spkId, false)
 				}
 			}
