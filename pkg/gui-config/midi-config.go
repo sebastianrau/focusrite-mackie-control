@@ -117,7 +117,7 @@ func NewMidiConfigGui(cfg *mcuconnector.McuConnectorConfig) *MidiConfigGui {
 	mc.Container = widget.NewAccordionItem("Midi:",
 		container.New(layout.NewFormLayout(),
 			widget.NewLabel("Input Port:"), mc.inputSelect,
-			widget.NewLabel("MIDI Output:"), mc.outputSelect,
+			widget.NewLabel("Output Port:"), mc.outputSelect,
 			widget.NewLabel("Fader:"), mc.masterFaderSelect,
 			widget.NewLabel("Mute:"), mc.masterMuteSelect,
 			widget.NewLabel("Dim:"), mc.masterDimSelect,
