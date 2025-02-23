@@ -13,13 +13,31 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
 
+/*
+#cgo CFLAGS: -x objective-c
+#cgo LDFLAGS: -framework Cocoa
+#import <Cocoa/Cocoa.h>
+
+int
+SetActivationPolicy(void) {
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    return 0;
+}
+*/
+import "C"
+
+// Workaround for hiding app symbol and having only system tray
+func setActivationPolicy() {
+	log.Debugln("Setting ActivationPolicy")
+	C.SetActivationPolicy()
+}
+
 const Version string = "v0.0.1"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
 // TODO MUC: Check reconnection
 // TODO Config: add configuration gui
-// TODO Gui: Context Menu --> Select, Mute, Dim
 
 func main() {
 	var (
@@ -29,6 +47,7 @@ func main() {
 	log.Infof("Monitor Controller %v", Version)
 
 	cfg, err := config.Load()
+	go cfg.RunAutoSave()
 
 	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
@@ -42,24 +61,58 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
 
-	mainGui, err := gui.NewAppWindow(func() { cfg.Save() }, -127, 0)
+	var mainGui *gui.MainGui
+
+	mainGui, err = gui.NewAppWindow(
+		cfg,
+		// On Close
+		func() {
+			err := cfg.Save()
+			if err != nil {
+				log.Error(err.Error())
+			}
+		})
+
 	if err != nil {
 		log.Error(err)
 		os.Exit(-1)
 	}
 
+	mainGui.Lifecycle().SetOnStarted(func() {
+		setActivationPolicy()
+	})
+
 	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
+	if mcu == nil {
+		log.Warnf("could not open Midi System")
+	}
+
 	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)
+	if fc == nil {
+		log.Errorf("Could not load Audio Connector")
+		os.Exit(-1)
+	}
 
 	mc := monitorcontroller.NewController(fc, cfg.MonitorController)
+	if mc == nil {
+		log.Errorf("Could not load monitor Controller")
+		os.Exit(-3)
+	}
 
-	mc.
-		RegisterRemoteController(mcu).
-		RegisterRemoteController(mainGui)
+	if mcu != nil {
+		mc.RegisterRemoteController(mcu)
+	}
+
+	if mainGui != nil {
+		mc.RegisterRemoteController(mainGui)
+	}
 
 	go func() {
 		for range interrupt {
-			cfg.Save()
+			err := cfg.Save()
+			if err != nil {
+				log.Error(err.Error())
+			}
 			os.Exit(0)
 		}
 	}()

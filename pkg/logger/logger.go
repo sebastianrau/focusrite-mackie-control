@@ -9,7 +9,7 @@ var log = logrus.New()
 
 // Register packages here, default debug Level should not be used
 var packageLogLevels = map[string]logrus.Level{
-	"main":   logrus.InfoLevel,
+	"main":   logrus.WarnLevel,
 	"config": logrus.WarnLevel,
 
 	"focusriteclient": logrus.WarnLevel,
@@ -18,7 +18,8 @@ var packageLogLevels = map[string]logrus.Level{
 	"focusrite-xml":    logrus.WarnLevel,
 	"focusrite-config": logrus.WarnLevel,
 
-	"gui-main": logrus.WarnLevel,
+	"gui-main":   logrus.WarnLevel,
+	"gui-config": logrus.WarnLevel,
 
 	"mcu":           logrus.WarnLevel,
 	"mcu-connector": logrus.WarnLevel,

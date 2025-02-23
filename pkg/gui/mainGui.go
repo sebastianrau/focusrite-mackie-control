@@ -2,6 +2,8 @@ package gui
 
 import (
 	"image/color"
+	"os"
+	"os/exec"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -10,6 +12,8 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	guiconfig "github.com/sebastianrau/focusrite-mackie-control/pkg/gui-config"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
@@ -17,6 +21,7 @@ import (
 var log *logger.CustomLogger = logger.WithPackage("gui-main")
 
 const APP_TITLE string = "Monitor Controller"
+const APP_TITLE_CFG string = "Monitor Controller Configuration"
 
 const INFO_NO_DEVICE string = "No device connected"
 const INFO_NO_CONNECTION string = "No Focusrite Control connection"
@@ -41,11 +46,18 @@ type buttonConfig struct {
 }
 
 var (
-	GREEN  = color.RGBA{140, 140, 0, 255}
-	YELLOW = color.RGBA{238, 210, 0, 255} // Yellow
-	RED    = color.RGBA{140, 0, 0, 255}   // Red
-	BLACK  = color.RGBA{0, 0, 0, 0}
+	//Color Set
+	DARK_GREEN = color.RGBA{0, 102, 0, 225}
+	GREEN      = color.RGBA{51, 255, 51, 255}  // Green
+	YELLOW     = color.RGBA{255, 255, 51, 255} // Yellow
+	ORANGE     = color.RGBA{255, 153, 51, 255} // Orange
+	RED        = color.RGBA{255, 51, 0, 255}   // Red
 
+	GREY  = color.RGBA{128, 128, 128, 255}
+	BLACK = color.RGBA{0, 0, 0, 0}
+)
+
+var (
 	btnDefinition = []buttonConfig{
 		{ID: SpeakerA, Name: "Speaker A", Color: GREEN},
 		{ID: SpeakerB, Name: "Speaker B", Color: GREEN},
@@ -70,6 +82,7 @@ type MainGui struct {
 	menuShow       *fyne.MenuItem
 	menuMute       *fyne.MenuItem
 	menuDim        *fyne.MenuItem
+	menuConfig     *fyne.MenuItem
 	menuSystemTray *fyne.Menu
 
 	masterValueChanged chan AudioLevelChanged
@@ -78,21 +91,18 @@ type MainGui struct {
 	controllerChannel  chan interface{}
 	masterVolumeBuffer int
 
-	app    fyne.App
-	window fyne.Window
+	app          fyne.App
+	window       fyne.Window
+	windowConfig fyne.Window
 }
 
-func NewAppWindow(
-	closeFunction func(),
-	minLevel float64,
-	maxLevel float64,
-) (*MainGui, error) {
+func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	colorGradient := NewGradient([]ColorValuePair{
-		{Value: -127, Color: color.RGBA{0, 50, 0, 255}},  // Dark green
-		{Value: -15, Color: color.RGBA{0, 180, 0, 255}},  // Light Green
-		{Value: -6, Color: color.RGBA{255, 255, 0, 255}}, // Yellow
-		{Value: 0, Color: color.RGBA{255, 0, 0, 255}},    // Red
+		{Value: -127, Color: DARK_GREEN}, // Dark green
+		{Value: -15, Color: GREEN},       // Light Green
+		{Value: -6, Color: YELLOW},       // Yellow
+		{Value: 0, Color: ORANGE},        // Red
 	})
 
 	mainGui := &MainGui{
@@ -116,6 +126,31 @@ func NewAppWindow(
 	mainGui.window.SetTitle(APP_TITLE)
 	mainGui.window.SetFixedSize(true)
 	mainGui.window.Resize(fyne.NewSize(280, 300))
+
+	mainGui.windowConfig = mainGui.app.NewWindow(APP_TITLE_CFG)
+	mainGui.windowConfig.Resize(fyne.NewSize(450, 600))
+
+	guiconfig.NewConfigApp(
+		mainGui.windowConfig,
+		cfg,
+		func() { // on restart app from Config Dialog
+			exe, err := os.Executable()
+			if err != nil {
+				log.Error(err.Error())
+			}
+			log.Debugf("Restarting App: %s", exe)
+			cmd := exec.Command(exe)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Start()
+
+			mainGui.app.Quit()
+		},
+
+		func() { // on Close of Config Dialog
+			mainGui.windowConfig.Hide()
+		},
+	)
 
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
@@ -166,6 +201,10 @@ func NewAppWindow(
 	//Gui shown initally
 	mainGui.menuShow.Disabled = true
 
+	mainGui.menuConfig = fyne.NewMenuItem("Configuration", func() {
+		mainGui.windowConfig.Show()
+	})
+
 	if desk, ok := mainGui.app.(desktop.App); ok {
 
 		exit := fyne.NewMenuItem("Exit", func() {
@@ -181,6 +220,8 @@ func NewAppWindow(
 			fyne.NewMenuItemSeparator(),
 			mainGui.menuDim,
 			mainGui.menuMute,
+			fyne.NewMenuItemSeparator(),
+			mainGui.menuConfig,
 			fyne.NewMenuItemSeparator(),
 			exit,
 		)
@@ -356,4 +397,8 @@ func (g *MainGui) HandleMasterUpdate(master *monitorcontroller.MasterState) {
 
 func (g *MainGui) ShowAndRun() {
 	g.window.ShowAndRun()
+}
+
+func (g *MainGui) Lifecycle() fyne.Lifecycle {
+	return g.app.Lifecycle()
 }

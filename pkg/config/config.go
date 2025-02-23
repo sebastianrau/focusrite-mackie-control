@@ -52,7 +52,6 @@ func Default() *Config {
 		FocusriteDevice:   fcaudioconnector.DefaultConfiguration(),
 		MonitorController: monitorcontroller.NewDefaultState(),
 	}
-	go c.runAutoSave()
 	return c
 }
 
@@ -74,12 +73,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	go config.runAutoSave()
-
 	return &config, nil
 }
 
-func (c *Config) runAutoSave() {
+func (c *Config) RunAutoSave() {
 	t := time.NewTicker(autoSaveTime)
 	for range t.C {
 		if c.UpdateChanged() {
@@ -142,71 +139,13 @@ func (c *Config) UpdateChanged() bool {
 	return change
 }
 
-/*
-func UserConfigure() (*Config, bool) {
+func (c *Config) DeepCopy() (*Config, error) {
+	var dst Config
 
-	config := &Config{}
-
-	fmt.Println("*** CONFIGURING MIDI ***")
-	fmt.Println("")
-	inputs := getMidiInputs()
-	for i, v := range inputs {
-		fmt.Printf("MIDI Input %v: %s\n", i+1, v)
-	}
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println()
-	fmt.Print("Enter MIDI input port number and press [enter]: ")
-	text, _ := reader.ReadString('\n')
-	text = strings.TrimSpace(text)
-	num, err := strconv.Atoi(text)
-	if err != nil || num <= 0 || num > len(inputs) {
-		fmt.Println("Please enter only valid numbers")
-		return nil, false
-	}
-	config.MidiInputPort = inputs[num-1]
-
-	fmt.Println()
-	outputs := getMidiOutputs()
-	for i, v := range outputs {
-		fmt.Printf("MIDI Output %v: %s\n", i+1, v)
-	}
-	fmt.Println()
-	fmt.Print("Enter MIDI output port number and press [enter]: ")
-	text, _ = reader.ReadString('\n')
-	text = strings.TrimSpace(text)
-	num, err = strconv.Atoi(text)
-	if err != nil || num <= 0 || num > len(outputs) {
-		fmt.Println("Please enter only valid numbers")
-		return nil, false
-	}
-	config.MidiOutputPort = outputs[num-1]
-
-	err = config.Save()
+	data, err := yaml.Marshal(c)
 	if err != nil {
-		log.Error(err.Error())
-		return nil, false
+		return nil, err
 	}
-
-	return config, true
+	err = yaml.Unmarshal(data, &dst)
+	return &dst, err
 }
-
-// get a list of midi outputs
-func getMidiOutputs() []string {
-	outs := midi.GetOutPorts()
-	var names []string
-	for _, output := range outs {
-		names = append(names, output.String())
-	}
-	return names
-}
-
-// get a list of midi inputs
-func getMidiInputs() []string {
-	ins := midi.GetInPorts()
-	var names []string
-	for _, input := range ins {
-		names = append(names, input.String())
-	}
-	return names
-}
-*/

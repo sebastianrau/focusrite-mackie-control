@@ -1,0 +1,62 @@
+[
+    {
+        "path": "sub_on.png",
+        "name": "Sub On",
+        "tags": ["Speaker", "Subwoofer"]
+    },
+    {
+        "path": "speaker_on.png",
+        "name": "Speaker On",
+        "tags": ["Speaker", "Subwoofer"]
+    },
+    {
+        "path": "rwd.png",
+        "name": "Rewind",
+        "tags": ["Rewind"]
+    },
+    {
+        "path": "mute_on.png",
+        "name": "Mute On",
+        "tags": ["Mute"]
+    },
+    {
+        "path": "fwd.png",
+        "name": "Forward",
+        "tags": ["Forward"]
+    },
+    {
+        "path": "dim_off.png",
+        "name": "Dim Off",
+        "tags": ["Dim"]
+    },
+    {
+        "path": "app_logo.png",
+        "name": "Monitor Control",
+        "tags": ["App", "Monitor Control"]
+    },
+    {
+        "path": "dim_on.png",
+        "name": "Dim On",
+        "tags": ["Dim"]
+    },
+    {
+        "path": "mute_off.png",
+        "name": "Mute Off",
+        "tags": ["Mute"]
+    },
+    {
+        "path": "play_pause.png",
+        "name": "Play / Pause",
+        "tags": ["Play", "Pause", "Play Pause"]
+    },
+    {
+        "path": "speaker_off.png",
+        "name": "Speaker Off",
+        "tags": ["Speaker"]
+    },
+    {
+        "path": "sub_off.png",
+        "name": "Sub off",
+        "tags": ["Speaker","Subwoofer"]
+    }
+]

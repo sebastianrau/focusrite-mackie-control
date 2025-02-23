@@ -15,11 +15,11 @@ type McuConnectorConfig struct {
 	MidiInputPort  string `yaml:"MidiInputPort"`
 	MidiOutputPort string `yaml:"MidiOnputPort"`
 
-	SpeakerSelect map[monitorcontroller.SpeakerID][]gomcu.Switch
+	SpeakerSelect map[monitorcontroller.SpeakerID]gomcu.Switch
 
-	MasterMuteSwitch    []gomcu.Switch
-	MasterDimSwitch     []gomcu.Switch
-	MasterVolumeChannel []gomcu.Channel
+	MasterMuteSwitch    gomcu.Switch
+	MasterDimSwitch     gomcu.Switch
+	MasterVolumeChannel gomcu.Channel
 
 	FaderScaleLog bool
 }
@@ -30,31 +30,31 @@ func DefaultConfiguration() *McuConnectorConfig {
 			MidiInputPort:  "PreSonus FP2",
 			MidiOutputPort: "PreSonus FP2",
 			SpeakerSelect: map[monitorcontroller.SpeakerID][]gomcu.Switch{
-				monitorcontroller.SpeakerA: {gomcu.Trim},
-				monitorcontroller.SpeakerB: {gomcu.Touch},
-				monitorcontroller.SpeakerC: {gomcu.Write},
-				monitorcontroller.SpeakerD: {},
-				monitorcontroller.Sub:      {gomcu.Read},
+				monitorcontroller.SpeakerA: gomcu.Trim,
+				monitorcontroller.SpeakerB: gomcu.Touch,
+				monitorcontroller.SpeakerC: gomcu.Write,
+				monitorcontroller.SpeakerD: gomcu.F4,
+				monitorcontroller.Sub:      gomcu.Read,
 			},
-			MasterMuteSwitch:    ALL_GOMCU_MUTES,
-			MasterDimSwitch:     ALL_GOMUC_SOLO,
-			MasterVolumeChannel: ALL_GOMCU_FADER_CHANNEL,
+			MasterMuteSwitch:    gomcu.Mute1,
+			MasterDimSwitch:     gomcu.Solo1,
+			MasterVolumeChannel: gomcu.Channel1,
 			FaderScaleLog:       false,
 		}
 	*/
 	streamDeck := &McuConnectorConfig{
 		MidiInputPort:  "IAC StreamDeckToController",
 		MidiOutputPort: "IAC ControllerToStreamDeck",
-		SpeakerSelect: map[monitorcontroller.SpeakerID][]gomcu.Switch{
-			monitorcontroller.SpeakerA: {gomcu.Trim},
-			monitorcontroller.SpeakerB: {gomcu.Touch},
-			monitorcontroller.SpeakerC: {gomcu.Write},
-			monitorcontroller.SpeakerD: {},
-			monitorcontroller.Sub:      {gomcu.Read},
+		SpeakerSelect: map[monitorcontroller.SpeakerID]gomcu.Switch{
+			monitorcontroller.SpeakerA: gomcu.Trim,
+			monitorcontroller.SpeakerB: gomcu.Touch,
+			monitorcontroller.SpeakerC: gomcu.Write,
+			monitorcontroller.SpeakerD: gomcu.F4,
+			monitorcontroller.Sub:      gomcu.Read,
 		},
-		MasterMuteSwitch:    []gomcu.Switch{gomcu.Mute1},
-		MasterDimSwitch:     []gomcu.Switch{gomcu.Solo1},
-		MasterVolumeChannel: []gomcu.Channel{gomcu.Channel1},
+		MasterMuteSwitch:    gomcu.Mute1,
+		MasterDimSwitch:     gomcu.Solo1,
+		MasterVolumeChannel: gomcu.Channel1,
 		FaderScaleLog:       false,
 	}
 

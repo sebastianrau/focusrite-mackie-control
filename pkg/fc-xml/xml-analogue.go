@@ -12,7 +12,7 @@ type Analogue struct {
 	StereoName       string `xml:"stereo-name,attr"`
 
 	Available       ElementBool   `xml:"available"`
-	Meter           ElementInt    `xml:"meter"`
+	Meter           ElementFloat  `xml:"meter"`
 	Nickname        ElementString `xml:"nickname"`
 	Stereo          ElementBool   `xml:"stereo"`
 	SourceID        ElementInt    `xml:"source"`

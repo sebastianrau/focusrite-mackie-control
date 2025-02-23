@@ -61,3 +61,22 @@ func (e *ElementBool) Set(value string) error {
 func (e *ElementBool) Id() int {
 	return e.ID
 }
+
+// ElementBool
+type ElementFloat struct {
+	ID    int `xml:"id,attr,omitempty"`
+	Value float64
+}
+
+func (e *ElementFloat) Set(value string) error {
+	i, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return err
+	}
+	e.Value = i
+	return nil
+}
+
+func (e *ElementFloat) Id() int {
+	return e.ID
+}

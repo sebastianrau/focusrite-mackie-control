@@ -68,7 +68,7 @@ func (mc *McuConnector) run() {
 			}
 
 		case mcu.SelectMessage:
-			if slices.Contains(mc.config.MasterVolumeChannel, f.FaderNumber) {
+			if mc.config.MasterVolumeChannel == f.FaderNumber {
 				log.Debugf("Channel Select Button detected: %d", f.FaderNumber)
 				mc.mcu.ToMcu <- mcu.FaderCommand{Fader: gomcu.Channel(f.FaderNumber), Value: mc.faderValueRaw}
 				continue
@@ -77,18 +77,18 @@ func (mc *McuConnector) run() {
 		case mcu.KeyMessage:
 			log.Debugf("Key Msg: %s (%d)", f.HotkeyName, f.KeyNumber)
 
-			if mc.isMcuID(mc.config.MasterMuteSwitch, f.KeyNumber) {
+			if mc.config.MasterMuteSwitch == f.KeyNumber {
 				mc.controllerChannel <- monitorcontroller.RcSetMute(!mc.state.Master.Mute)
 				continue
 			}
 
-			if mc.isMcuID(mc.config.MasterDimSwitch, f.KeyNumber) {
+			if mc.config.MasterDimSwitch == f.KeyNumber {
 				mc.controllerChannel <- monitorcontroller.RcSetDim(!mc.state.Master.Dim)
 				continue
 			}
 
 			for k, spk := range mc.config.SpeakerSelect {
-				if mc.isMcuID(spk, f.KeyNumber) {
+				if spk == f.KeyNumber {
 					log.Debugf("Speaker Select Button %s detected. SpeakerId %d ", f.HotkeyName, k)
 					mc.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: k, State: !mc.state.Speaker[k].Selected}
 					continue
@@ -119,21 +119,18 @@ func (mc *McuConnector) run() {
 			log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
 
 		case mcu.RawFaderMessage:
-			if slices.Contains(mc.config.MasterVolumeChannel, f.FaderNumber) {
-
+			if mc.config.MasterVolumeChannel == f.FaderNumber {
 				db := 0.0
 				if mc.config.FaderScaleLog {
 					db = FaderToDBLog(f.FaderValue)
 				} else {
 					db = FaderToDB(f.FaderValue)
 				}
-
 				mc.controllerChannel <- monitorcontroller.RcSetVolume(db)
 			}
 
 		default:
 			log.Warnf("Unhandled mcu message %s: %v\n", reflect.TypeOf(msg), msg)
-
 		}
 	}
 }
@@ -143,9 +140,7 @@ func (mc *McuConnector) runSendMeterValues() {
 		time.Sleep(LEVEL_RATE_LIMIT_TIME)
 		mc.mu.Lock()
 		if mc.meterUpdateRequest {
-			for _, fader := range mc.config.MasterVolumeChannel {
-				mc.mcu.ToMcu <- mcu.MeterCommand{Channel: fader, Value: mc.meterValue}
-			}
+			mc.mcu.ToMcu <- mcu.MeterCommand{Channel: mc.config.MasterVolumeChannel, Value: mc.meterValue}
 			mc.meterUpdateRequest = false
 		}
 		mc.mu.Unlock()
@@ -158,7 +153,7 @@ func (mc *McuConnector) SetControlChannel(controllerChannel chan interface{}) {
 
 func (mc *McuConnector) HandleDim(dim bool) {
 	mc.state.Master.Dim = dim
-	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.state.Master.Dim)
+	mc.updateMcuLed(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) HandleMute(mute bool) {
@@ -182,7 +177,7 @@ func (mc *McuConnector) HandleMeter(left, right int) {
 
 func (mc *McuConnector) HandleSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
 	mc.state.Speaker[id].Selected = sel
-	mc.updateAllLeds(mc.config.SpeakerSelect[id], sel)
+	mc.updateMcuLed(mc.config.SpeakerSelect[id], sel)
 }
 
 func (mc *McuConnector) HandleSpeakerName(id monitorcontroller.SpeakerID, name string) {
@@ -214,22 +209,22 @@ func (mc *McuConnector) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
 
 func (mc *McuConnector) SetMute(mute bool) {
 	mc.state.Master.Mute = mute
-	mc.updateAllLeds(DefaultConfiguration().MasterMuteSwitch, mc.state.Master.Mute)
+	mc.updateMcuLed(DefaultConfiguration().MasterMuteSwitch, mc.state.Master.Mute)
 }
 
 func (mc *McuConnector) SetDim(dim bool) {
 	mc.state.Master.Dim = dim
-	mc.updateAllLeds(DefaultConfiguration().MasterDimSwitch, mc.state.Master.Dim)
+	mc.updateMcuLed(DefaultConfiguration().MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) SetVolume(vol uint16) {
 	mc.faderValueRaw = vol
-	mc.updateAllFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
+	mc.updateMcuFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
 }
 
 func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
 	mc.state.Speaker[id].Selected = sel
-	mc.updateAllLeds(mc.config.SpeakerSelect[id], sel)
+	mc.updateMcuLed(mc.config.SpeakerSelect[id], sel)
 }
 
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
@@ -237,14 +232,14 @@ func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name stri
 }
 
 func (mc *McuConnector) initMcu() {
-	mc.updateAllLeds(mc.config.MasterMuteSwitch, mc.state.Master.Mute)
-	mc.updateAllLeds(mc.config.MasterDimSwitch, mc.state.Master.Dim)
+	mc.updateMcuLed(mc.config.MasterMuteSwitch, mc.state.Master.Mute)
+	mc.updateMcuLed(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 
 	for k, speaker := range mc.config.SpeakerSelect {
-		mc.updateAllLeds(speaker, mc.state.Speaker[k].Selected)
+		mc.updateMcuLed(speaker, mc.state.Speaker[k].Selected)
 	}
 
-	mc.updateAllFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
+	mc.updateMcuFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
 }
 
 // MCU Led & Fader Hacks
@@ -256,17 +251,13 @@ func (mc *McuConnector) setLed(sw gomcu.Switch, state gomcu.State) {
 	mc.mcu.ToMcu <- mcu.LedCommand{Led: sw, State: state}
 }
 
-func (c *McuConnector) updateAllLeds(switches []gomcu.Switch, state bool) {
-	for _, led := range switches {
-		c.setLedBool(led, state)
-	}
+func (c *McuConnector) updateMcuLed(sw gomcu.Switch, state bool) {
+	c.setLedBool(sw, state)
 }
 
-func (mc *McuConnector) updateAllFader(channel []gomcu.Channel, value uint16) {
-	for _, fader := range channel {
-		mc.mcu.ToMcu <- mcu.FaderSelectCommand{Channel: gomcu.Channel(fader), ChnnalValue: value}
-		mc.mcu.ToMcu <- mcu.FaderCommand{Fader: gomcu.Channel(fader), Value: value}
-	}
+func (mc *McuConnector) updateMcuFader(channel gomcu.Channel, value uint16) {
+	mc.mcu.ToMcu <- mcu.FaderSelectCommand{Channel: channel, ChnnalValue: value}
+	mc.mcu.ToMcu <- mcu.FaderCommand{Fader: channel, Value: value}
 }
 
 func (mc *McuConnector) updateAllMeterFader(level gomcu.MeterLevel) {
