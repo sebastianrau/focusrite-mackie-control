@@ -118,6 +118,7 @@ func NewMidiConfigGui(cfg *mcuconnector.McuConnectorConfig) *MidiConfigGui {
 		container.New(layout.NewFormLayout(),
 			widget.NewLabel("Input Port:"), mc.inputSelect,
 			widget.NewLabel("Output Port:"), mc.outputSelect,
+			layout.NewSpacer(), layout.NewSpacer(),
 			widget.NewLabel("Fader:"), mc.masterFaderSelect,
 			widget.NewLabel("Mute:"), mc.masterMuteSelect,
 			widget.NewLabel("Dim:"), mc.masterDimSelect,
