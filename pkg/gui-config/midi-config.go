@@ -1,6 +1,7 @@
 package guiconfig
 
 import (
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -118,12 +119,10 @@ func NewMidiConfigGui(cfg *mcuconnector.McuConnectorConfig) *MidiConfigGui {
 		container.New(layout.NewFormLayout(),
 			widget.NewLabel("Input Port:"), mc.inputSelect,
 			widget.NewLabel("Output Port:"), mc.outputSelect,
-			layout.NewSpacer(), layout.NewSpacer(),
-			widget.NewLabel("Fader:"), mc.masterFaderSelect,
+			widget.NewLabelWithStyle("Master:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(), widget.NewLabel("Fader:"), mc.masterFaderSelect,
 			widget.NewLabel("Mute:"), mc.masterMuteSelect,
 			widget.NewLabel("Dim:"), mc.masterDimSelect,
-			layout.NewSpacer(), layout.NewSpacer(),
-			widget.NewLabel("Speaker A:"), mc.speakerASelect,
+			widget.NewLabelWithStyle("Speaker:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(), widget.NewLabel("Speaker A:"), mc.speakerASelect,
 			widget.NewLabel("Speaker B:"), mc.speakerBSelect,
 			widget.NewLabel("Speaker C:"), mc.speakerCSelect,
 			widget.NewLabel("Speaker D:"), mc.speakerDSelect,

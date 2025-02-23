@@ -3,6 +3,7 @@ package guiconfig
 import (
 	"fmt"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -97,9 +98,10 @@ func NewFocusriteConfigGui(cfg *fcaudioconnector.FcConfiguration) *FocusriteConf
 		container.New(layout.NewFormLayout(),
 			widget.NewLabel("Device:"), fc.DeviceSelect,
 			widget.NewLabel("Serial Number"), fc.DeviceSnLabel,
+			widget.NewLabelWithStyle("Master:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(),
 			widget.NewLabel("Master Mute"), fc.DeviceMuteCheckbox,
 			widget.NewLabel("Master Dim"), fc.DeviceDimCheckbox,
-			widget.NewSeparator(), widget.NewSeparator(),
+			widget.NewLabelWithStyle("Speaker:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(),
 			widget.NewLabel("Speaker A:"), fc.SpeakerASel,
 			widget.NewLabel("Speaker B:"), fc.SpeakerBSel,
 			widget.NewLabel("Speaker C:"), fc.SpeakerCSel,
@@ -107,6 +109,8 @@ func NewFocusriteConfigGui(cfg *fcaudioconnector.FcConfiguration) *FocusriteConf
 			widget.NewLabel("Subwoofer:"), fc.SpeakerSubSel,
 		),
 	)
+
+	widget.NewLabelWithStyle("test", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	go fc.run()
 

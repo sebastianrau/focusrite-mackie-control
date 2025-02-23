@@ -3,6 +3,7 @@ package guiconfig
 import (
 	"fmt"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -88,7 +89,9 @@ func NewControllerConfig(cfg *monitorcontroller.ControllerSate) *ControllerConfi
 
 	cg.Container = widget.NewAccordionItem("Monitor Controller",
 		container.New(layout.NewFormLayout(),
+			widget.NewLabelWithStyle("Master:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(),
 			cg.dimLabel, cg.dimSlider,
+			widget.NewLabelWithStyle("Speaker:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), layout.NewSpacer(),
 			widget.NewLabel("Speaker A:"), container.NewHBox(cg.speakerADisable, cg.speakerAExclusive),
 			widget.NewLabel("Speaker B:"), container.NewHBox(cg.speakerBDisable, cg.speakerBExclusive),
 			widget.NewLabel("Speaker C:"), container.NewHBox(cg.speakerCDisable, cg.speakerCExclusive),
