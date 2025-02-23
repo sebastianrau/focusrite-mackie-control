@@ -6,7 +6,7 @@ This project enables remote control of Focusrite devices via a Mackie Control su
 
 - Go 1.23.5 or later
 - A compatible Focusrite device
-- A Mackie Control-compatible control surface
+- A Mackie Control-compatible control surface or a Streamdeck with Midi Plugin
 - [Fyne](https://fyne.io/) as GUI framework
 
 ## Installation
