@@ -65,19 +65,20 @@ func NewConfigApp(window fyne.Window, cfg *config.Config, restartFunc func(), ex
 		}
 	})
 
+	configAccordion := widget.NewAccordion(
+		controllerConfig.Container,
+		midiConfig.Container,
+		focusriteConfig.Container,
+	)
+	configAccordion.Open(0)
+
 	//layout
 	c.Content = container.NewBorder(
 		nil,
 		container.NewGridWithColumns(3, saveButton, layout.NewSpacer(), exitButton),
 		nil,
 		nil,
-		container.NewVScroll(
-			widget.NewAccordion(
-				controllerConfig.Container,
-				midiConfig.Container,
-				focusriteConfig.Container,
-			),
-		),
+		container.NewVScroll(configAccordion),
 	)
 
 	window.SetContent(c.Content)
