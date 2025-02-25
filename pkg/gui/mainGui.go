@@ -111,17 +111,15 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 		buttons:            make(map[ButtonID]*ToggleButton),
 	}
 
-	iconResource := resourceIconPng
-
 	//App
 	mainGui.app = app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
-	mainGui.app.SetIcon(iconResource)
+	mainGui.app.SetIcon(resourceIconPng)
 
 	//Window
 	mainGui.window = mainGui.app.NewWindow(APP_TITLE)
 	mainGui.window.SetFullScreen(false)
 	mainGui.window.SetMainMenu(fyne.NewMainMenu())
-	mainGui.window.SetIcon(iconResource) // Setzt das Icon für die App
+	mainGui.window.SetIcon(resourceIconPng) // Setzt das Icon für die App
 	mainGui.window.SetMaster()
 	mainGui.window.SetTitle(APP_TITLE)
 	mainGui.window.SetFixedSize(true)
@@ -166,7 +164,7 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 	// Action Buttons
 	for _, b := range btnDefinition {
 		if b.ID == Spacer {
-			img := canvas.NewImageFromFile("logo.png")
+			img := canvas.NewImageFromResource(resourceLogoPng)
 			img.FillMode = canvas.ImageFillContain
 			img.SetMinSize(fyne.NewSize(100, 100))
 			mainGui.buttonContainer.Add(img)
