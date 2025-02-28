@@ -181,6 +181,10 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 	}
 
 	// Context menu
+	mainGui.menuShow = fyne.NewMenuItem("Show", func() {
+		mainGui.window.Show()
+	})
+
 	mainGui.menuMute = fyne.NewMenuItem("Mute", func() {
 		mainGui.controllerChannel <- monitorcontroller.RcSetMute(!mainGui.menuMute.Checked)
 
@@ -188,12 +192,6 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	mainGui.menuDim = fyne.NewMenuItem("Dim", func() {
 		mainGui.controllerChannel <- monitorcontroller.RcSetDim(!mainGui.menuDim.Checked)
-	})
-
-	mainGui.menuShow = fyne.NewMenuItem("Show", func() {
-		mainGui.window.Show()
-		mainGui.menuShow.Disabled = true
-		mainGui.menuSystemTray.Refresh()
 	})
 
 	//Gui shown initally
