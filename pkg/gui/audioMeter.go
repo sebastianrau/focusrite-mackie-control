@@ -34,6 +34,8 @@ const MIN_LEVEL = -60
 
 var SCALE_VALUES []int = []int{0, -3, -6, -9, -12, -15, -18, -21, -24, -30, -35, -40, -45, -50, -55, -60}
 
+var disableShaderColor color.Color = color.RGBA{64, 64, 64, 200}
+
 // AudioMeter ist ein Widget, das eine vertikale grüne Leiste rendert.
 type AudioMeter struct {
 	widget.BaseWidget
@@ -47,6 +49,7 @@ type AudioMeter struct {
 
 	stereo bool
 
+	enabled          bool
 	decayRefreshTime time.Duration
 	decayRate        float64
 
@@ -66,6 +69,8 @@ func NewAudioMeterBar(stereo bool) *AudioMeter {
 		unit:         "dB",
 
 		stereo: stereo,
+
+		enabled: true,
 
 		decayRefreshTime: DECAY_UPDATE_RATE,
 
@@ -168,6 +173,18 @@ func (b *AudioMeter) runMaxHold() {
 
 }
 
+func (b *AudioMeter) Enable() {
+	b.enabled = true
+}
+
+func (b *AudioMeter) Disable() {
+	b.enabled = false
+}
+
+func (b *AudioMeter) Disabled() bool {
+	return !b.enabled
+}
+
 //Debug only
 /*
 func (b *AudioMeter) runUPS() {
@@ -189,6 +206,7 @@ type verticalBarRenderer struct {
 	levelBarBg    *canvas.Rectangle
 	border        *canvas.Rectangle
 	faderLabel    *canvas.Text
+	disableShader *canvas.Rectangle
 	scale         map[int]*canvas.Text
 }
 
@@ -214,6 +232,9 @@ func (b *AudioMeter) CreateRenderer() fyne.WidgetRenderer {
 	border := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
 	border.CornerRadius = 5
 
+	disableShader := canvas.NewRectangle(disableShaderColor)
+	disableShader.CornerRadius = 5
+
 	faderLabel := canvas.NewText("--- "+b.unit, theme.Color(theme.ColorNameForeground))
 	faderLabel.Alignment = fyne.TextAlignCenter
 
@@ -224,7 +245,7 @@ func (b *AudioMeter) CreateRenderer() fyne.WidgetRenderer {
 		scale[val] = label
 	}
 
-	return &verticalBarRenderer{bar: b, levelBarLeft: levelBarLeft, levelBarRight: LevelBarRight, border: border, faderLabel: faderLabel, scale: scale, levelBarBg: levelBarBg}
+	return &verticalBarRenderer{bar: b, levelBarLeft: levelBarLeft, levelBarRight: LevelBarRight, border: border, disableShader: disableShader, faderLabel: faderLabel, scale: scale, levelBarBg: levelBarBg}
 }
 
 func (r *verticalBarRenderer) Layout(size fyne.Size) {
@@ -258,14 +279,31 @@ func (r *verticalBarRenderer) Layout(size fyne.Size) {
 		r.levelBarBg.Resize(fyne.NewSize(bgWidth, bgHeight))
 	}
 
-	scaledValueL := float32(r.logScale(r.bar.valueL, MIN_LEVEL, MAX_LEVEL))
+	if r.bar.enabled {
+		r.disableShader.FillColor = color.Transparent
+	} else {
+		rc, gc, bc, _ := theme.Color(theme.ColorNameInputBackground).RGBA()
+		s := color.RGBA{uint8(rc), uint8(gc), uint8(bc), 200}
+		r.disableShader.FillColor = s
+		return //do not update the other items
+	}
+
+	scaledValueL := float32(0)
+	if r.bar.enabled {
+		scaledValueL = float32(r.logScale(r.bar.valueL, MIN_LEVEL, MAX_LEVEL))
+	}
+
 	barLeftHeight := (bgHeight - 2*bgBorder) * scaledValueL
 	barLeftX := (size.Width / 2) - bgBorder - barWith
 	barLeftY := size.Height - barLeftHeight - 3*bgBorder
 
 	r.levelBarRight.Hidden = !r.bar.stereo
 	if r.bar.stereo {
-		scaledValueR := float32(r.logScale(r.bar.valueR, MIN_LEVEL, MAX_LEVEL))
+		scaledValueR := float32(0)
+		if r.bar.enabled {
+			scaledValueR = float32(r.logScale(r.bar.valueR, MIN_LEVEL, MAX_LEVEL))
+		}
+
 		barRightHeight := (bgHeight - 2*bgBorder) * scaledValueR
 		barRightX := barLeftX //right bar to place of left bar in mono
 		barRightY := size.Height - barRightHeight - 3*bgBorder
@@ -282,7 +320,7 @@ func (r *verticalBarRenderer) Layout(size fyne.Size) {
 	// Draw Label
 	r.faderLabel.Text = fmt.Sprintf("%.1f %s", r.bar.valueMaxHold, r.bar.unit)
 
-	if r.bar.colorGradient != nil {
+	if r.bar.colorGradient != nil && r.bar.enabled {
 		r.levelBarLeft.FillColor = r.bar.colorGradient.GetColor(r.bar.valueL)
 		r.levelBarRight.FillColor = r.bar.colorGradient.GetColor(r.bar.valueR)
 		r.faderLabel.Color = r.bar.colorGradient.GetColor(r.bar.valueMaxHold)
@@ -293,6 +331,9 @@ func (r *verticalBarRenderer) Layout(size fyne.Size) {
 func (r *verticalBarRenderer) LayoutBackground(size fyne.Size, labelWidth, labelHeight, barWith, padding, bgBorder float32) {
 
 	dbLabelHeight := float32(20.0)
+
+	r.disableShader.Move(fyne.NewPos(0, 0))
+	r.disableShader.Resize(fyne.NewSize(size.Width, size.Height))
 
 	r.border.Move(fyne.NewPos(0, 0))
 	r.border.Resize(fyne.NewSize(size.Width, size.Height))
@@ -332,6 +373,7 @@ func (r *verticalBarRenderer) Objects() []fyne.CanvasObject {
 	for _, label := range r.scale {
 		objects = append(objects, label)
 	}
+	objects = append(objects, r.disableShader)
 	return objects
 }
 

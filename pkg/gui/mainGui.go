@@ -114,6 +114,7 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 	//App
 	mainGui.app = app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
 	mainGui.app.SetIcon(resourceIconPng)
+	mainGui.app.Settings().SetTheme(theme.DarkTheme())
 
 	//Window
 	mainGui.window = mainGui.app.NewWindow(APP_TITLE)
@@ -152,9 +153,11 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	mainGui.fader = NewAudioFaderMeter(-127, 0, -10, false, mainGui.masterValueChanged)
 	mainGui.fader.SetLevel(-20)
+	mainGui.fader.Disable()
 
 	mainGui.levelMeter = NewAudioMeterBar(true)
 	mainGui.levelMeter.SetGradient(colorGradient)
+	mainGui.levelMeter.Disable()
 
 	mainGui.buttonContainer = container.NewVBox()
 
@@ -175,6 +178,7 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 				b.Color,
 				mainGui.buttonPressed,
 			)
+			btn.Disable()
 			mainGui.buttonContainer.Add(btn)
 			mainGui.buttons[b.ID] = btn
 		}
@@ -193,9 +197,6 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 	mainGui.menuDim = fyne.NewMenuItem("Dim", func() {
 		mainGui.controllerChannel <- monitorcontroller.RcSetDim(!mainGui.menuDim.Checked)
 	})
-
-	//Gui shown initally
-	mainGui.menuShow.Disabled = true
 
 	mainGui.menuConfig = fyne.NewMenuItem("Configuration", func() {
 		mainGui.windowConfig.Show()
@@ -227,7 +228,6 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	mainGui.window.SetCloseIntercept(func() {
 		mainGui.window.Hide()
-		mainGui.menuShow.Disabled = false
 		mainGui.menuSystemTray.Refresh()
 	})
 
@@ -310,21 +310,24 @@ func (g *MainGui) SetButtonDisabled(id ButtonID, state bool) {
 		log.Errorf("Button not found %d", id)
 		return
 	}
-	b.SetDisable(state)
+	b.SetHidden(state)
 }
 
 func (g *MainGui) UpdateStatusText(dev *monitorcontroller.DeviceInfo) {
 	if dev.ConnectionState {
 		if dev.DeviceId == 0 {
 			g.infoLabel.Text = INFO_NO_DEVICE
+			g.infoLabel.Color = theme.Color(theme.ColorNameDisabled)
 			g.infoIcon.SetResource(theme.NewDisabledResource(theme.WarningIcon()))
 		} else {
 			g.infoLabel.Text = dev.Model
-			g.infoIcon.SetResource(theme.NewDisabledResource(theme.VolumeUpIcon()))
+			g.infoLabel.Color = theme.Color(theme.ColorNamePrimary)
+			g.infoIcon.SetResource(theme.NewPrimaryThemedResource(theme.VolumeUpIcon()))
 		}
 	} else {
 		g.infoLabel.Text = INFO_NO_CONNECTION
-		g.infoIcon.SetResource(theme.NewDisabledResource(theme.BrokenImageIcon()))
+		g.infoLabel.Color = theme.Color(theme.ColorNameDisabled)
+		g.infoIcon.SetResource(theme.NewColoredResource(theme.BrokenImageIcon(), theme.ColorNameForegroundOnWarning))
 	}
 
 	g.infoLabel.Refresh()
@@ -336,6 +339,22 @@ func (g *MainGui) SetControlChannel(controllerChannel chan interface{}) {
 
 func (g *MainGui) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
 	g.UpdateStatusText(dev)
+
+	if dev.ConnectionState && dev.DeviceId != 0 {
+		g.levelMeter.Enable()
+		g.fader.Enable()
+		for _, btn := range g.buttons {
+			btn.Enable()
+		}
+
+	} else {
+		g.fader.Disable()
+		g.levelMeter.Disable()
+		for _, btn := range g.buttons {
+			btn.Disable()
+		}
+	}
+
 }
 
 // sNew Dim State
