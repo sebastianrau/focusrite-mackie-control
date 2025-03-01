@@ -106,3 +106,15 @@ func (f *AudioFader) CreateRenderer() fyne.WidgetRenderer {
 func (r *AudioFader) MinSize() fyne.Size {
 	return fyne.NewSize(90, 120)
 }
+
+func (r *AudioFader) Enable() {
+	r.fader.Enable()
+	r.label.Importance = widget.MediumImportance
+	r.label.Refresh()
+}
+
+func (r *AudioFader) Disable() {
+	r.fader.Disable()
+	r.label.Importance = widget.LowImportance
+	r.label.Refresh()
+}

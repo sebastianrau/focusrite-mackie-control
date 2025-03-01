@@ -5,10 +5,10 @@ import (
 	"os/signal"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
+	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )

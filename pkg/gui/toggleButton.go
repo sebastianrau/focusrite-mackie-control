@@ -23,19 +23,22 @@ type ToggleButton struct {
 	state       bool
 	Button      *widget.Button
 	LabelWidget *canvas.Text
-	OnColor     color.Color
-	OffColor    color.Color
-	//label         string
+
+	OnColor       color.Color
+	OffColor      color.Color
+	DisabledColor color.Color
+
 	ButtonPressed chan ButtonEvent
 }
 
 func NewToggleButton(id ButtonID, label string, onColor color.Color, eventChan chan ButtonEvent) *ToggleButton {
 
 	toggleBtn := &ToggleButton{
-		ID:       id,
-		state:    false,
-		OnColor:  onColor,
-		OffColor: theme.Color(theme.ColorNameForeground),
+		ID:            id,
+		state:         false,
+		OnColor:       onColor,
+		OffColor:      theme.Color(theme.ColorNameForeground),
+		DisabledColor: theme.Color(theme.ColorNameDisabled),
 		//label:         label,
 		ButtonPressed: eventChan,
 	}
@@ -57,13 +60,20 @@ func NewToggleButton(id ButtonID, label string, onColor color.Color, eventChan c
 
 func (tb *ToggleButton) Set(state bool) {
 	tb.state = state
-	if tb.state {
+
+	if tb.Button.Disabled() {
 		tb.LabelWidget.TextStyle = fyne.TextStyle{Bold: true}
-		tb.LabelWidget.Color = tb.OnColor
+		tb.LabelWidget.Color = tb.DisabledColor
 	} else {
-		tb.LabelWidget.TextStyle = fyne.TextStyle{Bold: false}
-		tb.LabelWidget.Color = tb.OffColor
+		if tb.state {
+			tb.LabelWidget.TextStyle = fyne.TextStyle{Bold: true}
+			tb.LabelWidget.Color = tb.OnColor
+		} else {
+			tb.LabelWidget.TextStyle = fyne.TextStyle{Bold: false}
+			tb.LabelWidget.Color = tb.OffColor
+		}
 	}
+
 	tb.LabelWidget.Refresh()
 }
 
@@ -71,17 +81,26 @@ func (tb *ToggleButton) SetLabel(label string) {
 	tb.LabelWidget.Text = label
 }
 
-func (tb *ToggleButton) SetDisable(disable bool) {
+func (tb *ToggleButton) SetHidden(disable bool) {
 	if disable {
-		tb.Button.Disable()
+		//tb.Button.Disable()
 		tb.Button.Hide()
 		tb.LabelWidget.Hide()
 
 	} else {
-		tb.Button.Enable()
+		//tb.Button.Enable()
 		tb.Button.Show()
 		tb.LabelWidget.Show()
 	}
+}
+
+func (tb *ToggleButton) Enable() {
+	tb.Button.Enable()
+	tb.Set(tb.state)
+}
+func (tb *ToggleButton) Disable() {
+	tb.Button.Disable()
+	tb.Set(tb.state)
 }
 
 func (tb *ToggleButton) CreateRenderer() fyne.WidgetRenderer {

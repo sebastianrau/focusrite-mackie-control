@@ -29,26 +29,29 @@ all:
 	@echo ""
 	@echo "  clean          remove dut binarys"
 
+version:
+	sed -ie "s/Version = \"*.*.*\"/Version = \"${GIT_VERSION_TAG}\"/" FyneApp.toml
 
 app: app.windows64 app.darwin app.darwinArm app.linux64
 
-app.windows64:
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os windows -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
+app.windows64: version
+	
+	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os windows -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
 # TODO add zip of package
-app.darwin:
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
-	cd ${BUILD_DIR} && zip  ${APP_NAME}.app.zip  ${APP_NAME}.app
+app.darwin: version	
+	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
+	cd ${BUILD_DIR} && zip -vr ${APP_NAME}.app.zip  ${APP_NAME}.app
 
-app.darwinArm:
-	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}.arm
-	cd ${BUILD_DIR} && zip  ${APP_NAME}.app.arm.zip ${APP_NAME}.arm.app
+app.darwinArm: version
+	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}.arm
+	cd ${BUILD_DIR} && zip -vr ${APP_NAME}.app.arm.zip ${APP_NAME}.arm.app
 
-app.linux64:
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
+app.linux64: version
+	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
 # TODO add zip of package
 
-app.linuxArm:
-	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../icon.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
+app.linuxArm: version
+	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
 # TODO add zip of package
 
 streamdeck.icons:
