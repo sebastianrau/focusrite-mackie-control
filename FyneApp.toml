@@ -4,5 +4,5 @@ Website = "https://github.com/sebastianrau/focusrite-mackie-control/"
 Icon = "Icon.png"
 Name = "Monitor Controller"
 ID = "com.github.sebastianrau.focusrite-mackie-control"
-Version = "1.0.0"
+Version = "0.1.2"
 Build = 1
