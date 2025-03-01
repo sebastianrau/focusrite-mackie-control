@@ -1,4 +1,4 @@
-# <img src="logo.png" width="20%" height="20%"> focusrite-mackie-control 
+# focusrite-mackie-control  <img src="logo.png" width="15%" height="15%"> 
 
 This project enables remote control of Focusrite devices via a Mackie Control surface.
 

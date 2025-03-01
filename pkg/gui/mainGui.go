@@ -113,14 +113,14 @@ func NewAppWindow(cfg *config.Config, closeFunction func()) (*MainGui, error) {
 
 	//App
 	mainGui.app = app.NewWithID("com.github.sebastianrau.focusrite-mackie-control")
-	mainGui.app.SetIcon(resourceIconPng)
+	mainGui.app.SetIcon(resourceLogoPng)
 	mainGui.app.Settings().SetTheme(theme.DarkTheme())
 
 	//Window
 	mainGui.window = mainGui.app.NewWindow(APP_TITLE)
 	mainGui.window.SetFullScreen(false)
 	mainGui.window.SetMainMenu(fyne.NewMainMenu())
-	mainGui.window.SetIcon(resourceIconPng) // Setzt das Icon für die App
+	mainGui.window.SetIcon(resourceLogoPng) // Setzt das Icon für die App
 	mainGui.window.SetMaster()
 	mainGui.window.SetTitle(APP_TITLE)
 	mainGui.window.SetFixedSize(true)
