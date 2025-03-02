@@ -44,7 +44,7 @@ func NewFocusriteConfigGui(cfg *fcaudioconnector.FcConfiguration) *FocusriteConf
 		fcDeviceList:     map[string]*focusritexml.Device{},
 	}
 
-	fc.fClient = focusriteclient.NewFocusriteClient(focusriteclient.UpdateDevice)
+	fc.fClient = focusriteclient.NewFocusriteClient(focusriteclient.UpdateRaw)
 
 	fc.DeviceSelect = widget.NewSelect([]string{}, func(selected string) {
 		if selected != "" {
@@ -141,10 +141,15 @@ func (fc *FocusriteConfigGui) run() {
 }
 
 func (fc *FocusriteConfigGui) updateDeviceSelect(list focusriteclient.DeviceList) {
+
+	if len(fc.fcDeviceList) == len(list){
+		log.Debugf("no new devices in list: %d", len(list))
+		return
+	}
 	options := make([]string, 0)
 	fc.fcDeviceList = make(map[string]*focusritexml.Device)
 	fc.fcSelectedDevice = nil
-
+	fc.fcSelectedDeviceString = ""
 	for _, device := range list {
 		text := fmt.Sprintf("%s (%s)", device.Model, device.SerialNumber)
 		options = append(options, text)
