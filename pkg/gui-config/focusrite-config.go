@@ -207,21 +207,26 @@ func (c *FocusriteConfigGui) updateSpeakerConfig(selected string, spkID monitorc
 	}
 
 	if selected == "none" {
+		c.newConfig.Speaker[spkID].Name = 0
 		c.newConfig.Speaker[spkID].MeterL = 0
+		c.newConfig.Speaker[spkID].MeterR = 0
 		c.newConfig.Speaker[spkID].Mute = 0
 		c.newConfig.Speaker[spkID].OutputGain = 0
-		c.newConfig.Speaker[spkID].MeterR = 0
+
 	}
 
 	dev := c.fcSelectedDevice
 	for i, anOut := range dev.Outputs.Analogues {
-		if anOut.StereoName == selected && anOut.Available.Value == true {
+		if anOut.StereoName == selected /*&& anOut.Available.Value == true*/ {
+			c.newConfig.Speaker[spkID].Name = fcaudioconnector.FocusriteId(anOut.Nickname.ID)
 			c.newConfig.Speaker[spkID].MeterL = fcaudioconnector.FocusriteId(anOut.Meter.ID)
 			c.newConfig.Speaker[spkID].Mute = fcaudioconnector.FocusriteId(anOut.Mute.ID)
 			c.newConfig.Speaker[spkID].OutputGain = fcaudioconnector.FocusriteId(anOut.Gain.ID)
 			c.newConfig.Speaker[spkID].MeterR = fcaudioconnector.FocusriteId(dev.Outputs.Analogues[i+1].Meter.ID)
 		}
 	}
+
+	log.Debugf("New Config: %v", c.newConfig.Speaker[spkID])
 }
 
 func (c *FocusriteConfigGui) updateSpeakerSelect(sel *widget.Select, spkId monitorcontroller.SpeakerID) {

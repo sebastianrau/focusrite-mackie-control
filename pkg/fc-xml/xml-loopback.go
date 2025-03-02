@@ -8,7 +8,7 @@ type Loopback struct {
 	Name       string        `xml:"name,attr"`
 	StereoName string        `xml:"stereo-name,attr"`
 	Available  ElementString `xml:"available"`
-	Meter      ElementInt    `xml:"meter"`
+	Meter      ElementFloat  `xml:"meter"`
 	AssignMix  ElementString `xml:"assign-mix"`
 	AssignTBM  ElementString `xml:"assign-talkback-mix"`
 	Mute       ElementBool   `xml:"mute"`
