@@ -28,9 +28,9 @@ func NewConfigApp(window fyne.Window, cfg *config.Config, restartFunc func(), ex
 	}
 
 	// Config Gui Parts
-	controllerConfig := NewControllerConfig(c.newConfig.MonitorController)
-	midiConfig := NewMidiConfigGui(c.newConfig.Midi)
-	focusriteConfig := NewFocusriteConfigGui(c.newConfig.FocusriteDevice)
+	controllerConfig := NewControllerConfig(&c.newConfig.MonitorController)
+	midiConfig := NewMidiConfigGui(&c.newConfig.Midi)
+	focusriteConfig := NewFocusriteConfigGui(&c.newConfig.FocusriteDevice)
 
 	// Save
 	saveButton := widget.NewButton("Save & Restart", func() {

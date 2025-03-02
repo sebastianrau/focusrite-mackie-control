@@ -82,18 +82,18 @@ func main() {
 		setActivationPolicy()
 	})
 
-	mcu := mcuconnector.NewMcuConnector(cfg.Midi)
+	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
 	if mcu == nil {
 		log.Warnf("could not open Midi System")
 	}
 
-	fc := fcaudioconnector.NewAudioDeviceConnector(cfg.FocusriteDevice)
+	fc := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
 	if fc == nil {
 		log.Errorf("Could not load Audio Connector")
 		os.Exit(-1)
 	}
 
-	mc := monitorcontroller.NewController(fc, cfg.MonitorController)
+	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
 	if mc == nil {
 		log.Errorf("Could not load monitor Controller")
 		os.Exit(-3)

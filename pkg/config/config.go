@@ -23,9 +23,9 @@ const (
 )
 
 type Config struct {
-	Midi              *mcuconnector.McuConnectorConfig
-	FocusriteDevice   *fcaudioconnector.FcConfiguration
-	MonitorController *monitorcontroller.ControllerSate
+	Midi              mcuconnector.McuConnectorConfig
+	FocusriteDevice   fcaudioconnector.FcConfiguration
+	MonitorController monitorcontroller.ControllerSate
 	crc               uint64 `yaml:"-"`
 }
 
@@ -48,9 +48,9 @@ func getPathAndFile() (string, error) {
 
 func Default() *Config {
 	c := &Config{
-		Midi:              mcuconnector.DefaultConfiguration(),
-		FocusriteDevice:   fcaudioconnector.DefaultConfiguration(),
-		MonitorController: monitorcontroller.NewDefaultState(),
+		Midi:              *mcuconnector.DefaultConfiguration(),
+		FocusriteDevice:   *fcaudioconnector.DefaultConfiguration(),
+		MonitorController: *monitorcontroller.NewDefaultState(),
 	}
 	return c
 }

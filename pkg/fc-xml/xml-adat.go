@@ -13,7 +13,7 @@ type Adat struct {
 	Port             int    `xml:"port,attr"`
 
 	Available ElementBool   `xml:"available"`
-	Meter     ElementInt    `xml:"meter"`
+	Meter     ElementFloat  `xml:"meter"`
 	Nickname  ElementString `xml:"nickname"`
 	Mute      ElementBool   `xml:"mute"`
 	Stereo    ElementBool   `xml:"stereo"`
