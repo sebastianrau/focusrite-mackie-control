@@ -25,12 +25,8 @@ type McuConnector struct {
 
 	controllerChannel chan interface{}
 
-	state *monitorcontroller.ControllerSate
-	//dim           bool
-	//mute          bool
+	state         *monitorcontroller.ControllerSate
 	faderValueRaw uint16
-	//speakerSelect []bool
-	//speakerName   []string
 
 	mu                 sync.Mutex
 	meterValue         gomcu.MeterLevel
@@ -41,8 +37,6 @@ func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
 	m := &McuConnector{
 		config: config,
 		state:  monitorcontroller.NewDefaultState(),
-		//		speakerSelect: make([]bool, monitorcontroller.SPEAKER_LEN),
-		//		speakerName:   make([]string, monitorcontroller.SPEAKER_LEN),
 	}
 
 	var err error
