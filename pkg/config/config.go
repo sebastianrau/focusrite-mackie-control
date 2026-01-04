@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"time"
 
@@ -76,17 +77,25 @@ func Load() (*Config, error) {
 	return &config, nil
 }
 
-func (c *Config) RunAutoSave() {
+func (c *Config) RunAutoSave(ctx context.Context) {
+
 	t := time.NewTicker(autoSaveTime)
-	for range t.C {
-		if c.UpdateChanged() {
-			err := c.Save()
-			if err != nil {
-				log.Error(err)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-t.C:
+			if c.UpdateChanged() {
+				err := c.Save()
+				if err != nil {
+					log.Error(err)
+				}
+				log.Debugf("Auto save done.")
+			} else {
+				log.Debug("No change. Autosave skipped")
 			}
-			log.Debugf("Auto save done.")
-		} else {
-			log.Debug("No change. Autosave skipped")
 		}
 	}
 }

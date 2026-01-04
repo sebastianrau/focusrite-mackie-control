@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
+	"syscall"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
@@ -45,9 +47,10 @@ func main() {
 	)
 
 	log.Infof("Monitor Controller %v", Version)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	defer cancel()
 
 	cfg, err := config.Load()
-	go cfg.RunAutoSave()
 
 	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
@@ -60,6 +63,7 @@ func main() {
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+	go cfg.RunAutoSave(ctx)
 
 	var mainGui *gui.MainGui
 
@@ -91,12 +95,14 @@ func main() {
 	if fc == nil {
 		log.Errorf("Could not load Audio Connector")
 		os.Exit(-1)
+		return
 	}
 
 	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
 	if mc == nil {
 		log.Errorf("Could not load monitor Controller")
 		os.Exit(-3)
+		return
 	}
 
 	if mcu != nil {
@@ -114,6 +120,17 @@ func main() {
 				log.Error(err.Error())
 			}
 			os.Exit(0)
+		}
+	}()
+
+	go func() {
+		<-ctx.Done()
+
+		if err := cfg.Save(); err != nil {
+			log.Error(err.Error())
+		}
+		if mainGui != nil {
+			mainGui.Quit()
 		}
 	}()
 
