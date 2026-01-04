@@ -1,6 +1,7 @@
 package fcaudioconnector
 
 import (
+	"errors"
 	"reflect"
 	"strconv"
 
@@ -20,7 +21,11 @@ type AudioDeviceConnector struct {
 	toController chan interface{}
 }
 
-func NewAudioDeviceConnector(cfg *FcConfiguration) *AudioDeviceConnector {
+func NewAudioDeviceConnector(cfg *FcConfiguration) (*AudioDeviceConnector, error) {
+	if cfg == nil {
+		return nil, errors.New("focusrite config is nil")
+	}
+
 	ad := &AudioDeviceConnector{
 		config: cfg,
 		state:  monitorcontroller.NewDefaultState(),
@@ -30,7 +35,7 @@ func NewAudioDeviceConnector(cfg *FcConfiguration) *AudioDeviceConnector {
 
 	go ad.run()
 
-	return ad
+	return ad, nil
 }
 
 func (ad *AudioDeviceConnector) run() {

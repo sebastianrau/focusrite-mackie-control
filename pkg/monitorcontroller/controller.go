@@ -1,6 +1,8 @@
 package monitorcontroller
 
 import (
+	"errors"
+
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 )
 
@@ -17,7 +19,7 @@ type Controller struct {
 }
 
 // NewMcuState creates a new McuState
-func NewController(audioDevice AudioDevice, config *ControllerSate) *Controller {
+func NewController(audioDevice AudioDevice, config *ControllerSate) (*Controller, error) {
 	c := &Controller{
 		state: config,
 
@@ -28,14 +30,17 @@ func NewController(audioDevice AudioDevice, config *ControllerSate) *Controller 
 		remoteController:     make([]RemoteController, 0),
 	}
 
-	if c.audioDevice == nil {
-		return nil
+	if audioDevice == nil {
+		return nil, errors.New("audioDevice is nil")
+	}
+	if config == nil {
+		return nil, errors.New("controller config is nil")
 	}
 
 	c.audioDevice.SetControlChannel(c.fromAudioInterface)
 
 	go c.run()
-	return c
+	return c, nil
 }
 
 func (c *Controller) run() {

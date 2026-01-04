@@ -70,24 +70,23 @@ func main() {
 		guifix.SetActivationPolicy()
 	})
 
-	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
-	if mcu == nil {
-		log.Warnf("could not open Midi System")
+	mcu, err := mcuconnector.NewMcuConnector(&cfg.Midi)
+	if err != nil {
+		log.Warnf("could not open Midi System. Midi system disabled.")
+	} else {
+		closers = append(closers, mcu)
 	}
-	closers = append(closers, mcu)
 
-	fc := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
-	if fc == nil {
+	fc, err := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
+	if err != nil {
 		log.Errorf("Could not load Audio Connector")
-		os.Exit(-1)
 		return
 	}
 	closers = append(closers, fc)
 
-	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
-	if mc == nil {
+	mc, err := monitorcontroller.NewController(fc, &cfg.MonitorController)
+	if err != nil {
 		log.Errorf("Could not load monitor Controller")
-		os.Exit(-3)
 		return
 	}
 	closers = append(closers, mc)

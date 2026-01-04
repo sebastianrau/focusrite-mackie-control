@@ -1,6 +1,7 @@
 package mcuconnector
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"sync"
@@ -30,7 +31,7 @@ type McuConnector struct {
 	meterUpdateRequest bool
 }
 
-func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
+func NewMcuConnector(config *McuConnectorConfig) (*McuConnector, error) {
 	m := &McuConnector{
 		config: config,
 		state:  monitorcontroller.NewDefaultState(),
@@ -39,12 +40,13 @@ func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
 	var err error
 	m.mcu, err = mcu.InitMcu(&mcu.Configuration{MidiInputPort: config.MidiInputPort, MidiOutputPort: config.MidiOutputPort})
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("init mcu failed (midi in=%q out=%q): %w", config.MidiInputPort, config.MidiOutputPort, err)
+
 	}
 
 	go m.run()
 	go m.runSendMeterValues()
-	return m
+	return m, nil
 }
 
 func (mc *McuConnector) run() {
