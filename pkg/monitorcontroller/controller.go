@@ -262,3 +262,20 @@ func (c *Controller) setMasterLevel(left, right int) {
 	c.state.Master.LevelRight = right
 	c.fireLevel()
 }
+
+func (c *Controller) Close() error {
+	if c == nil {
+		return nil
+	}
+
+	for _, r := range c.remoteController {
+		if closer, ok := r.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+	}
+
+	if c.audioDevice != nil {
+		return c.audioDevice.Close()
+	}
+	return nil
+}

@@ -236,3 +236,10 @@ func (mc *McuConnector) updateAllMeterFader(level gomcu.MeterLevel) {
 	mc.meterValue = max(mc.meterValue, level)
 	mc.meterUpdateRequest = true
 }
+
+func (mc *McuConnector) Close() error {
+	if mc != nil && mc.mcu != nil {
+		mc.mcu.Close()
+	}
+	return nil
+}

@@ -329,3 +329,13 @@ func (ad *AudioDeviceConnector) getSpeakerNameUpdateSet() *focusritexml.Set {
 	}
 	return fcUpdateSet
 }
+
+func (a *AudioDeviceConnector) Close() error {
+	if a == nil {
+		return nil
+	}
+	if a.device != nil {
+		return a.device.Close()
+	}
+	return nil
+}

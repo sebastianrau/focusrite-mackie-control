@@ -26,7 +26,8 @@ var log *logger.CustomLogger = logger.WithPackage("main")
 func main() {
 
 	var (
-		cfg *config.Config
+		cfg     *config.Config
+		closers []interface{ Close() error }
 	)
 
 	log.Infof("Monitor Controller %v", Version)
@@ -73,6 +74,7 @@ func main() {
 	if mcu == nil {
 		log.Warnf("could not open Midi System")
 	}
+	closers = append(closers, mcu)
 
 	fc := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
 	if fc == nil {
@@ -80,6 +82,7 @@ func main() {
 		os.Exit(-1)
 		return
 	}
+	closers = append(closers, fc)
 
 	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
 	if mc == nil {
@@ -87,6 +90,7 @@ func main() {
 		os.Exit(-3)
 		return
 	}
+	closers = append(closers, mc)
 
 	if mcu != nil {
 		mc.RegisterRemoteController(mcu)
@@ -112,6 +116,11 @@ func main() {
 		if err := cfg.Save(); err != nil {
 			log.Error(err.Error())
 		}
+
+		for i := len(closers) - 1; i >= 0; i-- {
+			_ = closers[i].Close()
+		}
+
 		if mainGui != nil {
 			mainGui.Quit()
 		}

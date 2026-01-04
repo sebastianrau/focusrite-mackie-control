@@ -44,6 +44,7 @@ type FocusriteClient struct {
 	port            int
 	connection      net.Conn
 	isConnected     bool
+	closed          bool
 
 	DeviceList    DeviceList
 	ClientDetails focusritexml.ClientDetails
@@ -338,6 +339,18 @@ func (fc *FocusriteClient) sendSet(set focusritexml.Set) error {
 	if ok && len(set.Items) > 0 {
 		dev.UpdateSet(set)
 		return fc.sendXML(set)
+	}
+	return nil
+}
+
+func (c *FocusriteClient) Close() error {
+	if c == nil || c.closed {
+		return nil
+	}
+	c.closed = true
+
+	if c.connection != nil {
+		return c.connection.Close()
 	}
 	return nil
 }
