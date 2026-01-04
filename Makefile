@@ -1,64 +1,80 @@
 BUILD_DIR = build
+APP = deployer
+CMD= cmd/deployer/main.go
+APP_TOOL = secretSealer
+CMD_TOOL= cmd/secretSealer/main.go
+MC_DIR = build/bin
+LOG_DIR= build/log
+GIT_VER=$(shell git rev-parse HEAD)
 
-SRC_FOLDER = cmd/monitor-control/
-APP_NAME = monitor-control
-APP_ID = "focusrite-mackie-control.sebastianrau.github.com"
-
-GIT_VERSION_TAG=$(shell git describe --tags --abbrev=0)
-GIT_VERSION_TAG_FULL=$(shell git describe --tags --abbrev=2)
-GIT_BUILD=$(shell git rev-parse --short HEAD)
-GIT_DATE=$(shell git log -1 --date=format:"%Y/%m/%d" --format="%ad" )
-
-APP_TAGS = "build=${GIT_BUILD}","date=${GIT_DATE}","tag=${GIT_VERSION_TAG_FULL}"
+LDFLAGS=-ldflags "-X main.version=${GIT_VER}"
 
 .PHONY: dut app.darwin64 app.darwinArm lint clean distclean mrproper
 
 
 # Build the project
-all:
+help:
 	@echo "cmd:"
 	@echo ""
 	@echo "  app            build all app for all os"
-	@echo "  app.windows64  build app for win   amd64"
-	@echo "  app.darwin64   build app for osx   amd64"
-	@echo "  app.darwinArm  build app for osx   arm64"
-	@echo "  app.linux64    build app for linux amd64"
-	@echo "  app.linuxArm   build app for linux arm64"
+	@echo "  app.darwin64   build app for osx64"
+	@echo "  app.darwinArm  build app for osx arm64"
+	@echo "  app.linux64    build app for linux arm64"
 	@echo ""
 	@echo "  lint           go linter"
 	@echo ""
 	@echo "  clean          remove dut binarys"
+	@echo "  distclean       remove build folder"
 
-version:
-	sed -ie "s/Version = \"*.*.*\"/Version = \"${GIT_VERSION_TAG}\"/" FyneApp.toml
+all: tidy vendor app tool
 
-app: app.windows64 app.darwin app.darwinArm app.linux64
+app: app.windows app.windows64  app.darwin64 app.darwinArm app.linux64
 
-app.windows64: version
-	
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os windows -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
-# TODO add zip of package
-app.darwin: version	
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}
-	cd ${BUILD_DIR} && zip -vr ${APP_NAME}.app.zip  ${APP_NAME}.app
+app.windows:
+	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP}.exe -v ${CMD}
 
-app.darwinArm: version
-	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}.arm
-	cd ${BUILD_DIR} && zip -vr ${APP_NAME}.app.arm.zip ${APP_NAME}.arm.app
+app.windows64:
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP}64.exe -v ${CMD}
 
-app.linux64: version
-	cd ${BUILD_DIR} && GOARCH=amd64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
-# TODO add zip of package
+app.darwin64:
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP}-darwin -v ${CMD}
 
-app.linuxArm: version
-	cd ${BUILD_DIR} && GOARCH=arm64 fyne package -os darwin -icon ../../logo.png --src ../${SRC_FOLDER} --appVersion ${GIT_VERSION_TAG} --release --tags ${APP_TAGS} --appID ${APP_ID} --name ${APP_NAME}	
-# TODO add zip of package
+app.darwinArm:
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP}-darwin-arm -v ${CMD}
 
-streamdeck.icons:
-	cd streamdeck/ && zip -vr 'Monitor Control Icons.streamDeckIconPack' com.github.sebastianraufocusrite-mackie-control.sdIconPack/ -x "*.DS_Store"
-	
-cli-lint:
-	golangci-lint run  cmd/... pkg/...
+app.linux64:
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP}-linux -v ${CMD}
+
+
+
+
+tool: tool.windows tool.windows64  tool.darwin64 tool.darwinArm tool.linux64
+
+tool.windows:
+	GOOS=windows GOARCH=386 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_TOOL}.exe -v ${CMD_TOOL}
+
+tool.windows64:
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_TOOL}64.exe -v ${CMD_TOOL}
+
+tool.darwin64:
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_TOOL}-darwin -v ${CMD_TOOL}
+
+tool.darwinArm:
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_TOOL}-darwin-arm -v ${CMD_TOOL}
+
+tool.linux64:
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o ${BUILD_DIR}/${APP_TOOL}-linux -v ${CMD_TOOL}
+
+tidy:
+	go mod tidy
+
+vendor:
+	go mod vendor
+
+lint:
+	golint -set_exit_status $(shell go list ./...)
 
 clean:
-	-rm -f ${BUILD_DIR}/*
+	-rm -f ${BUILD_DIR}/${DUT}-*
+distclean:
+	rm -rf ./build
