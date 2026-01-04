@@ -180,30 +180,48 @@ func (mc *McuConnector) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
 //Setter
 
 func (mc *McuConnector) SetMute(mute bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Master.Mute = mute
 	mc.updateMcuLed(DefaultConfiguration().MasterMuteSwitch, mc.state.Master.Mute)
 }
 
 func (mc *McuConnector) SetDim(dim bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Master.Dim = dim
 	mc.updateMcuLed(DefaultConfiguration().MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) SetVolume(vol uint16) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.faderValueRaw = vol
 	mc.updateMcuFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
 }
 
 func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Speaker[id].Selected = sel
 	mc.updateMcuLed(mc.config.SpeakerSelect[id], sel)
 }
 
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Speaker[id].Name = name
 }
 
 func (mc *McuConnector) initMcu() {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.updateMcuLed(mc.config.MasterMuteSwitch, mc.state.Master.Mute)
 	mc.updateMcuLed(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 
