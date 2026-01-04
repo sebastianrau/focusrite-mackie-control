@@ -3,11 +3,8 @@ package mcuconnector
 import (
 	"math"
 	"reflect"
-	"slices"
 	"sync"
 	"time"
-
-	"github.com/go-vgo/robotgo"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
@@ -87,27 +84,6 @@ func (mc *McuConnector) run() {
 					mc.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: k, State: !mc.state.Speaker[k].Selected}
 					continue
 				}
-			}
-
-			switch f.KeyNumber {
-			case gomcu.Play:
-				err := robotgo.KeyTap(robotgo.AudioPlay)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
-			case gomcu.FastFwd:
-				err := robotgo.KeyTap(robotgo.AudioNext)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
-			case gomcu.Rewind:
-				err := robotgo.KeyTap(robotgo.AudioPrev)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
 			}
 
 			log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
@@ -259,8 +235,4 @@ func (mc *McuConnector) updateAllMeterFader(level gomcu.MeterLevel) {
 	defer mc.mu.Unlock()
 	mc.meterValue = max(mc.meterValue, level)
 	mc.meterUpdateRequest = true
-}
-
-func (mc *McuConnector) isMcuID(a []gomcu.Switch, k gomcu.Switch) bool {
-	return slices.Contains(a, k)
 }
