@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	focusritexml "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-xml"
@@ -43,7 +44,7 @@ type FocusriteClient struct {
 	state           State
 	port            int
 	connection      net.Conn
-	isConnected     bool
+	isConnected     atomic.Bool
 	closed          bool
 
 	DeviceList    DeviceList
@@ -122,7 +123,7 @@ func (fc *FocusriteClient) runKeepalive() {
 	defer t.Stop()
 
 	for range t.C {
-		if fc.isConnected {
+		if fc.isConnected.Load() {
 			err := fc.sendXML(focusritexml.KeepAlive{})
 			if err != nil {
 				log.Error(err.Error())
@@ -286,7 +287,7 @@ func (fc *FocusriteClient) SendSubscribe(id int, subscribe bool) error {
 func (fc *FocusriteClient) setConnected(status bool) {
 	fc.connectionMutex.Lock()
 	defer fc.connectionMutex.Unlock()
-	fc.isConnected = status
+	fc.isConnected.Store(status)
 	fc.FromFocusrite <- ConnectionStatusMessage(status)
 }
 
@@ -294,7 +295,7 @@ func (fc *FocusriteClient) setConnected(status bool) {
 func (fc *FocusriteClient) Connected() bool {
 	fc.connectionMutex.Lock()
 	defer fc.connectionMutex.Unlock()
-	return fc.isConnected
+	return fc.isConnected.Load()
 }
 
 // setConnection sets the active connection.
