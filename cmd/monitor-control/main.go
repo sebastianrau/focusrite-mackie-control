@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
+	guifix "github.com/sebastianrau/focusrite-mackie-control/pkg/gui-fix"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
@@ -65,7 +66,7 @@ func main() {
 	}
 
 	mainGui.Lifecycle().SetOnStarted(func() {
-		setActivationPolicy()
+		guifix.SetActivationPolicy()
 	})
 
 	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
