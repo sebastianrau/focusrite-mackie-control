@@ -1,8 +1,0 @@
-Website = "https://github.com/sebastianrau/focusrite-mackie-control/"
-
-[Details]
-Icon = "logo.png"
-Name = "Monitor Controller"
-ID = "com.github.sebastianrau.focusrite-mackie-control"
-Version = "0.2.0"
-Build = 1
