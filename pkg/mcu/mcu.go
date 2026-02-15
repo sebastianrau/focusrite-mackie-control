@@ -17,8 +17,10 @@ var log *logger.CustomLogger = logger.WithPackage("mcu")
 type Mcu struct {
 	config *Configuration
 
-	midiInput    drivers.In
-	midiOutput   drivers.Out
+	midiInput  drivers.In
+	midiOutput drivers.Out
+	closed     bool
+
 	midiStop     func()
 	connectRetry *time.Timer
 
@@ -370,4 +372,19 @@ func (c *Mcu) updateLcdText(channel gomcu.Channel, text string, lower bool) {
 
 func inRange(val byte, low gomcu.Switch, high gomcu.Switch) bool {
 	return gomcu.Switch(val) >= low && gomcu.Switch(val) <= high
+}
+
+func (m *Mcu) Close() error {
+	if m == nil || m.closed {
+		return nil
+	}
+	m.closed = true
+
+	if m.midiInput != nil {
+		_ = m.midiInput.Close()
+	}
+	if m.midiOutput != nil {
+		_ = m.midiOutput.Close()
+	}
+	return nil
 }

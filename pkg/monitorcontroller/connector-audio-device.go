@@ -11,6 +11,7 @@ type AudioDevice interface {
 	HandleSpeakerName(SpeakerID, string) // Speaker with given ID new Name Update
 	HandleSpeakerUpdate(SpeakerID, *SpeakerState)
 	HandleMasterUpdate(*MasterState)
+	Close() error
 }
 
 type AdUpdateRequest struct{}

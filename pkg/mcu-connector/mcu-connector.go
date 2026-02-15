@@ -1,13 +1,11 @@
 package mcuconnector
 
 import (
+	"fmt"
 	"math"
 	"reflect"
-	"slices"
 	"sync"
 	"time"
-
-	"github.com/go-vgo/robotgo"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/mcu"
@@ -25,35 +23,30 @@ type McuConnector struct {
 
 	controllerChannel chan interface{}
 
-	state *monitorcontroller.ControllerSate
-	//dim           bool
-	//mute          bool
+	state         *monitorcontroller.ControllerSate
 	faderValueRaw uint16
-	//speakerSelect []bool
-	//speakerName   []string
 
 	mu                 sync.Mutex
 	meterValue         gomcu.MeterLevel
 	meterUpdateRequest bool
 }
 
-func NewMcuConnector(config *McuConnectorConfig) *McuConnector {
+func NewMcuConnector(config *McuConnectorConfig) (*McuConnector, error) {
 	m := &McuConnector{
 		config: config,
 		state:  monitorcontroller.NewDefaultState(),
-		//		speakerSelect: make([]bool, monitorcontroller.SPEAKER_LEN),
-		//		speakerName:   make([]string, monitorcontroller.SPEAKER_LEN),
 	}
 
 	var err error
 	m.mcu, err = mcu.InitMcu(&mcu.Configuration{MidiInputPort: config.MidiInputPort, MidiOutputPort: config.MidiOutputPort})
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("init mcu failed (midi in=%q out=%q): %w", config.MidiInputPort, config.MidiOutputPort, err)
+
 	}
 
 	go m.run()
 	go m.runSendMeterValues()
-	return m
+	return m, nil
 }
 
 func (mc *McuConnector) run() {
@@ -93,27 +86,6 @@ func (mc *McuConnector) run() {
 					mc.controllerChannel <- monitorcontroller.RcSpeakerSelect{Id: k, State: !mc.state.Speaker[k].Selected}
 					continue
 				}
-			}
-
-			switch f.KeyNumber {
-			case gomcu.Play:
-				err := robotgo.KeyTap(robotgo.AudioPlay)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
-			case gomcu.FastFwd:
-				err := robotgo.KeyTap(robotgo.AudioNext)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
-			case gomcu.Rewind:
-				err := robotgo.KeyTap(robotgo.AudioPrev)
-				if err != nil {
-					log.Errorf("Keytab error %s", err.Error())
-				}
-				continue
 			}
 
 			log.Infof("Unknown Button: 0x%X %s", f.KeyNumber, f.HotkeyName)
@@ -208,30 +180,48 @@ func (mc *McuConnector) HandleDeviceUpdate(dev *monitorcontroller.DeviceInfo) {
 //Setter
 
 func (mc *McuConnector) SetMute(mute bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Master.Mute = mute
 	mc.updateMcuLed(DefaultConfiguration().MasterMuteSwitch, mc.state.Master.Mute)
 }
 
 func (mc *McuConnector) SetDim(dim bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Master.Dim = dim
 	mc.updateMcuLed(DefaultConfiguration().MasterDimSwitch, mc.state.Master.Dim)
 }
 
 func (mc *McuConnector) SetVolume(vol uint16) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.faderValueRaw = vol
 	mc.updateMcuFader(mc.config.MasterVolumeChannel, mc.faderValueRaw)
 }
 
 func (mc *McuConnector) SetSpeakerSelect(id monitorcontroller.SpeakerID, sel bool) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Speaker[id].Selected = sel
 	mc.updateMcuLed(mc.config.SpeakerSelect[id], sel)
 }
 
 func (mc *McuConnector) SetSpeakerName(id monitorcontroller.SpeakerID, name string) {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.state.Speaker[id].Name = name
 }
 
 func (mc *McuConnector) initMcu() {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
 	mc.updateMcuLed(mc.config.MasterMuteSwitch, mc.state.Master.Mute)
 	mc.updateMcuLed(mc.config.MasterDimSwitch, mc.state.Master.Dim)
 
@@ -267,6 +257,9 @@ func (mc *McuConnector) updateAllMeterFader(level gomcu.MeterLevel) {
 	mc.meterUpdateRequest = true
 }
 
-func (mc *McuConnector) isMcuID(a []gomcu.Switch, k gomcu.Switch) bool {
-	return slices.Contains(a, k)
+func (mc *McuConnector) Close() error {
+	if mc != nil && mc.mcu != nil {
+		mc.mcu.Close()
+	}
+	return nil
 }

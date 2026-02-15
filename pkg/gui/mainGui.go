@@ -417,3 +417,7 @@ func (g *MainGui) ShowAndRun() {
 func (g *MainGui) Lifecycle() fyne.Lifecycle {
 	return g.app.Lifecycle()
 }
+
+func (g *MainGui) Quit() {
+	g.app.Quit()
+}

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
+	"syscall"
 
 	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
+	guifix "github.com/sebastianrau/focusrite-mackie-control/pkg/gui-fix"
 	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
 
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
@@ -12,25 +15,6 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
 )
-
-/*
-#cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Cocoa
-#import <Cocoa/Cocoa.h>
-
-int
-SetActivationPolicy(void) {
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-    return 0;
-}
-*/
-import "C"
-
-// Workaround for hiding app symbol and having only system tray
-func setActivationPolicy() {
-	log.Debugln("Setting ActivationPolicy")
-	C.SetActivationPolicy()
-}
 
 const Version string = "v0.0.1"
 
@@ -40,14 +24,17 @@ var log *logger.CustomLogger = logger.WithPackage("main")
 // TODO Config: add configuration gui
 
 func main() {
+
 	var (
-		cfg *config.Config
+		cfg     *config.Config
+		closers []interface{ Close() error }
 	)
 
 	log.Infof("Monitor Controller %v", Version)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	defer cancel()
 
 	cfg, err := config.Load()
-	go cfg.RunAutoSave()
 
 	if err != nil {
 		log.Errorln("Loading configuration failed. Loading default values")
@@ -60,6 +47,7 @@ func main() {
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt)
+	go cfg.RunAutoSave(ctx)
 
 	var mainGui *gui.MainGui
 
@@ -79,25 +67,29 @@ func main() {
 	}
 
 	mainGui.Lifecycle().SetOnStarted(func() {
-		setActivationPolicy()
+		guifix.SetActivationPolicy()
 	})
 
-	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
-	if mcu == nil {
-		log.Warnf("could not open Midi System")
+	mcu, err := mcuconnector.NewMcuConnector(&cfg.Midi)
+	if err != nil {
+		log.Warnf("could not open Midi System. Midi system disabled.")
+	} else {
+		closers = append(closers, mcu)
 	}
 
-	fc := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
-	if fc == nil {
+	fc, err := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
+	if err != nil {
 		log.Errorf("Could not load Audio Connector")
-		os.Exit(-1)
+		return
 	}
+	closers = append(closers, fc)
 
-	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
-	if mc == nil {
+	mc, err := monitorcontroller.NewController(fc, &cfg.MonitorController)
+	if err != nil {
 		log.Errorf("Could not load monitor Controller")
-		os.Exit(-3)
+		return
 	}
+	closers = append(closers, mc)
 
 	if mcu != nil {
 		mc.RegisterRemoteController(mcu)
@@ -114,6 +106,22 @@ func main() {
 				log.Error(err.Error())
 			}
 			os.Exit(0)
+		}
+	}()
+
+	go func() {
+		<-ctx.Done()
+
+		if err := cfg.Save(); err != nil {
+			log.Error(err.Error())
+		}
+
+		for i := len(closers) - 1; i >= 0; i-- {
+			_ = closers[i].Close()
+		}
+
+		if mainGui != nil {
+			mainGui.Quit()
 		}
 	}()
 
