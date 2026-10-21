@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -18,7 +19,8 @@ type blockButton struct {
 
 	bg    *canvas.Rectangle
 	key   *canvas.Text // optional leading letter
-	label *canvas.Text
+	label *canvas.Text // shows text, shortened with "…" when it does not fit
+	text  string
 	align fyne.TextAlign
 }
 
@@ -28,6 +30,7 @@ func newBlockButton(text string, align fyne.TextAlign, tapped func()) *blockButt
 		enabled: true,
 		bg:      canvas.NewRectangle(colRaised),
 		label:   canvas.NewText(text, colTextIdle),
+		text:    text,
 		align:   align,
 	}
 	b.bg.CornerRadius = 10
@@ -62,13 +65,13 @@ func (b *blockButton) style(fill, stroke, text color.Color, bold bool) {
 }
 
 func (b *blockButton) setText(s string) {
-	if b.label.Text != s {
-		b.label.Text = s
+	if b.text != s {
+		b.text = s
 		b.Refresh()
 	}
 }
 
-func (b *blockButton) Text() string { return b.label.Text }
+func (b *blockButton) Text() string { return b.text }
 
 func (b *blockButton) setEnabled(on bool) { b.enabled = on }
 
@@ -103,6 +106,7 @@ func (r *blockRenderer) Layout(size fyne.Size) {
 		b.key.Resize(ks)
 		x += 20
 	}
+	b.label.Text = fit(b.text, size.Width-x-10, b.label)
 	ls := b.label.MinSize()
 	if b.align == fyne.TextAlignCenter {
 		b.label.Move(fyne.NewPos(0, (size.Height-ls.Height)/2))
@@ -116,6 +120,7 @@ func (r *blockRenderer) Layout(size fyne.Size) {
 func (r *blockRenderer) MinSize() fyne.Size { return r.b.MinSize() }
 
 func (r *blockRenderer) Refresh() {
+	r.Layout(r.b.Size()) // the text may need shortening again
 	for _, o := range r.Objects() {
 		o.Refresh()
 	}
@@ -129,3 +134,18 @@ func (r *blockRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *blockRenderer) Destroy() {}
+
+// fit shortens s with "…" until it fits width in the style of t.
+func fit(s string, width float32, t *canvas.Text) string {
+	measure := func(v string) float32 {
+		return fyne.MeasureText(v, t.TextSize, t.TextStyle).Width
+	}
+	if width <= 0 || measure(s) <= width {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 && measure(string(r)+"…") > width {
+		r = r[:len(r)-1]
+	}
+	return strings.TrimRight(string(r), " ·") + "…"
+}
