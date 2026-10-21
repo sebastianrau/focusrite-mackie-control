@@ -88,7 +88,7 @@ To try changes without touching your settings, run with `-config <file>`.
 ## Development
 
 Requires Go 1.25+ and a C compiler (Fyne and the MIDI driver use cgo). On
-Linux, also install `libgl1-mesa-dev xorg-dev libasound2-dev`.
+Linux, also install `libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols libasound2-dev`.
 
 ```sh
 make run      # run from source
