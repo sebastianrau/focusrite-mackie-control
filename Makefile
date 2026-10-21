@@ -1,5 +1,7 @@
 APP_NAME  := Monitor Controller
 APP_ID    := com.github.sebastianrau.focusrite-mackie-control
+# fyne package leaves the macOS category empty; it is set after packaging.
+MACOS_CATEGORY := public.app-category.music
 BIN       := monitor-control
 CMD       := ./cmd/monitor-control
 BUILD_DIR := build
@@ -53,6 +55,7 @@ package: build ## Build a distributable package for GOOS/GOARCH into dist/
 	$(FYNE) package --os $(GOOS) --src $(CMD) --exe $(CURDIR)/$(BUILD_DIR)/$(BIN)$(EXE) --name "$(APP_NAME)" \
 		--app-id $(APP_ID) --app-version $(APP_VERSION) --icon $(CURDIR)/logo.png --release
 ifeq ($(GOOS),darwin)
+	plutil -replace LSApplicationCategoryType -string $(MACOS_CATEGORY) "$(APP_NAME).app/Contents/Info.plist"
 	ditto -c -k --keepParent "$(APP_NAME).app" $(ARTIFACT).zip
 	rm -rf "$(APP_NAME).app"
 else ifeq ($(GOOS),linux)
