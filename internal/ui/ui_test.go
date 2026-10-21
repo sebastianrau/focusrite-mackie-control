@@ -3,9 +3,11 @@ package ui
 import (
 	"image/color"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
@@ -217,5 +219,24 @@ func TestMeterRedrawsOnlyOnChange(t *testing.T) {
 
 	if litSegments(0) != meterSegments || litSegments(meterMinDB) != 0 || litSegments(-31) != 15 {
 		t.Errorf("litSegments: 0 dB %d, -60 dB %d, -31 dB %d", litSegments(0), litSegments(meterMinDB), litSegments(-31))
+	}
+}
+
+func TestLongNamesAreShortened(t *testing.T) {
+	test.NewTempApp(t)
+	b := newBlockButton("A very long speaker name · disabled", fyne.TextAlignLeading, nil).withKey("D")
+	r := test.WidgetRenderer(b)
+	b.Resize(fyne.NewSize(160, 44))
+	r.Layout(b.Size())
+	if got := b.label.Text; !strings.HasSuffix(got, "…") || b.label.MinSize().Width > 160-40 {
+		t.Errorf("label = %q (%.0f px wide)", got, b.label.MinSize().Width)
+	}
+	if b.Text() != "A very long speaker name · disabled" {
+		t.Error("Text must return the full name")
+	}
+	b.Resize(fyne.NewSize(600, 44))
+	r.Layout(b.Size())
+	if b.label.Text != b.Text() {
+		t.Errorf("label shortened although it fits: %q", b.label.Text)
 	}
 }
