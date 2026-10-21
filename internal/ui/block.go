@@ -44,13 +44,18 @@ func (b *blockButton) withKey(k string) *blockButton {
 	return b
 }
 
-// style sets fill, outline and text in one go.
+// style sets fill, outline and text in one go. It redraws only on a
+// change: render runs for every meter update.
 func (b *blockButton) style(fill, stroke, text color.Color, bold bool) {
-	b.bg.FillColor, b.bg.StrokeColor = fill, stroke
-	b.bg.StrokeWidth = 0
+	var width float32
 	if stroke != nil {
-		b.bg.StrokeWidth = 1.5
+		width = 1.5
 	}
+	if b.bg.FillColor == fill && b.bg.StrokeColor == stroke && b.bg.StrokeWidth == width &&
+		b.label.Color == text && b.label.TextStyle.Bold == bold {
+		return
+	}
+	b.bg.FillColor, b.bg.StrokeColor, b.bg.StrokeWidth = fill, stroke, width
 	b.label.Color = text
 	b.label.TextStyle.Bold = bold
 	b.Refresh()
