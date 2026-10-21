@@ -154,7 +154,9 @@ func (a *Adapter) fromDevice(set protocol.Set) {
 	}
 
 	for _, it := range set.Items {
-		if a.isEcho(it) {
+		// Focusrite Control sends some items with ID 0. Unassigned controls
+		// also have ID 0 in the configuration, so these must never match.
+		if it.ID == 0 || a.isEcho(it) {
 			continue
 		}
 		a.known[it.ID] = it.Value

@@ -34,6 +34,8 @@ func TestApplySetUpdatesDeviceInPlace(t *testing.T) {
 		StringItem(1456, "Mains"), // outputs/analogue[0]/nickname
 		BoolItem(1679, true),      // monitoring/.../mute
 		StringItem(999999, "x"),
+		{ID: 0, Value: "0"},    // sent by Focusrite Control, belongs to nothing
+		StringItem(76, "-6.5"), // mixer input gain is fractional
 	}})
 	if err != nil {
 		t.Fatal(err)

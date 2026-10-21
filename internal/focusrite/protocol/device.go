@@ -54,6 +54,9 @@ func (d *Device) ApplySet(set Set) (unknown []int, err error) {
 	}
 	var errs []error
 	for _, it := range set.Items {
+		if it.ID == 0 {
+			continue // Focusrite Control sends some items without an element
+		}
 		e, ok := d.elements[it.ID]
 		if !ok {
 			unknown = append(unknown, it.ID)

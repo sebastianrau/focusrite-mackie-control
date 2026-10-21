@@ -309,3 +309,17 @@ func TestRemovalAndDisconnect(t *testing.T) {
 		t.Errorf("after disconnect: %+v", dev)
 	}
 }
+
+// Focusrite Control sends items with ID 0; unassigned controls have ID 0 too.
+func TestItemsWithoutIDAreIgnored(t *testing.T) {
+	cfg := legacy18i20
+	cfg.MuteID, cfg.DimID = 0, 0 // an interface without monitor controls
+	h := newHarness(t, cfg)
+	h.arrive(t)
+	h.takeCmds()
+
+	h.a.handle(DeviceUpdated{Set: protocol.Set{DevID: 3, Items: []protocol.Item{{ID: 0, Value: "0"}, {ID: 0, Value: "true"}}}})
+	if cmds := h.takeCmds(); len(cmds) != 1 { // only the device status refresh
+		t.Errorf("commands = %#v", cmds)
+	}
+}
