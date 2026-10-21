@@ -11,6 +11,7 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
 )
 
 // Version is the current file format. Files without a version are from
@@ -23,6 +24,7 @@ type Config struct {
 	Controller Controller `yaml:"controller"`
 	Focusrite  Focusrite  `yaml:"focusrite"`
 	MIDI       MIDI       `yaml:"midi"`
+	OSC        OSC        `yaml:"osc"`
 }
 
 // Controller holds the monitor state restored at startup.
@@ -74,6 +76,7 @@ func Default() Config {
 	c.SetState(domain.DefaultState())
 	c.SetFocusrite(focusrite.Config{})
 	c.SetMCU(mcu.DefaultConfig())
+	c.SetOSC(true, osc.DefaultConfig())
 	return c
 }
 
@@ -145,6 +148,28 @@ func (c *Config) SetMCU(m mcu.Config) {
 	for _, k := range m.SpeakerKeys {
 		c.MIDI.SpeakerKeys = append(c.MIDI.SpeakerKeys, Key(k))
 	}
+}
+
+// OSC configures the OSC server. Files written before OSC existed get the
+// defaults (on, local only).
+type OSC struct {
+	Enabled      bool     `yaml:"enabled"`
+	Port         int      `yaml:"port"`
+	AllowNetwork bool     `yaml:"allow_network"`
+	Targets      []string `yaml:"targets"`
+}
+
+// OSCConfig returns the server settings and whether the server should run.
+func (c Config) OSCConfig() (osc.Config, bool) {
+	return osc.Config{
+		Port:         c.OSC.Port,
+		AllowNetwork: c.OSC.AllowNetwork,
+		Targets:      append([]string(nil), c.OSC.Targets...),
+	}, c.OSC.Enabled
+}
+
+func (c *Config) SetOSC(enabled bool, o osc.Config) {
+	c.OSC = OSC{Enabled: enabled, Port: o.Port, AllowNetwork: o.AllowNetwork, Targets: append([]string(nil), o.Targets...)}
 }
 
 // Key is an MCU button, stored by its name (for example "Mute1").

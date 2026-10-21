@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/controller"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
 )
 
 // service is a group of goroutines that can be stopped and replaced while
@@ -59,19 +61,23 @@ func (c catalog) publish(list []focusrite.DeviceInfo) {
 	c <- list
 }
 
-// services runs the Focusrite and control surface connections and restarts
-// them when their settings change.
+// services runs the Focusrite, control surface and OSC connections and
+// restarts them when their settings change.
 type services struct {
 	ctx   context.Context
 	store *config.Store
 
 	startFocusrite func(context.Context, focusrite.Config) *service
 	startMCU       func(context.Context, mcu.Config) *service
+	startOSC       func(context.Context, osc.Config) *service
 
 	mu        sync.Mutex
 	fc        *service
 	mcu       *service
 	mcuConfig mcu.Config
+	osc       *service
+	oscConfig osc.Config
+	oscOn     bool
 	// fcConfig is what the running Focusrite service uses. It changes when
 	// the service adopts an interface, from the service's own goroutine.
 	fcConfig atomic.Pointer[focusrite.Config]
@@ -115,6 +121,12 @@ func newServices(ctx context.Context, store *config.Store, ctrl *controller.Cont
 		svc.cleanup = append(svc.cleanup, func() { ctrl.Unsubscribe(sub) })
 		return svc
 	}
+	s.startOSC = func(ctx context.Context, cfg osc.Config) *service {
+		sub := ctrl.Subscribe()
+		svc := startService(ctx, osc.NewAdapter(cfg, ctrl.Submit, sub.C()).Run)
+		svc.cleanup = append(svc.cleanup, func() { ctrl.Unsubscribe(sub) })
+		return svc
+	}
 	return s
 }
 
@@ -141,6 +153,19 @@ func (s *services) apply() {
 		s.mcuConfig = mc
 		s.mcu = s.startMCU(s.ctx, mc)
 	}
+	if oc, on := cfg.OSCConfig(); first || on != s.oscOn || !reflect.DeepEqual(oc, s.oscConfig) {
+		if !first {
+			log.Info("OSC settings changed, restarting the OSC server")
+		}
+		s.osc.stop()
+		s.osc = nil
+		s.oscConfig, s.oscOn = oc, on
+		if on {
+			s.osc = s.startOSC(s.ctx, oc)
+		} else {
+			log.Info("OSC disabled")
+		}
+	}
 }
 
 func (s *services) stop() {
@@ -148,6 +173,7 @@ func (s *services) stop() {
 	defer s.mu.Unlock()
 	s.fc.stop()
 	s.mcu.stop()
+	s.osc.stop()
 }
 
 func waitTimeout(wg *sync.WaitGroup, d time.Duration) {

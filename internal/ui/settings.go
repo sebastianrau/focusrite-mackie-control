@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -31,7 +33,8 @@ type settingsWindow struct {
 	draft     config.Config
 	monitor   domain.State
 	focusrite *fyne.Container
-	built     bool // the window content exists
+	oscPort   string // port entry text, checked on save
+	built     bool   // the window content exists
 }
 
 func newSettingsWindow(app fyne.App, opts Options) *settingsWindow {
@@ -68,6 +71,7 @@ func (s *settingsWindow) show() {
 		widget.NewAccordionItem("Monitor Controller", s.monitorSection()),
 		widget.NewAccordionItem("Midi:", s.midiSection()),
 		widget.NewAccordionItem("Focusrite:", s.focusrite),
+		widget.NewAccordionItem("OSC:", s.oscSection()),
 	)
 	sections.Open(0)
 
@@ -272,7 +276,52 @@ func (s *settingsWindow) outputSelect(dev *focusrite.DeviceInfo, fc focusrite.Co
 	return sel
 }
 
+func (s *settingsWindow) oscSection() fyne.CanvasObject {
+	o := &s.draft.OSC
+	enabled := widget.NewCheck("Enabled", func(on bool) { o.Enabled = on })
+	enabled.Checked = o.Enabled
+
+	s.oscPort = strconv.Itoa(o.Port)
+	port := widget.NewEntry()
+	port.SetText(s.oscPort)
+	port.OnChanged = func(v string) { s.oscPort = v }
+
+	network := widget.NewCheck("Allow other devices", func(on bool) { o.AllowNetwork = on })
+	network.Checked = o.AllowNetwork
+
+	targets := widget.NewMultiLineEntry()
+	targets.SetPlaceHolder("host:port, one per line")
+	targets.SetText(strings.Join(o.Targets, "\n"))
+	targets.SetMinRowsVisible(3)
+	targets.OnChanged = func(v string) {
+		o.Targets = o.Targets[:0]
+		for _, line := range strings.Split(v, "\n") {
+			if t := strings.TrimSpace(line); t != "" {
+				o.Targets = append(o.Targets, t)
+			}
+		}
+	}
+
+	hint := widget.NewLabel("Targets always receive the state. Other clients can subscribe with /monitor/subscribe. Addresses: see docs/osc.md.")
+	hint.Wrapping = fyne.TextWrapWord
+	hint.Importance = widget.LowImportance
+
+	return container.NewVBox(container.New(layout.NewFormLayout(),
+		widget.NewLabel("OSC Server"), enabled,
+		widget.NewLabel("Port:"), port,
+		widget.NewLabel("Network:"), network,
+		widget.NewLabel("Targets:"), targets,
+	), hint)
+}
+
 func (s *settingsWindow) save() {
+	port, err := strconv.Atoi(strings.TrimSpace(s.oscPort))
+	if err != nil || port < 1 || port > 65535 {
+		dialog.ShowError(fmt.Errorf("OSC port %q is not a valid port (1-65535)", s.oscPort), s.win)
+		return
+	}
+	s.draft.OSC.Port = port
+
 	for _, id := range domain.Speakers {
 		want, have := s.monitor.Speakers[id], s.live.Speakers[id]
 		if want.Disabled != have.Disabled || want.Exclusive != have.Exclusive {
@@ -285,6 +334,7 @@ func (s *settingsWindow) save() {
 	s.opts.Store.Update(func(c *config.Config) {
 		c.Focusrite = s.draft.Focusrite
 		c.MIDI = s.draft.MIDI
+		c.OSC = s.draft.OSC
 	})
 	if err := s.opts.Store.Save(); err != nil {
 		dialog.ShowError(err, s.win)

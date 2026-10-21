@@ -7,6 +7,7 @@ dim. You can operate it from:
 - its own window and the menu bar / system tray,
 - a Mackie Control (MCU) compatible surface,
 - a Stream Deck with a MIDI plugin (profile and icons in [`streamdeck/`](streamdeck/)),
+- any OSC client, such as TouchOSC (demo layout in [`examples/touchosc/`](examples/touchosc/)),
 - the monitor mute and dim buttons on the interface itself.
 
 Every control stays in sync with the others: pressing Dim on the interface
@@ -68,6 +69,14 @@ Default mapping (matching the Stream Deck profile):
 Every assignment can be changed in the Configuration window. **Save** applies changes at once; only the affected connection (Focusrite Control or the MIDI surface) reconnects. Pressing the select button of
 the volume fader moves the fader to the current volume.
 
+## OSC
+
+The app runs an OSC server on UDP port 9000, reachable from this computer
+only by default. Any OSC client can control volume, mute, dim and speakers
+and receive their state, the speaker names and the meter. The address space
+and setup are described in [docs/osc.md](docs/osc.md). A TouchOSC demo
+layout is in [`examples/touchosc/`](examples/touchosc/).
+
 ## Settings file and logs
 
 Settings are stored in a YAML file in the user configuration folder:
@@ -106,7 +115,9 @@ Windows and Linux, and publishes them as a GitHub release.
 ```
   Focusrite Control ── focusrite.Client ── focusrite.Adapter ─┐
                                                               │ commands
-  MCU / Stream Deck ── mcu.MidiSurface ─── mcu.Adapter ───────┼──────────► controller ──► config.Store
+  MCU / Stream Deck ── mcu.MidiSurface ─── mcu.Adapter ───────┤
+                                                              │
+  OSC clients ──────────────────────────── osc.Adapter ───────┼──────────► controller ──► config.Store
                                                               │ ◄──────────     │
   Window and tray ──────────────────────── ui.App ────────────┘  snapshots      │
                                                                                 └─ domain (state and rules)
