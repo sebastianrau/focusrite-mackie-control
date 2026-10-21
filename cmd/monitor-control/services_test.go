@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
 )
 
 // fakeServices records starts and stops instead of opening connections.
@@ -54,6 +56,9 @@ func newTestServices(t *testing.T) (*services, *config.Store, *fakeServices) {
 	s.startMCU = func(ctx context.Context, cfg mcu.Config) *service {
 		return fake.service(ctx, "mcu:"+cfg.InputPort)
 	}
+	s.startOSC = func(ctx context.Context, cfg osc.Config) *service {
+		return fake.service(ctx, "osc:"+strconv.Itoa(cfg.Port))
+	}
 	return s, store, fake
 }
 
@@ -74,7 +79,7 @@ func TestApplyRestartsOnlyChangedServices(t *testing.T) {
 
 	s.apply()
 	started, _ := fake.take()
-	if want := []string{"focusrite:", "mcu:IAC StreamDeckToController"}; !equal(started, want) {
+	if want := []string{"focusrite:", "mcu:IAC StreamDeckToController", "osc:9000"}; !equal(started, want) {
 		t.Fatalf("first apply started %v, want %v", started, want)
 	}
 
@@ -95,6 +100,20 @@ func TestApplyRestartsOnlyChangedServices(t *testing.T) {
 	started, stopped = fake.take()
 	if !equal(started, []string{"focusrite:X1"}) || !equal(stopped, []string{"focusrite:"}) {
 		t.Errorf("Focusrite change: started %v, stopped %v", started, stopped)
+	}
+
+	store.Update(func(c *config.Config) { c.OSC.Port = 8000 })
+	s.apply()
+	started, stopped = fake.take()
+	if !equal(started, []string{"osc:8000"}) || !equal(stopped, []string{"osc:9000"}) {
+		t.Errorf("OSC change: started %v, stopped %v", started, stopped)
+	}
+
+	store.Update(func(c *config.Config) { c.OSC.Enabled = false })
+	s.apply()
+	started, stopped = fake.take()
+	if len(started) != 0 || !equal(stopped, []string{"osc:8000"}) {
+		t.Errorf("OSC off: started %v, stopped %v", started, stopped)
 	}
 
 	s.stop()

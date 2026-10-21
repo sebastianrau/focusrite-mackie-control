@@ -11,6 +11,7 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
 )
 
 func tempPath(t *testing.T) string {
@@ -203,5 +204,33 @@ func TestKeyAcceptsNumbers(t *testing.T) {
 	}
 	if m := s.Get().MCUConfig(); m.MuteKey != gomcu.Mute1 || m.FaderChannel != gomcu.Master {
 		t.Errorf("mcu = %+v", m)
+	}
+}
+
+func TestOSCDefaultsForOlderFiles(t *testing.T) {
+	path := tempPath(t)
+	writeFile(t, path, []byte("version: 2\nmidi:\n  mute_key: Mute1\n"))
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, on := s.Get().OSCConfig()
+	if !on || o.Port != osc.DefaultPort || o.AllowNetwork || len(o.Targets) != 0 {
+		t.Errorf("osc = %+v, enabled %t", o, on)
+	}
+}
+
+func TestOSCRoundTrip(t *testing.T) {
+	path := tempPath(t)
+	s, _ := Open(path)
+	want := osc.Config{Port: 8000, AllowNetwork: true, Targets: []string{"192.168.1.20:9001"}}
+	s.Update(func(c *Config) { c.SetOSC(false, want) })
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s2, _ := Open(path)
+	got, on := s2.Get().OSCConfig()
+	if on || got.Port != 8000 || !got.AllowNetwork || len(got.Targets) != 1 || got.Targets[0] != want.Targets[0] {
+		t.Errorf("osc = %+v, enabled %t", got, on)
 	}
 }

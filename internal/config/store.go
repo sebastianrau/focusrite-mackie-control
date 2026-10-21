@@ -183,5 +183,6 @@ func clone(c Config) Config {
 	c.Controller.Speakers = append([]Speaker(nil), c.Controller.Speakers...)
 	c.Focusrite.Outputs = append([]Output(nil), c.Focusrite.Outputs...)
 	c.MIDI.SpeakerKeys = append([]Key(nil), c.MIDI.SpeakerKeys...)
+	c.OSC.Targets = append([]string(nil), c.OSC.Targets...)
 	return c
 }
