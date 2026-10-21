@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -12,72 +13,67 @@ import (
 )
 
 const (
-	meterMinDB = -60.0
-	meterMaxDB = 0.0
-	// Fall-back rate of IEC 60268-10 Type I peak meters.
+	meterMaxDB = 0
+	meterMinDB = -60
+	// Fall-back rate of IEC 60268-10 Type I peak meters, in dB per second.
 	meterDecayDBPerSecond = 11.8
-	meterPeakHold         = 2 * time.Second
+	// The peak readout follows the bars again after this long.
+	meterPeakHold = 4 * time.Second
 )
 
-var (
-	meterTicks    = []float64{0, -6, -12, -18, -24, -30, -40, -50, -60}
-	meterGradient = gradient{
-		{-60, color.NRGBA{0, 102, 0, 255}},
-		{-15, color.NRGBA{51, 255, 51, 255}},
-		{-6, color.NRGBA{255, 255, 51, 255}},
-		{0, color.NRGBA{255, 153, 51, 255}},
-	}
-)
+var meterScale = []int{0, -3, -6, -9, -12, -15, -18, -21, -24, -30, -35, -40, -45, -50, -55, -60}
 
-// Meter is a stereo peak meter with decay and peak hold.
+// Meter is the stereo level meter: bars coloured by level, a peak readout and
+// a dB scale. It decays on its own through a Fyne animation, so it is only
+// ever touched on the main thread.
 type Meter struct {
 	widget.BaseWidget
 
-	left, right float64 // displayed levels in dBFS
+	left, right float64
 	peak        float64
 	peakAt      time.Time
 	lastTick    time.Time
-	disabled    bool
+	enabled     bool
 	anim        *fyne.Animation
 }
 
 func NewMeter() *Meter {
-	m := &Meter{left: meterMinDB, right: meterMinDB, peak: meterMinDB}
+	m := &Meter{left: meterMinDB, right: meterMinDB, peak: meterMinDB, enabled: true}
 	m.ExtendBaseWidget(m)
 	return m
 }
 
 // Start begins the decay animation. Call it once the app is running.
 func (m *Meter) Start() {
-	m.lastTick = time.Now()
+	m.lastTick, m.peakAt = time.Now(), time.Now()
 	m.anim = fyne.NewAnimation(time.Second, func(float32) { m.tick() })
 	m.anim.RepeatCount = fyne.AnimationRepeatForever
 	m.anim.Curve = fyne.AnimationLinear
 	m.anim.Start()
 }
 
-// SetLevels shows new levels. Higher levels show at once; lower ones are
+// SetLevels shows new levels. Higher levels show at once, lower ones are
 // reached by decay.
 func (m *Meter) SetLevels(left, right float64) {
 	left, right = clampMeter(left), clampMeter(right)
-	changed := false
+	update := false
 	if left > m.left {
-		m.left, changed = left, true
+		m.left, update = left, true
 	}
 	if right > m.right {
-		m.right, changed = right, true
+		m.right, update = right, true
 	}
-	if p := max(left, right); p >= m.peak {
-		m.peak, m.peakAt, changed = p, time.Now(), true
+	if p := max(left, right); p > m.peak {
+		m.peak, update = p, true
 	}
-	if changed {
+	if update {
 		m.Refresh()
 	}
 }
 
 func (m *Meter) SetDisabled(disabled bool) {
-	if m.disabled != disabled {
-		m.disabled = disabled
+	if m.enabled == disabled {
+		m.enabled = !disabled
 		m.Refresh()
 	}
 }
@@ -86,130 +82,150 @@ func (m *Meter) tick() {
 	now := time.Now()
 	fall := meterDecayDBPerSecond * now.Sub(m.lastTick).Seconds()
 	m.lastTick = now
-	changed := false
+	update := false
 	if m.left > meterMinDB {
-		m.left, changed = max(m.left-fall, meterMinDB), true
+		m.left, update = max(m.left-fall, meterMinDB), true
 	}
 	if m.right > meterMinDB {
-		m.right, changed = max(m.right-fall, meterMinDB), true
+		m.right, update = max(m.right-fall, meterMinDB), true
 	}
-	if m.peak > meterMinDB && now.Sub(m.peakAt) > meterPeakHold {
-		m.peak, m.peakAt, changed = max(m.left, m.right), now, true
+	if now.Sub(m.peakAt) >= meterPeakHold {
+		m.peakAt = now
+		if p := max(m.left, m.right); p != m.peak {
+			m.peak, update = p, true
+		}
 	}
-	if changed {
+	if update {
 		m.Refresh()
 	}
 }
 
-func clampMeter(db float64) float64 { return min(max(db, meterMinDB), meterMaxDB) }
+func clampMeter(v float64) float64 { return min(max(v, meterMinDB), meterMaxDB) }
 
-// meterFraction maps a level to 0..1 of the meter height.
-func meterFraction(db float64) float32 {
-	return float32((clampMeter(db) - meterMinDB) / (meterMaxDB - meterMinDB))
+// meterScaleFraction maps a level to 0..1 of the bar height, linear in dB.
+func meterScaleFraction(value float64) float64 {
+	if value <= meterMinDB {
+		return 0
+	}
+	if value >= meterMaxDB {
+		return 1
+	}
+	minLin, maxLin := math.Pow(10, meterMinDB/20.0), math.Pow(10, meterMaxDB/20.0)
+	valLin := math.Pow(10, value/20)
+	return (math.Log10(valLin) - math.Log10(minLin)) / (math.Log10(maxLin) - math.Log10(minLin))
 }
 
-func (m *Meter) MinSize() fyne.Size { return fyne.NewSize(90, 160) }
+func (m *Meter) MinSize() fyne.Size { return fyne.NewSize(90, 120) }
 
 func (m *Meter) CreateRenderer() fyne.WidgetRenderer {
-	r := &meterRenderer{
-		m:     m,
-		bg:    canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground)),
-		track: canvas.NewRectangle(theme.Color(theme.ColorNameBackground)),
-		left:  canvas.NewRectangle(meterGradient.at(meterMinDB)),
-		right: canvas.NewRectangle(meterGradient.at(meterMinDB)),
-		shade: canvas.NewRectangle(color.Transparent),
-		peak:  canvas.NewText("", theme.Color(theme.ColorNameForeground)),
+	left := canvas.NewRectangle(grey)
+	left.CornerRadius = 2
+	right := canvas.NewRectangle(grey)
+	right.CornerRadius = 2
+	bg := canvas.NewRectangle(theme.Color(theme.ColorNameBackground))
+	bg.CornerRadius = 5
+	border := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
+	border.CornerRadius = 5
+	shade := canvas.NewRectangle(color.Transparent)
+	shade.CornerRadius = 5
+	label := canvas.NewText("--- dB", theme.Color(theme.ColorNameForeground))
+	label.Alignment = fyne.TextAlignCenter
+
+	scale := map[int]*canvas.Text{}
+	for _, v := range meterScale {
+		t := canvas.NewText(fmt.Sprintf("%d dB", v), color.White)
+		t.TextSize -= 5
+		scale[v] = t
 	}
-	r.bg.CornerRadius, r.track.CornerRadius, r.shade.CornerRadius = 5, 4, 5
-	r.left.CornerRadius, r.right.CornerRadius = 2, 2
-	r.peak.Alignment = fyne.TextAlignCenter
-	r.peak.TextStyle.Monospace = true
-	for _, db := range meterTicks {
-		t := canvas.NewText(fmt.Sprintf("%.0f", db), theme.Color(theme.ColorNamePlaceHolder))
-		t.TextSize = theme.CaptionTextSize()
-		r.ticks = append(r.ticks, t)
-	}
-	r.Refresh()
-	return r
+	return &meterRenderer{m: m, left: left, right: right, bg: bg, border: border, shade: shade, label: label, scale: scale}
 }
 
 type meterRenderer struct {
 	m                       *Meter
-	bg, track, left, right  *canvas.Rectangle
+	left, right, bg, border *canvas.Rectangle
 	shade                   *canvas.Rectangle
-	peak                    *canvas.Text
-	ticks                   []*canvas.Text
-	barTop, barHeight, barX float32
+	label                   *canvas.Text
+	scale                   map[int]*canvas.Text
+	size                    fyne.Size
 }
 
 const (
-	meterPad    = 8
-	meterLabelH = 22
-	meterBarW   = 10
-	meterGap    = 3
+	meterPadding  = float32(10)
+	meterLabelH   = float32(30)
+	meterBgBorder = float32(3)
+	meterBarW     = float32(10)
+	meterScaleH   = float32(20)
 )
 
 func (r *meterRenderer) Layout(size fyne.Size) {
-	r.bg.Resize(size)
-	r.shade.Resize(size)
-	r.peak.Move(fyne.NewPos(0, meterPad/2))
-	r.peak.Resize(fyne.NewSize(size.Width, meterLabelH))
-
-	trackW := float32(2*meterBarW + 3*meterGap)
-	top := float32(meterPad + meterLabelH)
-	h := size.Height - top - meterPad
-	x := size.Width/2 - trackW + meterGap
-	r.track.Move(fyne.NewPos(x, top))
-	r.track.Resize(fyne.NewSize(trackW, h))
-	r.barX, r.barTop, r.barHeight = x+meterGap, top+meterGap, h-2*meterGap
-
-	for i, db := range meterTicks {
-		t := r.ticks[i]
-		ts := t.MinSize()
-		y := r.barTop + r.barHeight*(1-meterFraction(db)) - ts.Height/2
-		t.Move(fyne.NewPos(x+trackW+4, y))
-		t.Resize(ts)
+	if size != r.size {
+		r.size = size
+		r.layoutBackground(size)
 	}
-	r.placeBars()
+	r.layoutBars(size)
 }
 
-func (r *meterRenderer) placeBars() {
-	for i, bar := range []*canvas.Rectangle{r.left, r.right} {
-		db := r.m.left
-		if i == 1 {
-			db = r.m.right
-		}
-		h := r.barHeight * meterFraction(db)
-		bar.Move(fyne.NewPos(r.barX+float32(i)*(meterBarW+meterGap), r.barTop+r.barHeight-h))
-		bar.Resize(fyne.NewSize(meterBarW, h))
-		bar.FillColor = meterGradient.at(db)
+func (r *meterRenderer) layoutBackground(size fyne.Size) {
+	r.shade.Move(fyne.NewPos(0, 0))
+	r.shade.Resize(size)
+	r.border.Move(fyne.NewPos(0, 0))
+	r.border.Resize(size)
+	r.label.Resize(fyne.NewSize(size.Width, meterLabelH))
+	r.label.Move(fyne.NewPos(0, 3))
+
+	scaleH := size.Height - 2*meterPadding - meterLabelH - meterScaleH/2
+	for v, t := range r.scale {
+		y := size.Height - meterPadding - meterBgBorder - meterScaleH/2 - scaleH*float32(meterScaleFraction(float64(v)))
+		t.Move(fyne.NewPos(size.Width/2+meterBgBorder, y))
+		t.Resize(fyne.NewSize(30, meterScaleH))
+	}
+
+	// Two bars side by side, left of the centre line.
+	bgX := size.Width/2 - 2*meterBarW - 3*meterBgBorder
+	bgY := meterPadding + meterLabelH + meterBgBorder
+	r.bg.Move(fyne.NewPos(bgX, bgY))
+	r.bg.Resize(fyne.NewSize(2*meterBarW+3*meterBgBorder, size.Height-bgY-meterPadding+meterBgBorder))
+}
+
+func (r *meterRenderer) layoutBars(size fyne.Size) {
+	bgY := meterPadding + meterLabelH + meterBgBorder
+	bgH := size.Height - bgY - meterPadding + meterBgBorder
+	rightX := size.Width/2 - meterBgBorder - meterBarW
+	leftX := rightX - meterBarW - meterBgBorder
+	for _, b := range []struct {
+		rect *canvas.Rectangle
+		x    float32
+		v    float64
+	}{{r.left, leftX, r.m.left}, {r.right, rightX, r.m.right}} {
+		h := (bgH - 2*meterBgBorder) * float32(meterScaleFraction(b.v))
+		b.rect.Move(fyne.NewPos(b.x, size.Height-h-3*meterBgBorder))
+		b.rect.Resize(fyne.NewSize(meterBarW, h))
 	}
 }
 
 func (r *meterRenderer) MinSize() fyne.Size { return r.m.MinSize() }
 
 func (r *meterRenderer) Refresh() {
-	r.placeBars()
-	if r.m.disabled {
-		r.peak.Text = "--"
-		r.peak.Color = theme.Color(theme.ColorNameDisabled)
-		bg := theme.Color(theme.ColorNameInputBackground)
-		cr, cg, cb, _ := bg.RGBA()
-		r.shade.FillColor = color.NRGBA{uint8(cr >> 8), uint8(cg >> 8), uint8(cb >> 8), 200}
-	} else {
-		r.peak.Text = fmt.Sprintf("%.1f dB", r.m.peak)
-		r.peak.Color = meterGradient.at(r.m.peak)
+	if r.m.enabled {
 		r.shade.FillColor = color.Transparent
+		r.left.FillColor = levelGradient.at(r.m.left)
+		r.right.FillColor = levelGradient.at(r.m.right)
+		r.label.Text = fmt.Sprintf("%.1f dB", r.m.peak)
+		r.label.Color = levelGradient.at(r.m.peak)
+	} else {
+		cr, cg, cb, _ := theme.Color(theme.ColorNameInputBackground).RGBA()
+		r.shade.FillColor = color.RGBA{uint8(cr >> 8), uint8(cg >> 8), uint8(cb >> 8), 200}
 	}
+	r.layoutBars(r.m.Size())
 	for _, o := range r.Objects() {
 		o.Refresh()
 	}
 }
 
 func (r *meterRenderer) Objects() []fyne.CanvasObject {
-	objs := []fyne.CanvasObject{r.bg, r.track, r.left, r.right, r.peak}
-	for _, t := range r.ticks {
-		objs = append(objs, t)
+	objs := []fyne.CanvasObject{r.border, r.bg, r.left, r.right, r.label}
+	for _, v := range meterScale {
+		objs = append(objs, r.scale[v])
 	}
 	return append(objs, r.shade)
 }
@@ -218,25 +234,4 @@ func (r *meterRenderer) Destroy() {
 	if r.m.anim != nil {
 		r.m.anim.Stop()
 	}
-}
-
-// gradient interpolates colours between stops sorted by value.
-type gradient []struct {
-	db float64
-	c  color.NRGBA
-}
-
-func (g gradient) at(db float64) color.Color {
-	if db <= g[0].db {
-		return g[0].c
-	}
-	for i := 1; i < len(g); i++ {
-		lo, hi := g[i-1], g[i]
-		if db <= hi.db {
-			f := (db - lo.db) / (hi.db - lo.db)
-			mix := func(a, b uint8) uint8 { return uint8(float64(a) + f*(float64(b)-float64(a))) }
-			return color.NRGBA{mix(lo.c.R, hi.c.R), mix(lo.c.G, hi.c.G), mix(lo.c.B, hi.c.B), 255}
-		}
-	}
-	return g[len(g)-1].c
 }

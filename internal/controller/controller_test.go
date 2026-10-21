@@ -132,3 +132,14 @@ func TestSubmitAfterStopReturns(t *testing.T) {
 		t.Fatal("Submit blocked after the controller stopped")
 	}
 }
+
+func TestStopAppliesQueuedCommands(t *testing.T) {
+	c := New(domain.DefaultState())
+	c.Submit(domain.SetDimDB{DB: 35}) // queued before Run, like a save right before a restart
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	c.Run(ctx)
+	if got := c.Snapshot().State.Master.DimDB; got != 35 {
+		t.Errorf("DimDB = %d, want 35", got)
+	}
+}

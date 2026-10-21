@@ -35,22 +35,22 @@ The macOS app is not signed. On first start, right-click it and choose **Open**.
    device **Monitor Controller**. Allow it.
 3. With no interface configured yet, the app takes the first one it finds and assigns its
    stereo outputs in order: outputs 1-2 to Speaker A, 3-4 to B, 5-6 to C, 7-8 to D,
-   9-10 to the sub. Change this under **Settings → Focusrite**.
+   9-10 to the sub. Change this in the **Configuration** window (tray menu), section *Focusrite*.
 
 The app controls the gain, mute and name of the assigned outputs.
 
 ## Speakers, volume, mute and dim
 
 - **Speakers**: selecting an *exclusive* speaker turns the other speakers off.
-  The sub is switched on its own. Unused speakers can be disabled under
-  **Settings → Monitor**.
+  The sub is switched on its own. Unused speakers can be disabled in the
+  **Configuration** window, section *Monitor Controller*.
 - **Volume** is applied to all enabled outputs, from -127 dB to 0 dB.
 - **Dim** lowers the volume by an adjustable amount (20 dB by default).
 - **Mute** mutes all outputs.
 
 ## Control surface and Stream Deck
 
-Choose the MIDI input and output ports under **Settings → MIDI**. With a
+Choose the MIDI input and output ports in the **Configuration** window, section *Midi*. With a
 Stream Deck, create two virtual MIDI ports (on macOS: IAC Driver buses in
 *Audio MIDI Setup*), point the Stream Deck MIDI plugin at them, and import the
 profile and icon pack from [`streamdeck/`](streamdeck/).
@@ -65,7 +65,7 @@ Default mapping (matching the Stream Deck profile):
 | Speaker A–D  | Trim, Touch, Write, F4 |
 | Sub          | Read              |
 
-Every assignment can be changed in the settings window. Pressing the select button of
+Every assignment can be changed in the Configuration window. Pressing the select button of
 the volume fader moves the fader to the current volume.
 
 ## Settings file and logs

@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -16,13 +17,14 @@ import (
 type Fader struct {
 	widget.BaseWidget
 	slider *widget.Slider
+	text   binding.String
 	label  *widget.Label
 }
 
 func NewFader(onChange func(db int)) *Fader {
 	f := &Fader{
 		slider: widget.NewSlider(domain.MinVolumeDB, domain.MaxVolumeDB),
-		label:  widget.NewLabel(""),
+		text:   binding.NewString(),
 	}
 	f.slider.Step = 1
 	f.slider.Orientation = widget.Vertical
@@ -30,8 +32,8 @@ func NewFader(onChange func(db int)) *Fader {
 		f.showDB(int(v))
 		onChange(int(v))
 	}
+	f.label = widget.NewLabelWithData(f.text)
 	f.label.Alignment = fyne.TextAlignCenter
-	f.label.TextStyle.Monospace = true
 	f.ExtendBaseWidget(f)
 	f.SetDB(domain.MinVolumeDB)
 	return f
@@ -46,9 +48,17 @@ func (f *Fader) SetDB(db int) {
 	f.showDB(db)
 }
 
-func (f *Fader) showDB(db int) { f.label.SetText(fmt.Sprintf("%d dB", db)) }
+func (f *Fader) showDB(db int) { _ = f.text.Set(fmt.Sprintf("%.1f dB", float64(db))) }
+
+func (f *Fader) LabelText() string {
+	s, _ := f.text.Get()
+	return s
+}
 
 func (f *Fader) SetDisabled(disabled bool) {
+	if disabled == f.slider.Disabled() {
+		return
+	}
 	if disabled {
 		f.slider.Disable()
 		f.label.Importance = widget.LowImportance
@@ -59,10 +69,10 @@ func (f *Fader) SetDisabled(disabled bool) {
 	f.label.Refresh()
 }
 
-func (f *Fader) MinSize() fyne.Size { return fyne.NewSize(90, 160) }
+func (f *Fader) MinSize() fyne.Size { return fyne.NewSize(90, 120) }
 
 func (f *Fader) CreateRenderer() fyne.WidgetRenderer {
-	bg := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
-	bg.CornerRadius = 5
-	return widget.NewSimpleRenderer(container.NewStack(bg, container.NewBorder(f.label, nil, nil, nil, f.slider)))
+	border := canvas.NewRectangle(theme.Color(theme.ColorNameInputBackground))
+	border.CornerRadius = 5
+	return widget.NewSimpleRenderer(container.NewStack(border, container.NewBorder(f.label, nil, nil, nil, f.slider)))
 }

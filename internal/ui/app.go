@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -15,8 +17,10 @@ import (
 )
 
 const (
-	appID    = "com.github.sebastianrau.focusrite-mackie-control"
-	appTitle = "Monitor Controller"
+	appID        = "com.github.sebastianrau.focusrite-mackie-control"
+	appTitle     = "Monitor Controller"
+	infoNoDevice = "No device connected"
+	infoNoServer = "No Focusrite Control connection"
 )
 
 type Options struct {
@@ -25,7 +29,7 @@ type Options struct {
 	Snapshots <-chan domain.Snapshot
 	Devices   <-chan []focusrite.DeviceInfo
 	Store     *config.Store
-	// Restart is called when saved settings need a restart to apply.
+	// Restart is called after the settings were saved.
 	Restart func()
 	// OnStarted runs on the main thread once the app is running.
 	OnStarted func()
@@ -40,17 +44,16 @@ type App struct {
 
 	fader    *Fader
 	meter    *Meter
-	speakers [domain.NumSpeakers]*widget.Button
-	mute     *widget.Button
-	dim      *widget.Button
-	status   *widget.Label
+	speakers [domain.NumSpeakers]*ToggleButton
+	mute     *ToggleButton
+	dim      *ToggleButton
+	status   *canvas.Text
 	icon     *widget.Icon
 
 	tray     *fyne.Menu
 	trayMute *fyne.MenuItem
 	trayDim  *fyne.MenuItem
 
-	snap domain.Snapshot
 	stop chan struct{}
 }
 
@@ -63,14 +66,20 @@ func newApp(fa fyne.App, opts Options) *App {
 
 	a.window = a.fyne.NewWindow(appTitle)
 	a.window.SetIcon(logo)
+	a.window.SetMainMenu(fyne.NewMainMenu())
 	a.window.SetMaster()
 	a.window.SetFixedSize(true)
-	a.window.SetCloseIntercept(a.window.Hide)
 
 	a.settings = newSettingsWindow(a.fyne, opts)
 
 	a.buildMain()
 	a.buildTray()
+	a.window.SetCloseIntercept(func() {
+		a.window.Hide()
+		if a.tray != nil {
+			a.tray.Refresh()
+		}
+	})
 	a.render(domain.Snapshot{State: opts.Store.Get().State(), Levels: domain.Silence})
 	return a
 }
@@ -81,30 +90,29 @@ func (a *App) buildMain() {
 
 	buttons := container.NewVBox()
 	for _, id := range domain.Speakers {
-		a.speakers[id] = widget.NewButton(id.String(), func() { a.opts.Submit(domain.ToggleSpeaker{ID: id}) })
+		a.speakers[id] = NewToggleButton(id.String(), green, func() { a.opts.Submit(domain.ToggleSpeaker{ID: id}) })
 		buttons.Add(a.speakers[id])
 	}
 	img := canvas.NewImageFromResource(logo)
 	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSize(80, 80))
-	a.mute = widget.NewButton("Mute", func() { a.opts.Submit(domain.ToggleMute{}) })
-	a.dim = widget.NewButton("Dim", func() { a.opts.Submit(domain.ToggleDim{}) })
+	img.SetMinSize(fyne.NewSize(100, 100))
+	a.mute = NewToggleButton("Mute", red, func() { a.opts.Submit(domain.ToggleMute{}) })
+	a.dim = NewToggleButton("Dim", yellow, func() { a.opts.Submit(domain.ToggleDim{}) })
 	buttons.Add(img)
 	buttons.Add(a.mute)
 	buttons.Add(a.dim)
 
-	a.icon = widget.NewIcon(theme.WarningIcon())
-	a.status = widget.NewLabel("")
-	a.status.Truncation = fyne.TextTruncateEllipsis
+	a.icon = widget.NewIcon(theme.NewDisabledResource(theme.BrokenImageIcon()))
+	a.status = canvas.NewText(infoNoDevice, theme.Color(theme.ColorNameDisabled))
 
 	a.window.SetContent(container.NewBorder(
 		nil,
-		container.NewBorder(nil, nil, a.icon, nil, a.status),
+		container.NewHBox(a.icon, a.status),
 		a.fader,
 		a.meter,
 		buttons,
 	))
-	a.window.Resize(fyne.NewSize(300, 380))
+	a.window.Resize(fyne.NewSize(280, 300))
 }
 
 func (a *App) buildTray() {
@@ -112,22 +120,21 @@ func (a *App) buildTray() {
 	if !ok {
 		return
 	}
-	a.trayMute = fyne.NewMenuItem("Mute", func() { a.opts.Submit(domain.ToggleMute{}) })
-	a.trayDim = fyne.NewMenuItem("Dim", func() { a.opts.Submit(domain.ToggleDim{}) })
-	quit := fyne.NewMenuItem("Quit", a.fyne.Quit)
-	quit.IsQuit = true
+	a.trayMute = fyne.NewMenuItem("Mute", func() { a.opts.Submit(domain.SetMute{On: !a.trayMute.Checked}) })
+	a.trayDim = fyne.NewMenuItem("Dim", func() { a.opts.Submit(domain.SetDim{On: !a.trayDim.Checked}) })
+	exit := fyne.NewMenuItem("Exit", a.fyne.Quit)
+	exit.IsQuit = true
 	a.tray = fyne.NewMenu(appTitle,
 		fyne.NewMenuItem("Show", a.window.Show),
 		fyne.NewMenuItemSeparator(),
-		a.trayMute,
 		a.trayDim,
+		a.trayMute,
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Settings…", a.settings.show),
+		fyne.NewMenuItem("Configuration", a.settings.show),
 		fyne.NewMenuItemSeparator(),
-		quit,
+		exit,
 	)
 	desk.SetSystemTrayMenu(a.tray)
-	desk.SetSystemTrayIcon(logo)
 }
 
 // Run shows the window and blocks until the app quits.
@@ -161,9 +168,8 @@ func (a *App) pump() {
 }
 
 func (a *App) render(s domain.Snapshot) {
-	a.snap = s
 	st := s.State
-	active := s.Device.Present
+	active := s.Device.ServerConnected && s.Device.Present
 
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
@@ -173,27 +179,28 @@ func (a *App) render(s domain.Snapshot) {
 	for _, id := range domain.Speakers {
 		spk := st.Speakers[id]
 		b := a.speakers[id]
-		setButton(b, spk.Name, spk.Selected, widget.SuccessImportance, active)
+		b.SetText(spk.Name)
+		b.SetEnabled(active)
+		b.Set(spk.Selected)
 		if spk.Disabled {
 			b.Hide()
 		} else {
 			b.Show()
 		}
 	}
-	setButton(a.mute, "Mute", st.Master.Mute, widget.DangerImportance, active)
-	setButton(a.dim, "Dim", st.Master.Dim, widget.WarningImportance, active)
+	a.mute.SetEnabled(active)
+	a.mute.Set(st.Master.Mute)
+	a.dim.SetEnabled(active)
+	a.dim.Set(st.Master.Dim)
 
 	switch {
 	case !s.Device.ServerConnected:
-		a.setStatus("Focusrite Control not running", theme.NewWarningThemedResource(theme.WarningIcon()))
-	case !active:
-		a.setStatus("No interface connected", theme.NewWarningThemedResource(theme.WarningIcon()))
+		a.setStatus(infoNoServer, theme.Color(theme.ColorNameDisabled),
+			theme.NewColoredResource(theme.BrokenImageIcon(), theme.ColorNameForegroundOnWarning))
+	case !s.Device.Present:
+		a.setStatus(infoNoDevice, theme.Color(theme.ColorNameDisabled), theme.NewDisabledResource(theme.WarningIcon()))
 	default:
-		text := s.Device.Model
-		if s.Device.SampleRate != "" {
-			text += " · " + s.Device.SampleRate
-		}
-		a.setStatus(text, theme.NewSuccessThemedResource(theme.VolumeUpIcon()))
+		a.setStatus(s.Device.Model, theme.Color(theme.ColorNamePrimary), theme.NewPrimaryThemedResource(theme.VolumeUpIcon()))
 	}
 
 	if a.tray != nil && (a.trayMute.Checked != st.Master.Mute || a.trayDim.Checked != st.Master.Dim) {
@@ -203,26 +210,11 @@ func (a *App) render(s domain.Snapshot) {
 	a.settings.stateChanged(s)
 }
 
-func (a *App) setStatus(text string, icon fyne.Resource) {
-	if a.status.Text != text {
-		a.status.SetText(text)
-		a.icon.SetResource(icon)
+func (a *App) setStatus(text string, c color.Color, icon fyne.Resource) {
+	if a.status.Text == text {
+		return
 	}
-}
-
-func setButton(b *widget.Button, label string, on bool, onImportance widget.Importance, enabled bool) {
-	imp := widget.MediumImportance
-	if on {
-		imp = onImportance
-	}
-	changed := b.Text != label || b.Importance != imp
-	b.Text, b.Importance = label, imp
-	if enabled {
-		b.Enable()
-	} else {
-		b.Disable()
-	}
-	if changed {
-		b.Refresh()
-	}
+	a.status.Text, a.status.Color = text, c
+	a.status.Refresh()
+	a.icon.SetResource(icon)
 }

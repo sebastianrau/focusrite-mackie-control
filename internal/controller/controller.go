@@ -41,21 +41,35 @@ func (c *Controller) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			return
-		case cmd := <-c.cmds:
-			c.mu.Lock()
-			next := domain.Apply(c.latest, cmd)
-			if next != c.latest {
-				if _, meter := cmd.(domain.SetLevels); !meter {
-					log.Debug("state changed", "command", fmt.Sprintf("%T%+v", cmd, cmd))
-				}
-				c.latest = next
-				for _, s := range c.subs {
-					s.offer(next)
+			// Apply what was submitted before the stop, e.g. settings saved
+			// right before a restart.
+			for {
+				select {
+				case cmd := <-c.cmds:
+					c.apply(cmd)
+				default:
+					return
 				}
 			}
-			c.mu.Unlock()
+		case cmd := <-c.cmds:
+			c.apply(cmd)
 		}
+	}
+}
+
+func (c *Controller) apply(cmd domain.Command) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	next := domain.Apply(c.latest, cmd)
+	if next == c.latest {
+		return
+	}
+	if _, meter := cmd.(domain.SetLevels); !meter {
+		log.Debug("state changed", "command", fmt.Sprintf("%T%+v", cmd, cmd))
+	}
+	c.latest = next
+	for _, s := range c.subs {
+		s.offer(next)
 	}
 }
 

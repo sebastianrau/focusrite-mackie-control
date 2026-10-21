@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"reflect"
-	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -18,11 +16,11 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
 )
 
-const none = "None"
+const none = "none"
 
-// settingsWindow edits a draft that is applied on Save. Monitor settings are
-// controller state and apply at once; the Focusrite and MIDI mappings are
-// read at startup and need a restart.
+// settingsWindow edits a draft that "Save & Restart" applies: monitor
+// settings go to the controller, the Focusrite and MIDI mappings to the
+// settings file, then the app restarts.
 type settingsWindow struct {
 	opts Options
 	win  fyne.Window
@@ -33,15 +31,14 @@ type settingsWindow struct {
 	draft     config.Config
 	monitor   domain.State
 	focusrite *fyne.Container
-	midi      *fyne.Container
+	built     bool // the window content exists
 }
 
 func newSettingsWindow(app fyne.App, opts Options) *settingsWindow {
-	s := &settingsWindow{opts: opts, win: app.NewWindow(appTitle + " Settings")}
-	s.win.Resize(fyne.NewSize(460, 560))
+	s := &settingsWindow{opts: opts, win: app.NewWindow(appTitle + " Configuration")}
+	s.win.Resize(fyne.NewSize(450, 600))
 	s.win.SetCloseIntercept(s.win.Hide)
 	s.focusrite = container.NewVBox()
-	s.midi = container.NewVBox()
 	return s
 }
 
@@ -51,7 +48,7 @@ func (s *settingsWindow) start() {
 		for list := range s.opts.Devices {
 			fyne.Do(func() {
 				s.devices = list
-				if s.win.Content() != nil {
+				if s.built {
 					s.buildFocusrite()
 				}
 			})
@@ -64,29 +61,58 @@ func (s *settingsWindow) stateChanged(snap domain.Snapshot) { s.live = snap.Stat
 func (s *settingsWindow) show() {
 	s.draft = s.opts.Store.Get()
 	s.monitor = s.live
+	s.built = true
 	s.buildFocusrite()
-	s.buildMIDI()
 
-	tabs := container.NewAppTabs(
-		container.NewTabItem("Monitor", container.NewVScroll(s.monitorTab())),
-		container.NewTabItem("Focusrite", container.NewVScroll(s.focusrite)),
-		container.NewTabItem("MIDI", container.NewVScroll(s.midi)),
+	sections := widget.NewAccordion(
+		widget.NewAccordionItem("Monitor Controller", s.monitorSection()),
+		widget.NewAccordionItem("Midi:", s.midiSection()),
+		widget.NewAccordionItem("Focusrite:", s.focusrite),
 	)
-	save := widget.NewButton("Save", s.save)
-	save.Importance = widget.HighImportance
-	version := widget.NewLabel("Version " + s.opts.Version)
-	version.Importance = widget.LowImportance
-	buttons := container.NewHBox(version, layout.NewSpacer(), widget.NewButton("Cancel", s.win.Hide), save)
-	s.win.SetContent(container.NewBorder(nil, container.NewPadded(buttons), nil, nil, tabs))
+	sections.Open(0)
+
+	save := widget.NewButton("Save & Restart", func() {
+		dialog.ShowConfirm("Save Config", "Save the config and restart the app?", func(ok bool) {
+			if ok {
+				s.save()
+			}
+		}, s.win)
+	})
+	closeBtn := widget.NewButton("Close", func() {
+		dialog.ShowConfirm("Close Config", "Your Settings will not be saved. Will you Close?", func(ok bool) {
+			if ok {
+				s.win.Hide()
+			}
+		}, s.win)
+	})
+
+	s.win.SetContent(container.NewBorder(
+		nil,
+		container.NewGridWithColumns(3, save, layout.NewSpacer(), closeBtn),
+		nil, nil,
+		container.NewVScroll(sections),
+	))
 	s.win.Show()
 	s.win.RequestFocus()
 }
 
-func (s *settingsWindow) monitorTab() fyne.CanvasObject {
+// newSelect sets the placeholder itself: Fyne has no translation for its
+// default placeholder in some languages and logs an error for every select.
+func newSelect(options []string, changed func(string)) *widget.Select {
+	sel := &widget.Select{Options: options, OnChanged: changed, PlaceHolder: "–"}
+	sel.ExtendBaseWidget(sel)
+	return sel
+}
+
+func heading(text string) *widget.Label {
+	return widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+}
+
+func (s *settingsWindow) monitorSection() fyne.CanvasObject {
 	dimLabel := widget.NewLabel("")
-	showDim := func() { dimLabel.SetText(fmt.Sprintf("%d dB", s.monitor.Master.DimDB)) }
+	showDim := func() { dimLabel.SetText(fmt.Sprintf("Dim: %d dB", s.monitor.Master.DimDB)) }
 	dim := widget.NewSlider(0, domain.MaxDimDB)
-	dim.Step = 1
+	dim.Step = 5
 	dim.Value = float64(s.monitor.Master.DimDB)
 	dim.OnChanged = func(v float64) {
 		s.monitor.Master.DimDB = int(v)
@@ -94,48 +120,99 @@ func (s *settingsWindow) monitorTab() fyne.CanvasObject {
 	}
 	showDim()
 
-	form := widget.NewForm(widget.NewFormItem("Dim", container.NewBorder(nil, nil, nil, dimLabel, dim)))
+	form := container.New(layout.NewFormLayout(),
+		heading("Master:"), layout.NewSpacer(),
+		dimLabel, dim,
+		heading("Speaker:"), layout.NewSpacer(),
+	)
 	for _, id := range domain.Speakers {
 		spk := &s.monitor.Speakers[id]
-		enabled := widget.NewCheck("Enabled", func(on bool) { spk.Disabled = !on })
-		enabled.Checked = !spk.Disabled
-		row := container.NewHBox(enabled)
+		disabled := widget.NewCheck("Disabled", func(on bool) { spk.Disabled = on })
+		disabled.Checked = spk.Disabled
+		row := container.NewHBox(disabled)
 		if !id.IsSub() {
 			exclusive := widget.NewCheck("Exclusive", func(on bool) { spk.Exclusive = on })
 			exclusive.Checked = spk.Exclusive
 			row.Add(exclusive)
 		}
-		form.Append(spk.Name, row)
+		form.Add(widget.NewLabel(speakerLabel(id)))
+		form.Add(row)
 	}
-	hint := widget.NewLabel("Selecting an exclusive speaker switches the other speakers off. The sub is switched separately.")
-	hint.Wrapping = fyne.TextWrapWord
-	hint.Importance = widget.LowImportance
-	return container.NewVBox(form, hint)
+	return form
+}
+
+func speakerLabel(id domain.SpeakerID) string {
+	if id.IsSub() {
+		return "Subwoofer:"
+	}
+	return id.String() + ":"
+}
+
+func (s *settingsWindow) midiSection() fyne.CanvasObject {
+	m := &s.draft.MIDI
+	port := func(ports []string, cur *string) *widget.Select {
+		options := append([]string{none}, ports...)
+		sel := newSelect(options, func(v string) {
+			if v == none {
+				v = ""
+			}
+			*cur = v
+		})
+		sel.Selected = *cur
+		return sel
+	}
+	key := func(cur *config.Key) *widget.Select {
+		sel := newSelect(gomcu.Names, func(v string) {
+			if id, ok := gomcu.IDs[v]; ok {
+				*cur = config.Key(id)
+			}
+		})
+		if int(*cur) < len(gomcu.Names) {
+			sel.Selected = gomcu.Names[*cur]
+		}
+		return sel
+	}
+	channel := newSelect(gomcu.ChannelNames, func(v string) {
+		if id, ok := gomcu.ChannelIDs[v]; ok {
+			m.FaderChannel = config.Channel(id)
+		}
+	})
+	if int(m.FaderChannel) < len(gomcu.ChannelNames) {
+		channel.Selected = gomcu.ChannelNames[m.FaderChannel]
+	}
+
+	form := container.New(layout.NewFormLayout(),
+		widget.NewLabel("Input Port:"), port(mcu.InPorts(), &m.InputPort),
+		widget.NewLabel("Output Port:"), port(mcu.OutPorts(), &m.OutputPort),
+		heading("Master:"), layout.NewSpacer(),
+		widget.NewLabel("Fader:"), channel,
+		widget.NewLabel("Mute:"), key(&m.MuteKey),
+		widget.NewLabel("Dim:"), key(&m.DimKey),
+		heading("Speaker:"), layout.NewSpacer(),
+	)
+	for i := range m.SpeakerKeys {
+		form.Add(widget.NewLabel(speakerLabel(domain.SpeakerID(i))))
+		form.Add(key(&m.SpeakerKeys[i]))
+	}
+	return form
 }
 
 func (s *settingsWindow) buildFocusrite() {
 	fc := s.draft.FocusriteConfig()
+	label := func(d focusrite.DeviceInfo) string { return fmt.Sprintf("%s (%s)", d.Model, d.SerialNumber) }
 	var current *focusrite.DeviceInfo
 	options := []string{}
-	label := func(d focusrite.DeviceInfo) string { return fmt.Sprintf("%s (%s)", d.Model, d.SerialNumber) }
 	for i := range s.devices {
 		options = append(options, label(s.devices[i]))
 		if s.devices[i].SerialNumber == fc.SerialNumber {
 			current = &s.devices[i]
 		}
 	}
-	selected := ""
-	switch {
-	case current != nil:
-		selected = label(*current)
-	case fc.SerialNumber != "":
-		selected = fc.SerialNumber + " (not connected)"
-		options = append(options, selected)
-	}
 
-	device := widget.NewSelect(options, nil)
-	device.PlaceHolder = "First interface found"
-	device.Selected = selected
+	device := newSelect(options, nil)
+	if current != nil {
+		device.Selected = label(*current)
+	}
 	device.OnChanged = func(opt string) {
 		for _, d := range s.devices {
 			if label(d) == opt && d.SerialNumber != fc.SerialNumber {
@@ -145,44 +222,39 @@ func (s *settingsWindow) buildFocusrite() {
 		s.buildFocusrite()
 	}
 
-	form := widget.NewForm(widget.NewFormItem("Interface", device))
-	if current != nil {
-		controls := "not available"
-		if current.MuteID != 0 && current.DimID != 0 {
-			controls = "linked"
-		}
-		form.Append("Monitor mute/dim", widget.NewLabel(controls))
+	serial := fc.SerialNumber
+	if serial == "" {
+		serial = "-"
 	}
-	for _, id := range domain.Speakers {
-		form.Append(id.String(), s.outputSelect(current, fc, id))
-	}
+	mute := widget.NewCheck("", nil)
+	mute.Checked = current != nil && fc.MuteID != 0
+	mute.Disable()
+	dim := widget.NewCheck("", nil)
+	dim.Checked = current != nil && fc.DimID != 0
+	dim.Disable()
 
-	var hint string
-	switch {
-	case len(s.devices) == 0:
-		hint = "Start Focusrite Control and connect the interface to choose outputs."
-	case current == nil:
-		hint = "Choose an interface to assign its outputs."
+	form := container.New(layout.NewFormLayout(),
+		widget.NewLabel("Device:"), device,
+		widget.NewLabel("Serial Number"), widget.NewLabel(serial),
+		heading("Master:"), layout.NewSpacer(),
+		widget.NewLabel("Master Mute"), mute,
+		widget.NewLabel("Master Dim"), dim,
+		heading("Speaker:"), layout.NewSpacer(),
+	)
+	for _, id := range domain.Speakers {
+		form.Add(widget.NewLabel(speakerLabel(id)))
+		form.Add(s.outputSelect(current, fc, id))
 	}
 	s.focusrite.Objects = []fyne.CanvasObject{form}
-	if hint != "" {
-		h := widget.NewLabel(hint)
-		h.Wrapping = fyne.TextWrapWord
-		h.Importance = widget.LowImportance
-		s.focusrite.Add(h)
-	}
 	s.focusrite.Refresh()
 }
 
 func (s *settingsWindow) outputSelect(dev *focusrite.DeviceInfo, fc focusrite.Config, id domain.SpeakerID) fyne.CanvasObject {
-	assigned := fc.Outputs[id]
+	sel := newSelect(nil, nil)
 	if dev == nil {
-		text := none
-		if assigned != (focusrite.Output{}) {
-			text = "assigned"
-		}
-		return widget.NewLabel(text)
+		return sel
 	}
+	assigned := fc.Outputs[id]
 	options := []string{none}
 	selected := none
 	for _, out := range dev.Outputs {
@@ -191,7 +263,7 @@ func (s *settingsWindow) outputSelect(dev *focusrite.DeviceInfo, fc focusrite.Co
 			selected = out.Name
 		}
 	}
-	sel := widget.NewSelect(options, nil)
+	sel.Options = options
 	sel.Selected = selected
 	sel.OnChanged = func(name string) {
 		next := s.draft.FocusriteConfig()
@@ -206,65 +278,6 @@ func (s *settingsWindow) outputSelect(dev *focusrite.DeviceInfo, fc focusrite.Co
 	return sel
 }
 
-func (s *settingsWindow) buildMIDI() {
-	m := &s.draft.MIDI
-	port := func(ports []string, cur *string) *widget.Select {
-		options := append([]string{none}, ports...)
-		selected := none
-		if *cur != "" {
-			selected = *cur
-			if !slices.Contains(ports, *cur) {
-				options = append(options, *cur)
-			}
-		}
-		sel := widget.NewSelect(options, func(v string) {
-			if v == none {
-				v = ""
-			}
-			*cur = v
-		})
-		sel.Selected = selected
-		return sel
-	}
-	key := func(cur *config.Key) *widget.Select {
-		sel := widget.NewSelect(gomcu.Names, func(v string) {
-			if id, ok := gomcu.IDs[v]; ok {
-				*cur = config.Key(id)
-			}
-		})
-		if int(*cur) < len(gomcu.Names) {
-			sel.Selected = gomcu.Names[*cur]
-		}
-		return sel
-	}
-
-	channel := widget.NewSelect(gomcu.ChannelNames, func(v string) {
-		if id, ok := gomcu.ChannelIDs[v]; ok {
-			m.FaderChannel = config.Channel(id)
-		}
-	})
-	if int(m.FaderChannel) < len(gomcu.ChannelNames) {
-		channel.Selected = gomcu.ChannelNames[m.FaderChannel]
-	}
-	logFader := widget.NewCheck("Logarithmic fader scale", func(on bool) { m.LogarithmicFade = on })
-	logFader.Checked = m.LogarithmicFade
-
-	form := widget.NewForm(
-		widget.NewFormItem("Input port", port(mcu.InPorts(), &m.InputPort)),
-		widget.NewFormItem("Output port", port(mcu.OutPorts(), &m.OutputPort)),
-		widget.NewFormItem("", widget.NewButton("Refresh ports", s.buildMIDI)),
-		widget.NewFormItem("Volume fader", channel),
-		widget.NewFormItem("", logFader),
-		widget.NewFormItem("Mute key", key(&m.MuteKey)),
-		widget.NewFormItem("Dim key", key(&m.DimKey)),
-	)
-	for i := range m.SpeakerKeys {
-		form.Append(domain.SpeakerID(i).String()+" key", key(&m.SpeakerKeys[i]))
-	}
-	s.midi.Objects = []fyne.CanvasObject{form}
-	s.midi.Refresh()
-}
-
 func (s *settingsWindow) save() {
 	for _, id := range domain.Speakers {
 		want, have := s.monitor.Speakers[id], s.live.Speakers[id]
@@ -275,12 +288,6 @@ func (s *settingsWindow) save() {
 	if s.monitor.Master.DimDB != s.live.Master.DimDB {
 		s.opts.Submit(domain.SetDimDB{DB: s.monitor.Master.DimDB})
 	}
-
-	saved := s.opts.Store.Get()
-	if reflect.DeepEqual(saved.Focusrite, s.draft.Focusrite) && reflect.DeepEqual(saved.MIDI, s.draft.MIDI) {
-		s.win.Hide()
-		return
-	}
 	s.opts.Store.Update(func(c *config.Config) {
 		c.Focusrite = s.draft.Focusrite
 		c.MIDI = s.draft.MIDI
@@ -289,12 +296,8 @@ func (s *settingsWindow) save() {
 		dialog.ShowError(err, s.win)
 		return
 	}
-	dialog.ShowConfirm("Restart required",
-		"The Focusrite and MIDI settings apply after a restart. Restart now?",
-		func(ok bool) {
-			s.win.Hide()
-			if ok && s.opts.Restart != nil {
-				s.opts.Restart()
-			}
-		}, s.win)
+	s.win.Hide()
+	if s.opts.Restart != nil {
+		s.opts.Restart()
+	}
 }
