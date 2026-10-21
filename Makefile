@@ -14,7 +14,7 @@ EXE    := $(if $(filter windows,$(GOOS)),.exe,)
 # VERSION is shown in the app and log; APP_VERSION is the plain x.y.z that
 # platform packages require.
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-APP_VERSION ?= $(shell v=$$(git describe --tags --abbrev=0 2>/dev/null); echo $${v\#v} | grep . || echo 0.0.0)
+APP_VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' | grep . || echo 0.0.0)
 LDFLAGS     := -s -w -X main.version=$(VERSION)
 
 FYNE          ?= go run fyne.io/tools/cmd/fyne@v1.7.3
@@ -54,10 +54,10 @@ package: build ## Build a distributable package for GOOS/GOARCH into dist/
 	@mkdir -p $(DIST_DIR)
 ifeq ($(GOOS),windows)
 	# On Windows fyne rebuilds the binary to embed icon and manifest and to
-	# select the GUI subsystem; it takes our -ldflags from GOFLAGS and renames
-	# the result in the current directory, so run it inside build/.
-	cd $(BUILD_DIR) && GOFLAGS="-ldflags=-X=main.version=$(VERSION)" $(FYNE) package --os windows \
-		--src $(CURDIR)/$(CMD) --exe $(CURDIR)/$(BUILD_DIR)/$(BIN)$(EXE) --name "$(APP_NAME)" \
+	# select the GUI subsystem, taking our -ldflags from GOFLAGS. It then
+	# renames the binary inside the source directory, so build it there.
+	GOFLAGS="-ldflags=-X=main.version=$(VERSION)" $(FYNE) package --os windows \
+		--src $(CMD) --exe $(CURDIR)/$(CMD)/$(BIN).exe --name "$(APP_NAME)" \
 		--app-id $(APP_ID) --app-version $(APP_VERSION) --icon $(CURDIR)/logo.png --release
 else
 	$(FYNE) package --os $(GOOS) --src $(CMD) --exe $(CURDIR)/$(BUILD_DIR)/$(BIN)$(EXE) --name "$(APP_NAME)" \
@@ -70,8 +70,8 @@ ifeq ($(GOOS),darwin)
 else ifeq ($(GOOS),linux)
 	mv "$(APP_NAME).tar.xz" $(ARTIFACT).tar.xz
 else
-	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(BUILD_DIR)/$(APP_NAME).exe' -DestinationPath '$(ARTIFACT).zip'"
-	rm "$(BUILD_DIR)/$(APP_NAME).exe"
+	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(CMD)/$(APP_NAME).exe' -DestinationPath '$(ARTIFACT).zip'"
+	rm "$(CMD)/$(APP_NAME).exe"
 endif
 
 streamdeck-icons: ## Rebuild the Stream Deck icon pack
