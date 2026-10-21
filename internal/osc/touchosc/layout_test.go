@@ -56,7 +56,7 @@ func load(t *testing.T) xmlNode {
 	if err := xml.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("invalid XML: %v", err)
 	}
-	if doc.XMLName.Local != "lexml" || doc.Version != "3" {
+	if doc.XMLName.Local != "lexml" || doc.Version != "6" {
 		t.Fatalf("root = %s v%s", doc.XMLName.Local, doc.Version)
 	}
 	return doc.Root

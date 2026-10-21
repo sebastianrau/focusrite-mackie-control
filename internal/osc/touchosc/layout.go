@@ -2,7 +2,7 @@
 // controller's OSC address space.
 //
 // A .tosc file is zlib-compressed XML. The element structure follows files
-// saved by TouchOSC itself.
+// saved by TouchOSC itself (format version 6).
 package touchosc
 
 import (
@@ -68,7 +68,7 @@ end`
 // Layout returns the .tosc file.
 func Layout() ([]byte, error) {
 	var xml strings.Builder
-	xml.WriteString("<?xml version='1.0' encoding='UTF-8'?><lexml version='3'>")
+	xml.WriteString("<?xml version='1.0' encoding='UTF-8'?><lexml version='6'>")
 	root().write(&xml)
 	xml.WriteString("</lexml>")
 
@@ -138,6 +138,7 @@ func slider(name string, f frame, c rgba, interactive bool, addr string) node {
 			prop("b", "cursor", boolStr(interactive)),
 			prop("i", "cursorDisplay", "0"),
 			prop("b", "grid", boolStr(interactive)),
+			colorProp("gridColor", rgba{0, 0, 0, 0.25}),
 			prop("i", "gridSteps", "10"),
 			prop("i", "response", "0"),
 			prop("i", "responseFactor", "100"),
@@ -237,8 +238,8 @@ func value(key, def string) string {
 // oscMessage binds a control value to an address. Every message receives;
 // send is set for controls the user operates.
 func oscMessage(addr, variable, conversion string, send bool) string {
-	return fmt.Sprintf("<osc><enabled>1</enabled><send>%s</send><receive>1</receive><feedback>0</feedback>"+
-		"<connections>00001</connections><triggers><trigger><var><![CDATA[%s]]></var><condition>ANY</condition></trigger></triggers>"+
+	return fmt.Sprintf("<osc><enabled>1</enabled><send>%s</send><receive>1</receive><feedback>0</feedback><noDuplicates>0</noDuplicates>"+
+		"<connections>0000000001</connections><triggers><trigger><var><![CDATA[%s]]></var><condition>ANY</condition></trigger></triggers>"+
 		"<path><partial><type>CONSTANT</type><conversion>STRING</conversion><value><![CDATA[%s]]></value><scaleMin>0</scaleMin><scaleMax>1</scaleMax></partial></path>"+
 		"<arguments><partial><type>VALUE</type><conversion>%s</conversion><value><![CDATA[%s]]></value><scaleMin>0</scaleMin><scaleMax>1</scaleMax></partial></arguments></osc>",
 		boolStr(send), variable, addr, conversion, variable)
