@@ -52,8 +52,17 @@ tidy: ## Tidy go.mod/go.sum
 
 package: build ## Build a distributable package for GOOS/GOARCH into dist/
 	@mkdir -p $(DIST_DIR)
+ifeq ($(GOOS),windows)
+	# On Windows fyne rebuilds the binary to embed icon and manifest and to
+	# select the GUI subsystem; it takes our -ldflags from GOFLAGS and renames
+	# the result in the current directory, so run it inside build/.
+	cd $(BUILD_DIR) && GOFLAGS="-ldflags=-X=main.version=$(VERSION)" $(FYNE) package --os windows \
+		--src $(CURDIR)/$(CMD) --exe $(CURDIR)/$(BUILD_DIR)/$(BIN)$(EXE) --name "$(APP_NAME)" \
+		--app-id $(APP_ID) --app-version $(APP_VERSION) --icon $(CURDIR)/logo.png --release
+else
 	$(FYNE) package --os $(GOOS) --src $(CMD) --exe $(CURDIR)/$(BUILD_DIR)/$(BIN)$(EXE) --name "$(APP_NAME)" \
 		--app-id $(APP_ID) --app-version $(APP_VERSION) --icon $(CURDIR)/logo.png --release
+endif
 ifeq ($(GOOS),darwin)
 	plutil -replace LSApplicationCategoryType -string $(MACOS_CATEGORY) "$(APP_NAME).app/Contents/Info.plist"
 	ditto -c -k --keepParent "$(APP_NAME).app" $(ARTIFACT).zip
@@ -61,8 +70,8 @@ ifeq ($(GOOS),darwin)
 else ifeq ($(GOOS),linux)
 	mv "$(APP_NAME).tar.xz" $(ARTIFACT).tar.xz
 else
-	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(APP_NAME).exe' -DestinationPath '$(ARTIFACT).zip'"
-	rm "$(APP_NAME).exe"
+	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(BUILD_DIR)/$(APP_NAME).exe' -DestinationPath '$(ARTIFACT).zip'"
+	rm "$(BUILD_DIR)/$(APP_NAME).exe"
 endif
 
 streamdeck-icons: ## Rebuild the Stream Deck icon pack
