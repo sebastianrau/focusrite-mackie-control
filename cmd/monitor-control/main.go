@@ -11,28 +11,11 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
 	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/platform"
 )
 
-/*
-#cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Cocoa
-#import <Cocoa/Cocoa.h>
-
-int
-SetActivationPolicy(void) {
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-    return 0;
-}
-*/
-import "C"
-
-// Workaround for hiding app symbol and having only system tray
-func setActivationPolicy() {
-	log.Debugln("Setting ActivationPolicy")
-	C.SetActivationPolicy()
-}
-
-const Version string = "v0.0.1"
+// version is set at build time via -ldflags "-X main.version=..."
+var version = "dev"
 
 var log *logger.CustomLogger = logger.WithPackage("main")
 
@@ -44,7 +27,7 @@ func main() {
 		cfg *config.Config
 	)
 
-	log.Infof("Monitor Controller %v", Version)
+	log.Infof("Monitor Controller %v", version)
 
 	cfg, err := config.Load()
 	go cfg.RunAutoSave()
@@ -79,7 +62,7 @@ func main() {
 	}
 
 	mainGui.Lifecycle().SetOnStarted(func() {
-		setActivationPolicy()
+		platform.HideFromDock()
 	})
 
 	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
