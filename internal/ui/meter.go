@@ -26,9 +26,12 @@ var meterScale = []float64{0, -6, -15, -30, -45, -60}
 type Meter struct {
 	widget.BaseWidget
 
-	left, right float64 // displayed levels in dBFS
+	left, right float64 // levels in dBFS, decaying
+	litL, litR  int     // segments currently drawn lit
 	lastTick    time.Time
 	enabled     bool
+	paused      bool
+	redraws     int // for tests
 	anim        *fyne.Animation
 }
 
@@ -51,16 +54,51 @@ func (m *Meter) Start() {
 // reached by decay.
 func (m *Meter) SetLevels(left, right float64) {
 	left, right = clampMeter(left), clampMeter(right)
-	update := false
-	if left > m.left {
-		m.left, update = left, true
+	m.left, m.right = max(m.left, left), max(m.right, right)
+	m.redrawIfChanged()
+}
+
+// Pause stops the decay animation and all drawing, e.g. while the window
+// is hidden. Resume starts both again.
+func (m *Meter) Pause() {
+	m.paused = true
+	if m.anim != nil {
+		m.anim.Stop()
 	}
-	if right > m.right {
-		m.right, update = right, true
+}
+
+func (m *Meter) Resume() {
+	if !m.paused {
+		return
 	}
-	if update {
-		m.Refresh()
+	m.paused = false
+	m.lastTick = time.Now()
+	if m.anim != nil {
+		m.anim.Start()
 	}
+	m.Refresh()
+}
+
+// redrawIfChanged redraws only when the number of lit segments changes.
+// Redrawing on every animation frame kept the GPU busy for nothing.
+func (m *Meter) redrawIfChanged() {
+	l, r := litSegments(m.left), litSegments(m.right)
+	if m.paused || (l == m.litL && r == m.litR) {
+		return
+	}
+	m.redraws++
+	m.Refresh()
+}
+
+// litSegments is the number of segments lit for a level.
+func litSegments(db float64) int {
+	n := 0
+	for i := range meterSegments {
+		if db >= segmentDB(i) {
+			n = i + 1
+		}
+	}
+	return n
 }
 
 func (m *Meter) SetDisabled(disabled bool) {
@@ -79,7 +117,7 @@ func (m *Meter) tick() {
 	}
 	m.left = max(m.left-fall, meterMinDB)
 	m.right = max(m.right-fall, meterMinDB)
-	m.Refresh()
+	m.redrawIfChanged()
 }
 
 func clampMeter(v float64) float64 { return min(max(v, meterMinDB), meterMaxDB) }
@@ -129,6 +167,7 @@ func (r *meterRenderer) Layout(size fyne.Size) {
 func (r *meterRenderer) MinSize() fyne.Size { return r.m.MinSize() }
 
 func (r *meterRenderer) Refresh() {
+	r.m.litL, r.m.litR = litSegments(r.m.left), litSegments(r.m.right)
 	for ch, level := range []float64{r.m.left, r.m.right} {
 		for i := range meterSegments {
 			s := r.segs[ch*meterSegments+i]

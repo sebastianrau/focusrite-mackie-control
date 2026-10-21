@@ -84,6 +84,7 @@ func newApp(fa fyne.App, opts Options) *App {
 	a.buildTray()
 	a.window.SetCloseIntercept(func() {
 		a.window.Hide()
+		a.meter.Pause()
 		if a.tray != nil {
 			a.tray.Refresh()
 		}
@@ -173,7 +174,7 @@ func (a *App) buildTray() {
 	exit := fyne.NewMenuItem("Exit", a.fyne.Quit)
 	exit.IsQuit = true
 	a.tray = fyne.NewMenu(appTitle,
-		fyne.NewMenuItem("Show", a.window.Show),
+		fyne.NewMenuItem("Show", a.show),
 		fyne.NewMenuItemSeparator(),
 		a.trayDim,
 		a.trayMute,
@@ -184,6 +185,11 @@ func (a *App) buildTray() {
 	)
 	desk.SetSystemTrayMenu(a.tray)
 	a.setTrayIcon(trayNormal)
+}
+
+func (a *App) show() {
+	a.window.Show()
+	a.meter.Resume()
 }
 
 func (a *App) setTrayIcon(icon fyne.Resource) {

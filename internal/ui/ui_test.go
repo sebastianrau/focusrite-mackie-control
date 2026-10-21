@@ -182,3 +182,40 @@ func TestTrayIconFollowsState(t *testing.T) {
 		t.Error("tray icon must show normal, dim, and mute (which wins over dim)")
 	}
 }
+
+// The meter only redraws when a segment changes, and not at all while paused.
+func TestMeterRedrawsOnlyOnChange(t *testing.T) {
+	test.NewTempApp(t)
+	m := NewMeter()
+	test.WidgetRenderer(m) // registers the renderer, as showing it would
+
+	m.SetLevels(-10, -10)
+	if m.redraws != 1 {
+		t.Fatalf("redraws = %d after the first level", m.redraws)
+	}
+	m.left, m.right = -10.5, -10.5 // within the same segment (-11 dB)
+	m.redrawIfChanged()
+	if m.redraws != 1 {
+		t.Errorf("redrew without a visible change")
+	}
+	m.left, m.right = -12, -12
+	m.redrawIfChanged()
+	if m.redraws != 2 {
+		t.Errorf("did not redraw when a segment went out")
+	}
+
+	m.Pause()
+	m.SetLevels(-1, -1)
+	if m.redraws != 2 {
+		t.Error("paused meter redrew")
+	}
+	m.Resume()
+	m.SetLevels(-1, -1)
+	if m.litL != litSegments(-1) {
+		t.Errorf("resumed meter shows %d segments, want %d", m.litL, litSegments(-1))
+	}
+
+	if litSegments(0) != meterSegments || litSegments(meterMinDB) != 0 || litSegments(-31) != 15 {
+		t.Errorf("litSegments: 0 dB %d, -60 dB %d, -31 dB %d", litSegments(0), litSegments(meterMinDB), litSegments(-31))
+	}
+}
