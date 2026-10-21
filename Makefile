@@ -23,7 +23,7 @@ GOLANGCI_LINT ?= go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v
 ARTIFACT := $(DIST_DIR)/$(BIN)_$(VERSION)_$(GOOS)_$(GOARCH)
 
 .DEFAULT_GOAL := help
-.PHONY: help build run test cover lint fmt tidy package streamdeck-icons clean
+.PHONY: help build run test cover lint fmt tidy package screenshots streamdeck-icons clean
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -65,6 +65,11 @@ else
 endif
 ifeq ($(GOOS),darwin)
 	plutil -replace LSApplicationCategoryType -string $(MACOS_CATEGORY) "$(APP_NAME).app/Contents/Info.plist"
+	# Seal the whole bundle with an ad-hoc signature. With only the linker's
+	# signature on the binary, a downloaded (quarantined) copy is reported
+	# as "damaged" by macOS instead of offering "Open Anyway".
+	codesign --force --deep --sign - --identifier $(APP_ID) "$(APP_NAME).app"
+	codesign --verify --deep --strict "$(APP_NAME).app"
 	ditto -c -k --keepParent "$(APP_NAME).app" $(ARTIFACT).zip
 	rm -rf "$(APP_NAME).app"
 else ifeq ($(GOOS),linux)
@@ -73,6 +78,10 @@ else
 	powershell -NoProfile -Command "Compress-Archive -Force -Path '$(CMD)/$(APP_NAME).exe' -DestinationPath '$(ARTIFACT).zip'"
 	rm "$(CMD)/$(APP_NAME).exe"
 endif
+
+screenshots: ## Regenerate the README images in docs/images
+	@mkdir -p docs/images
+	SCREENSHOTS=$(CURDIR)/docs/images go test -count=1 -run TestScreenshots ./internal/ui
 
 streamdeck-icons: ## Rebuild the Stream Deck icon pack
 	cd streamdeck && rm -f "Monitor Control Icons.streamDeckIconPack" && \
