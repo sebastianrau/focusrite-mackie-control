@@ -1,61 +1,39 @@
 package ui
 
-import (
-	"image/color"
-	"sort"
-)
+import "image/color"
 
-// Colours of the original UI.
+// Palette of the channel strip design.
 var (
-	darkGreen = color.RGBA{0, 102, 0, 225}
-	green     = color.RGBA{51, 255, 51, 255}
-	yellow    = color.RGBA{255, 255, 51, 255}
-	orange    = color.RGBA{255, 153, 51, 255}
-	red       = color.RGBA{255, 51, 0, 255}
-	grey      = color.RGBA{128, 128, 128, 255}
+	colBackground   = hex(0x121417)
+	colPanel        = hex(0x1b1e22) // channel strip, idle speaker rows
+	colRaised       = hex(0x262a30) // idle Mute/Dim, unlit meter segments
+	colLine         = hex(0x1f2327)
+	colText         = hex(0xe8eaed)
+	colTextIdle     = hex(0xc4c8cd)
+	colTextDim      = hex(0x8b9198) // headings, scale, keys
+	colTextDisabled = hex(0x5c636b)
+	colGreen        = hex(0x3ddc84)
+	colGreenBg      = hex(0x1d3326)
+	colRed          = hex(0xe5484d)
+	colRedText      = hex(0xff8a8d)
+	colYellow       = hex(0xffe14d)
+	colOrange       = hex(0xff9f43)
+	colDark         = hex(0x1a1a1a) // text on yellow
 )
 
-// levelGradient colours the meter bars and the peak label by level.
-var levelGradient = newGradient([]colorStop{
-	{Value: -127, Color: darkGreen},
-	{Value: -15, Color: green},
-	{Value: -6, Color: yellow},
-	{Value: 0, Color: orange},
-})
-
-type colorStop struct {
-	Value float64
-	Color color.Color
+func hex(v uint32) color.NRGBA {
+	return color.NRGBA{R: uint8(v >> 16), G: uint8(v >> 8), B: uint8(v), A: 0xff}
 }
 
-// gradient interpolates colours between stops.
-type gradient struct{ stops []colorStop }
-
-func newGradient(stops []colorStop) *gradient {
-	sort.Slice(stops, func(i, j int) bool { return stops[i].Value < stops[j].Value })
-	return &gradient{stops: stops}
-}
-
-func (g *gradient) at(value float64) color.Color {
-	if value <= g.stops[0].Value {
-		return g.stops[0].Color
+// zoneColor is the meter colour for a level: green below -15 dB, yellow
+// up to -6 dB, orange above.
+func zoneColor(db float64) color.Color {
+	switch {
+	case db > -6:
+		return colOrange
+	case db > -15:
+		return colYellow
+	default:
+		return colGreen
 	}
-	last := g.stops[len(g.stops)-1]
-	if value >= last.Value {
-		return last.Color
-	}
-	for i := 0; i < len(g.stops)-1; i++ {
-		lo, hi := g.stops[i], g.stops[i+1]
-		if value >= lo.Value && value <= hi.Value {
-			f := (value - lo.Value) / (hi.Value - lo.Value)
-			lr, lg, lb, _ := lo.Color.RGBA()
-			hr, hg, hb, _ := hi.Color.RGBA()
-			mix := func(a, b uint32) uint8 {
-				a8, b8 := float64(a)/257, float64(b)/257
-				return uint8(a8 + f*(b8-a8))
-			}
-			return color.RGBA{mix(lr, hr), mix(lg, hg), mix(lb, hb), 255}
-		}
-	}
-	return color.Black
 }
