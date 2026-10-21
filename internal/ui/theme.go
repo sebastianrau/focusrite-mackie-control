@@ -16,9 +16,21 @@ var logoPNG []byte
 
 var logo = fyne.NewStaticResource("logo.png", logoPNG)
 
-// darkTheme forces the dark variant: the meter colours are made for it.
+// darkTheme is the dark variant with the channel strip palette.
 type darkTheme struct{ fyne.Theme }
 
 func (t darkTheme) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	switch n {
+	case theme.ColorNameBackground:
+		return colBackground
+	case theme.ColorNameForeground:
+		return colText
+	case theme.ColorNameDisabled:
+		return colTextDisabled
+	case theme.ColorNamePrimary: // slider fill and focus
+		return colText
+	case theme.ColorNameInputBackground:
+		return colRaised
+	}
 	return t.Theme.Color(n, theme.VariantDark)
 }

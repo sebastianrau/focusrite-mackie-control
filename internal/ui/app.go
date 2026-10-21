@@ -1,15 +1,17 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
@@ -43,17 +45,22 @@ type App struct {
 	window   fyne.Window
 	settings *settingsWindow
 
+	volume   *canvas.Text
+	volBox   *fyne.Container // re-laid out when the number's width changes
+	volNote  *canvas.Text
 	fader    *Fader
 	meter    *Meter
-	speakers [domain.NumSpeakers]*ToggleButton
-	mute     *ToggleButton
-	dim      *ToggleButton
+	speakers [domain.NumSpeakers]*blockButton
+	mute     *blockButton
+	dim      *blockButton
+	dot      *canvas.Rectangle
 	status   *canvas.Text
-	icon     *widget.Icon
+	statBox  *fyne.Container
 
-	tray     *fyne.Menu
-	trayMute *fyne.MenuItem
-	trayDim  *fyne.MenuItem
+	tray      *fyne.Menu
+	trayMute  *fyne.MenuItem
+	trayDim   *fyne.MenuItem
+	trayState fyne.Resource
 
 	stop chan struct{}
 }
@@ -86,34 +93,74 @@ func newApp(fa fyne.App, opts Options) *App {
 }
 
 func (a *App) buildMain() {
+	a.window.SetContent(container.NewBorder(nil, a.statusBar(), nil, nil,
+		container.New(layout.NewCustomPaddedLayout(4, 10, 10, 10),
+			container.NewBorder(nil, nil, a.channelStrip(), nil, a.speakerList()))))
+	a.window.Resize(fyne.NewSize(320, 440))
+}
+
+// channelStrip is the left column: volume, fader, meter, Mute and Dim.
+func (a *App) channelStrip() fyne.CanvasObject {
+	a.volume = canvas.NewText("", colText)
+	a.volume.TextSize = 30
+	a.volume.TextStyle.Bold = true
+	unit := canvas.NewText("dB", colTextDim)
+	unit.TextSize = 13
+	a.volNote = canvas.NewText("", colYellow)
+	a.volNote.TextSize = 11
+	a.volNote.Alignment = fyne.TextAlignCenter
+	a.volBox = container.NewCenter(container.NewHBox(a.volume, container.NewVBox(layout.NewSpacer(), unit)))
+	header := container.NewVBox(a.volBox, a.volNote)
+
 	a.fader = NewFader(func(db int) { a.opts.Submit(domain.SetVolume{DB: db}) })
 	a.meter = NewMeter()
+	center := container.NewHBox(layout.NewSpacer(), a.fader, newMeterScale(), a.meter, layout.NewSpacer())
 
-	buttons := container.NewVBox()
+	a.mute = newBlockButton("MUTE", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleMute{}) })
+	a.dim = newBlockButton("DIM", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleDim{}) })
+	a.mute.label.TextSize, a.dim.label.TextSize = 13, 13
+
+	bg := canvas.NewRectangle(colPanel)
+	bg.CornerRadius = 14
+	bg.SetMinSize(fyne.NewSize(128, 0))
+	return container.NewStack(bg, container.New(layout.NewCustomPaddedLayout(12, 10, 10, 10),
+		container.NewBorder(header, container.NewVBox(a.mute, a.dim), nil, nil, center)))
+}
+
+// speakerList is the right column: one row per speaker, the sub apart.
+func (a *App) speakerList() fyne.CanvasObject {
+	list := container.NewVBox(sectionHeading("SPEAKERS"))
 	for _, id := range domain.Speakers {
-		a.speakers[id] = NewToggleButton(id.String(), green, func() { a.opts.Submit(domain.ToggleSpeaker{ID: id}) })
-		buttons.Add(a.speakers[id])
+		row := newBlockButton(id.String(), fyne.TextAlignLeading, func() { a.opts.Submit(domain.ToggleSpeaker{ID: id}) })
+		key := string(rune('A' + int(id)))
+		if id.IsSub() {
+			key = "S"
+			list.Add(sectionHeading("SUBWOOFER"))
+		}
+		a.speakers[id] = row.withKey(key)
+		list.Add(row)
 	}
-	img := canvas.NewImageFromResource(logo)
-	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSize(100, 100))
-	a.mute = NewToggleButton("Mute", red, func() { a.opts.Submit(domain.ToggleMute{}) })
-	a.dim = NewToggleButton("Dim", yellow, func() { a.opts.Submit(domain.ToggleDim{}) })
-	buttons.Add(img)
-	buttons.Add(a.mute)
-	buttons.Add(a.dim)
+	return list
+}
 
-	a.icon = widget.NewIcon(theme.NewDisabledResource(theme.BrokenImageIcon()))
-	a.status = canvas.NewText(infoNoDevice, theme.Color(theme.ColorNameDisabled))
+func sectionHeading(text string) fyne.CanvasObject {
+	t := canvas.NewText(text, colTextDim)
+	t.TextSize = 11
+	t.TextStyle.Bold = true
+	return container.New(layout.NewCustomPaddedLayout(6, 0, 4, 0), t)
+}
 
-	a.window.SetContent(container.NewBorder(
-		nil,
-		container.NewHBox(a.icon, a.status),
-		a.fader,
-		a.meter,
-		buttons,
-	))
-	a.window.Resize(fyne.NewSize(280, 300))
+func (a *App) statusBar() fyne.CanvasObject {
+	a.dot = canvas.NewRectangle(colTextDisabled)
+	a.dot.CornerRadius = 3.5
+	a.dot.SetMinSize(fyne.NewSize(7, 7))
+	a.status = canvas.NewText("", colTextIdle)
+	a.status.TextSize = 12
+	line := canvas.NewRectangle(colLine)
+	line.SetMinSize(fyne.NewSize(0, 1))
+	a.statBox = container.NewHBox(container.NewCenter(a.dot), a.status)
+	return container.NewBorder(line, nil, nil, nil,
+		container.New(layout.NewCustomPaddedLayout(6, 6, 14, 14), a.statBox))
 }
 
 func (a *App) buildTray() {
@@ -136,6 +183,16 @@ func (a *App) buildTray() {
 		exit,
 	)
 	desk.SetSystemTrayMenu(a.tray)
+	a.setTrayIcon(trayNormal)
+}
+
+func (a *App) setTrayIcon(icon fyne.Resource) {
+	desk, ok := a.fyne.(desktop.App)
+	if !ok || a.trayState == icon {
+		return
+	}
+	a.trayState = icon
+	desk.SetSystemTrayIcon(icon)
 }
 
 // Run shows the window and blocks until the app quits.
@@ -172,50 +229,98 @@ func (a *App) render(s domain.Snapshot) {
 	st := s.State
 	active := s.Device.ServerConnected && s.Device.Present
 
+	if setText(a.volume, strconv.Itoa(st.Master.VolumeDB), pick(active, colText, colTextDisabled)) {
+		a.volBox.Refresh()
+	}
+	switch {
+	case st.Master.Mute:
+		setText(a.volNote, "muted", colRedText)
+	case st.Master.Dim:
+		setText(a.volNote, fmt.Sprintf("dimmed −%d dB", st.Master.DimDB), colYellow)
+	default:
+		setText(a.volNote, "", colYellow)
+	}
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
 	a.meter.SetLevels(s.Levels.LeftDB, s.Levels.RightDB)
 	a.meter.SetDisabled(!active)
 
 	for _, id := range domain.Speakers {
-		spk := st.Speakers[id]
-		b := a.speakers[id]
-		b.SetText(spk.Name)
-		b.SetEnabled(active)
-		b.Set(spk.Selected)
-		if spk.Disabled {
-			b.Hide()
-		} else {
-			b.Show()
+		spk, row := st.Speakers[id], a.speakers[id]
+		switch {
+		case spk.Disabled:
+			row.setText(spk.Name + " · disabled")
+			row.style(color.Transparent, nil, colTextDisabled, false)
+		case !active:
+			row.setText(spk.Name)
+			row.style(colPanel, nil, colTextDisabled, spk.Selected)
+		case spk.Selected:
+			row.setText(spk.Name)
+			row.style(colGreenBg, colGreen, color.White, true)
+		default:
+			row.setText(spk.Name)
+			row.style(colPanel, nil, colTextIdle, false)
 		}
+		row.setEnabled(active && !spk.Disabled)
 	}
-	a.mute.SetEnabled(active)
-	a.mute.Set(st.Master.Mute)
-	a.dim.SetEnabled(active)
-	a.dim.Set(st.Master.Dim)
+	styleSwitch(a.mute, st.Master.Mute, active, colRed, color.White)
+	styleSwitch(a.dim, st.Master.Dim, active, colYellow, colDark)
 
 	switch {
 	case !s.Device.ServerConnected:
-		a.setStatus(infoNoServer, theme.Color(theme.ColorNameDisabled),
-			theme.NewColoredResource(theme.BrokenImageIcon(), theme.ColorNameForegroundOnWarning))
+		a.setStatus(infoNoServer, colTextDisabled, colTextDim)
 	case !s.Device.Present:
-		a.setStatus(infoNoDevice, theme.Color(theme.ColorNameDisabled), theme.NewDisabledResource(theme.WarningIcon()))
+		a.setStatus(infoNoDevice, colYellow, colTextDim)
 	default:
-		a.setStatus(s.Device.Model, theme.Color(theme.ColorNamePrimary), theme.NewPrimaryThemedResource(theme.VolumeUpIcon()))
+		a.setStatus(s.Device.Model, colGreen, colTextIdle)
 	}
 
-	if a.tray != nil && (a.trayMute.Checked != st.Master.Mute || a.trayDim.Checked != st.Master.Dim) {
-		a.trayMute.Checked, a.trayDim.Checked = st.Master.Mute, st.Master.Dim
-		a.tray.Refresh()
+	if a.tray != nil {
+		a.setTrayIcon(trayIconFor(st.Master.Mute, st.Master.Dim))
+		if a.trayMute.Checked != st.Master.Mute || a.trayDim.Checked != st.Master.Dim {
+			a.trayMute.Checked, a.trayDim.Checked = st.Master.Mute, st.Master.Dim
+			a.tray.Refresh()
+		}
 	}
 	a.settings.stateChanged(s)
 }
 
-func (a *App) setStatus(text string, c color.Color, icon fyne.Resource) {
-	if a.status.Text == text {
-		return
+func styleSwitch(b *blockButton, on, active bool, fill, text color.Color) {
+	switch {
+	case !active:
+		b.style(colRaised, nil, colTextDisabled, true)
+	case on:
+		b.style(fill, nil, text, true)
+	default:
+		b.style(colRaised, nil, colTextIdle, true)
 	}
-	a.status.Text, a.status.Color = text, c
-	a.status.Refresh()
-	a.icon.SetResource(icon)
+	b.setEnabled(active)
+}
+
+func (a *App) setStatus(text string, dot, fg color.Color) {
+	if a.dot.FillColor != dot {
+		a.dot.FillColor = dot
+		a.dot.Refresh()
+	}
+	if setText(a.status, text, fg) {
+		a.statBox.Refresh()
+	}
+}
+
+// setText updates t and reports whether anything changed. Containers do not
+// re-lay out by themselves when a text's width changes.
+func setText(t *canvas.Text, s string, c color.Color) bool {
+	if t.Text == s && t.Color == c {
+		return false
+	}
+	t.Text, t.Color = s, c
+	t.Refresh()
+	return true
+}
+
+func pick(cond bool, yes, no color.Color) color.Color {
+	if cond {
+		return yes
+	}
+	return no
 }

@@ -26,56 +26,78 @@ func newTestApp(t *testing.T) (*App, *[]domain.Command) {
 	return a, &cmds
 }
 
-func TestRenderFollowsState(t *testing.T) {
+func connected() domain.Device {
+	return domain.Device{ServerConnected: true, Present: true, Model: "Scarlett 18i20 (3rd Gen)", SampleRate: "96 kHz"}
+}
+
+func TestRenderWithoutInterface(t *testing.T) {
 	a, _ := newTestApp(t)
+	a.render(domain.Snapshot{State: domain.DefaultState(), Levels: domain.Silence})
 
-	s := domain.Snapshot{State: domain.DefaultState(), Levels: domain.Silence}
-	s.State.Speakers[domain.SpeakerC].Name = "Nearfield"
-	a.render(s)
-
-	if got := a.speakers[domain.SpeakerC].Text(); got != "Nearfield" {
-		t.Errorf("speaker C label = %q", got)
-	}
-	if a.speakers[domain.SpeakerD].Visible() {
-		t.Error("disabled speaker D is visible")
-	}
-	if !a.speakers[domain.SpeakerA].Disabled() || !a.fader.slider.Disabled() {
+	if a.speakers[domain.SpeakerA].enabled || a.mute.enabled || !a.fader.Disabled() {
 		t.Error("controls must be locked without an interface")
 	}
-	if a.status.Text != infoNoServer {
+	if a.status.Text != infoNoServer || a.dot.FillColor != colTextDisabled {
 		t.Errorf("status = %q", a.status.Text)
 	}
+	a.render(domain.Snapshot{State: domain.DefaultState(), Device: domain.Device{ServerConnected: true}})
+	if a.status.Text != infoNoDevice || a.dot.FillColor != colYellow {
+		t.Errorf("status = %q", a.status.Text)
+	}
+}
 
-	s.Device = domain.Device{ServerConnected: true, Present: true, Model: "Scarlett 18i20 (3rd Gen)", SampleRate: "96 kHz"}
+func TestRenderFollowsState(t *testing.T) {
+	a, _ := newTestApp(t)
+	s := domain.Snapshot{State: domain.DefaultState(), Device: connected()}
+	s.State.Speakers[domain.SpeakerC].Name = "Nearfield"
 	s.State.Master.Mute = false
 	s.State.Master.VolumeDB = -30
 	a.render(s)
 
-	if a.speakers[domain.SpeakerA].Disabled() {
-		t.Error("controls still locked with an interface")
+	if got := a.speakers[domain.SpeakerC].Text(); got != "Nearfield" {
+		t.Errorf("speaker C = %q", got)
 	}
-	if !a.speakers[domain.SpeakerA].On() || a.speakers[domain.SpeakerB].On() || a.mute.On() {
-		t.Error("button states do not follow the state")
+	if got := a.speakers[domain.SpeakerD].Text(); got != "Speaker D · disabled" || a.speakers[domain.SpeakerD].enabled {
+		t.Errorf("disabled speaker D = %q, enabled %t", got, a.speakers[domain.SpeakerD].enabled)
 	}
-	if a.speakers[domain.SpeakerA].label.Color != green || a.speakers[domain.SpeakerB].label.Color == green {
-		t.Error("selected speaker label must be green, others not")
+	selected, idle := a.speakers[domain.SpeakerA], a.speakers[domain.SpeakerB]
+	if selected.bg.StrokeColor != colGreen || !selected.label.TextStyle.Bold || selected.bg.FillColor != colGreenBg {
+		t.Error("selected speaker must have the green outline, bold text and tinted fill")
 	}
-	if a.fader.slider.Value != -30 || a.fader.LabelText() != "-30.0 dB" {
-		t.Errorf("fader = %v / %q", a.fader.slider.Value, a.fader.LabelText())
+	if idle.bg.StrokeWidth != 0 || idle.label.TextStyle.Bold {
+		t.Error("idle speaker must be plain")
 	}
-	if a.status.Text != "Scarlett 18i20 (3rd Gen)" {
+	if a.volume.Text != "-30" || a.volNote.Text != "" || a.fader.Value != -30 {
+		t.Errorf("volume = %q note %q fader %v", a.volume.Text, a.volNote.Text, a.fader.Value)
+	}
+	if a.mute.bg.FillColor != colRaised {
+		t.Error("mute shown as on")
+	}
+	if a.status.Text != "Scarlett 18i20 (3rd Gen)" || a.dot.FillColor != colGreen {
 		t.Errorf("status = %q", a.status.Text)
+	}
+
+	s.State.Master.Dim = true
+	a.render(s)
+	if a.dim.bg.FillColor != colYellow || a.volNote.Text != "dimmed −20 dB" {
+		t.Errorf("dim: fill %v note %q", a.dim.bg.FillColor, a.volNote.Text)
+	}
+	s.State.Master.Mute = true
+	a.render(s)
+	if a.mute.bg.FillColor != colRed || a.volNote.Text != "muted" {
+		t.Errorf("mute: fill %v note %q", a.mute.bg.FillColor, a.volNote.Text)
 	}
 }
 
 func TestInputBecomesCommands(t *testing.T) {
 	a, cmds := newTestApp(t)
-	a.render(domain.Snapshot{State: domain.DefaultState(), Device: domain.Device{ServerConnected: true, Present: true}})
+	a.render(domain.Snapshot{State: domain.DefaultState(), Device: connected()})
 
-	test.Tap(a.speakers[domain.SpeakerB].button)
-	test.Tap(a.mute.button)
-	test.Tap(a.dim.button)
-	a.fader.slider.SetValue(-12)
+	test.Tap(a.speakers[domain.SpeakerB])
+	test.Tap(a.speakers[domain.SpeakerD]) // disabled: ignored
+	test.Tap(a.mute)
+	test.Tap(a.dim)
+	a.fader.SetValue(-12)
 
 	want := []domain.Command{
 		domain.ToggleSpeaker{ID: domain.SpeakerB},
@@ -98,8 +120,8 @@ func TestFaderSetDBDoesNotReport(t *testing.T) {
 	called := false
 	f := NewFader(func(int) { called = true })
 	f.SetDB(-20)
-	if called {
-		t.Error("SetDB reported a user change")
+	if called || f.Value != -20 {
+		t.Errorf("SetDB reported a change or did not move: %v", f.Value)
 	}
 }
 
@@ -108,16 +130,13 @@ func TestMeterDecay(t *testing.T) {
 	m := NewMeter()
 	m.SetLevels(-6, -12)
 	m.SetLevels(-30, -30) // lower levels decay instead of jumping
-	if m.left != -6 || m.right != -12 || m.peak != -6 {
-		t.Fatalf("levels = %v/%v peak %v", m.left, m.right, m.peak)
+	if m.left != -6 || m.right != -12 {
+		t.Fatalf("levels = %v/%v", m.left, m.right)
 	}
-	m.lastTick, m.peakAt = time.Now().Add(-time.Second), time.Now()
+	m.lastTick = time.Now().Add(-time.Second)
 	m.tick()
 	if m.left >= -6 || m.left < -6-meterDecayDBPerSecond-0.5 {
 		t.Errorf("left after 1s = %v", m.left)
-	}
-	if m.peak != -6 {
-		t.Errorf("peak released early: %v", m.peak)
 	}
 	m.SetLevels(-200, 50)
 	if m.right != meterMaxDB {
@@ -125,23 +144,41 @@ func TestMeterDecay(t *testing.T) {
 	}
 }
 
-// The original colours: dark green at the bottom, green at -15 dB, yellow at
-// -6 dB, orange at 0 dB, blended in between.
-func TestLevelGradient(t *testing.T) {
-	rgb := func(c color.Color) [3]uint32 {
-		r, g, b, _ := c.RGBA()
-		return [3]uint32{r >> 8, g >> 8, b >> 8}
-	}
-	for _, tc := range []struct {
-		db   float64
-		want color.Color
-	}{{-127, darkGreen}, {-15, green}, {-6, yellow}, {0, orange}, {3, orange}} {
-		if got := levelGradient.at(tc.db); rgb(got) != rgb(tc.want) && tc.db != -127 {
-			t.Errorf("at(%v) = %v, want %v", tc.db, got, tc.want)
+// Segments light up to the level in the zone colours of the design.
+func TestMeterSegments(t *testing.T) {
+	test.NewTempApp(t)
+	m := NewMeter()
+	r := m.CreateRenderer().(*meterRenderer)
+	m.left, m.right = -3, meterMinDB
+	r.Refresh()
+
+	lit := func(ch int) (n int, top color.Color) {
+		for i := range meterSegments {
+			if c := r.segs[ch*meterSegments+i].FillColor; c != colRaised {
+				n, top = i+1, c
+			}
 		}
+		return n, top
 	}
-	mid := rgb(levelGradient.at(-10.5))
-	if mid[0] <= 51 || mid[0] >= 255 || mid[1] != 255 {
-		t.Errorf("at(-10.5) = %v, want a blend of green and yellow", mid)
+	if n, top := lit(0); n != 29 || top != colOrange {
+		t.Errorf("left: %d segments lit, top %v; want 29 up to orange", n, top)
+	}
+	if n, _ := lit(1); n != 0 {
+		t.Errorf("right: %d segments lit at silence", n)
+	}
+	if zoneColor(-20) != colGreen || zoneColor(-10) != colYellow || zoneColor(-3) != colOrange {
+		t.Error("zone colours changed")
+	}
+
+	m.SetDisabled(true)
+	r.Refresh()
+	if n, _ := lit(0); n != 0 {
+		t.Error("a disabled meter must be dark")
+	}
+}
+
+func TestTrayIconFollowsState(t *testing.T) {
+	if trayIconFor(false, false) != trayNormal || trayIconFor(false, true) != trayDim || trayIconFor(true, true) != trayMute {
+		t.Error("tray icon must show normal, dim, and mute (which wins over dim)")
 	}
 }
