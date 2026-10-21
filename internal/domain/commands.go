@@ -95,3 +95,32 @@ func (c SetDevice) apply(s *Snapshot) {
 		s.Levels = Silence
 	}
 }
+
+// ConfigureSpeaker changes how a speaker takes part in selection. Disabling
+// a speaker deselects it.
+type ConfigureSpeaker struct {
+	ID        SpeakerID
+	Disabled  bool
+	Exclusive bool
+}
+
+func (c ConfigureSpeaker) apply(s *Snapshot) {
+	if !c.ID.Valid() {
+		return
+	}
+	spk := &s.State.Speakers[c.ID]
+	spk.Disabled, spk.Exclusive = c.Disabled, c.Exclusive
+	if c.Disabled {
+		spk.Selected = false
+		if _, ok := s.State.MeterSource(); !ok {
+			s.Levels = Silence
+		}
+	}
+}
+
+const MaxDimDB = 60
+
+// SetDimDB sets the dim attenuation, clamped to 0..MaxDimDB.
+type SetDimDB struct{ DB int }
+
+func (c SetDimDB) apply(s *Snapshot) { s.State.Master.DimDB = min(max(c.DB, 0), MaxDimDB) }

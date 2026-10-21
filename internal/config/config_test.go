@@ -17,6 +17,16 @@ func tempPath(t *testing.T) string {
 	return filepath.Join(t.TempDir(), "sub", "monitor-controller.yaml")
 }
 
+func writeFile(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestMissingFileGivesDefaults(t *testing.T) {
 	path := tempPath(t)
 	s, err := Open(path)
@@ -84,8 +94,7 @@ func TestMigratesLegacyFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := tempPath(t)
-	os.MkdirAll(filepath.Dir(path), 0o755)
-	os.WriteFile(path, legacy, 0o600)
+	writeFile(t, path, legacy)
 
 	s, err := Open(path)
 	if err != nil {
@@ -135,8 +144,7 @@ func TestInvalidFileIsMovedAside(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := tempPath(t)
-			os.MkdirAll(filepath.Dir(path), 0o755)
-			os.WriteFile(path, []byte(content), 0o600)
+			writeFile(t, path, []byte(content))
 
 			s, err := Open(path)
 			if err != nil {
@@ -188,8 +196,7 @@ func TestGetReturnsACopy(t *testing.T) {
 
 func TestKeyAcceptsNumbers(t *testing.T) {
 	path := tempPath(t)
-	os.MkdirAll(filepath.Dir(path), 0o755)
-	os.WriteFile(path, []byte("version: 2\nmidi:\n  mute_key: 16\n  fader_channel: 8\n"), 0o600)
+	writeFile(t, path, []byte("version: 2\nmidi:\n  mute_key: 16\n  fader_channel: 8\n"))
 	s, err := Open(path)
 	if err != nil {
 		t.Fatal(err)

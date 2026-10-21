@@ -184,3 +184,26 @@ func TestSpeakerIDString(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigureSpeaker(t *testing.T) {
+	s := snap()
+	s = Apply(s, ConfigureSpeaker{ID: SpeakerA, Disabled: true, Exclusive: true})
+	if s.State.Speakers[SpeakerA].Selected || !s.State.Speakers[SpeakerA].Disabled {
+		t.Errorf("speaker A = %+v, want disabled and deselected", s.State.Speakers[SpeakerA])
+	}
+	if s.Levels != Silence {
+		t.Error("disabling the meter source must silence the meter")
+	}
+	s = Apply(s, ConfigureSpeaker{ID: SpeakerD, Disabled: false, Exclusive: false})
+	if s.State.Speakers[SpeakerD].Disabled || s.State.Speakers[SpeakerD].Exclusive {
+		t.Errorf("speaker D = %+v", s.State.Speakers[SpeakerD])
+	}
+}
+
+func TestSetDimDB(t *testing.T) {
+	for _, tc := range []struct{ in, want int }{{15, 15}, {-5, 0}, {99, MaxDimDB}} {
+		if got := Apply(snap(), SetDimDB{DB: tc.in}).State.Master.DimDB; got != tc.want {
+			t.Errorf("SetDimDB(%d) = %d, want %d", tc.in, got, tc.want)
+		}
+	}
+}
