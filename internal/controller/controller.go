@@ -6,6 +6,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
@@ -42,7 +43,7 @@ func (c *Controller) Run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			// Apply what was submitted before the stop, e.g. settings saved
-			// right before a restart.
+			// right before quitting.
 			for {
 				select {
 				case cmd := <-c.cmds:
@@ -98,6 +99,13 @@ func (c *Controller) Subscribe() *Subscription {
 	s.offer(c.latest)
 	c.subs = append(c.subs, s)
 	return s
+}
+
+// Unsubscribe stops delivery to s.
+func (c *Controller) Unsubscribe(s *Subscription) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.subs = slices.DeleteFunc(c.subs, func(x *Subscription) bool { return x == s })
 }
 
 // Subscription delivers snapshots. A slow reader never blocks the controller:

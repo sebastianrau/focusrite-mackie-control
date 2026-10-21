@@ -18,9 +18,9 @@ import (
 
 const none = "none"
 
-// settingsWindow edits a draft that "Save & Restart" applies: monitor
-// settings go to the controller, the Focusrite and MIDI mappings to the
-// settings file, then the app restarts.
+// settingsWindow edits a draft that "Save" applies at once: monitor settings
+// go to the controller, the Focusrite and MIDI mappings to the settings file,
+// after which the affected connections are restarted.
 type settingsWindow struct {
 	opts Options
 	win  fyne.Window
@@ -71,13 +71,7 @@ func (s *settingsWindow) show() {
 	)
 	sections.Open(0)
 
-	save := widget.NewButton("Save & Restart", func() {
-		dialog.ShowConfirm("Save Config", "Save the config and restart the app?", func(ok bool) {
-			if ok {
-				s.save()
-			}
-		}, s.win)
-	})
+	save := widget.NewButton("Save", s.save)
 	closeBtn := widget.NewButton("Close", func() {
 		dialog.ShowConfirm("Close Config", "Your Settings will not be saved. Will you Close?", func(ok bool) {
 			if ok {
@@ -297,7 +291,7 @@ func (s *settingsWindow) save() {
 		return
 	}
 	s.win.Hide()
-	if s.opts.Restart != nil {
-		s.opts.Restart()
+	if s.opts.Apply != nil {
+		s.opts.Apply()
 	}
 }

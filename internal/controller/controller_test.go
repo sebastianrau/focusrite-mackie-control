@@ -135,11 +135,27 @@ func TestSubmitAfterStopReturns(t *testing.T) {
 
 func TestStopAppliesQueuedCommands(t *testing.T) {
 	c := New(domain.DefaultState())
-	c.Submit(domain.SetDimDB{DB: 35}) // queued before Run, like a save right before a restart
+	c.Submit(domain.SetDimDB{DB: 35}) // queued before Run, like a save right before quitting
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	c.Run(ctx)
 	if got := c.Snapshot().State.Master.DimDB; got != 35 {
 		t.Errorf("DimDB = %d, want 35", got)
+	}
+}
+
+func TestUnsubscribe(t *testing.T) {
+	c := start(t)
+	sub := c.Subscribe()
+	<-sub.C()
+	c.Unsubscribe(sub)
+	c.Submit(domain.ToggleMute{})
+	live := c.Subscribe() // the change is applied once this sees it
+	for next(t, live).State.Master.Mute {
+	}
+	select {
+	case s := <-sub.C():
+		t.Errorf("unsubscribed subscription received %+v", s.State.Master)
+	default:
 	}
 }

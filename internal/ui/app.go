@@ -29,8 +29,9 @@ type Options struct {
 	Snapshots <-chan domain.Snapshot
 	Devices   <-chan []focusrite.DeviceInfo
 	Store     *config.Store
-	// Restart is called after the settings were saved.
-	Restart func()
+	// Apply is called after the settings were saved and puts them into
+	// effect. It must not block.
+	Apply func()
 	// OnStarted runs on the main thread once the app is running.
 	OnStarted func()
 }

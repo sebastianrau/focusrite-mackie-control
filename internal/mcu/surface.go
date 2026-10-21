@@ -110,7 +110,6 @@ func (s *MidiSurface) Send(c Command) {
 
 // Run keeps the surface connected until ctx is cancelled.
 func (s *MidiSurface) Run(ctx context.Context) {
-	defer midi.CloseDriver()
 	failing := false
 	for {
 		connected, err := s.session(ctx)
@@ -225,6 +224,10 @@ func hasPort[P drivers.Port](ports []P, name string) bool {
 	}
 	return false
 }
+
+// CloseDriver releases the MIDI driver. Call it once when the app exits;
+// surfaces cannot be started afterwards.
+func CloseDriver() { midi.CloseDriver() }
 
 // InPorts and OutPorts list the available MIDI port names.
 func InPorts() []string  { return portNames(midi.GetInPorts()) }

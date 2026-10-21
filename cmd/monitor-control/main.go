@@ -7,17 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/controller"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/platform"
@@ -73,53 +70,30 @@ func run() error {
 	start(persist(store, ctrl.Subscribe()))
 	start(func(ctx context.Context) { store.AutoSave(ctx, autoSaveInterval) })
 
-	client := focusrite.NewClient()
-	fc := focusrite.NewAdapter(cfg.FocusriteConfig(), client.Events(), client, ctrl.Submit, ctrl.Subscribe().C())
-	fc.OnAdopt = func(c focusrite.Config) {
-		store.Update(func(cfg *config.Config) { cfg.SetFocusrite(c) })
-		if err := store.Save(); err != nil {
-			log.Error("saving adopted interface failed", "err", err)
-		}
-	}
-	start(client.Run)
-	start(fc.Run)
+	devices := make(catalog, 1)
+	svc := newServices(ctx, store, ctrl, devices)
+	svc.apply()
 
-	if mc := cfg.MCUConfig(); mc.InputPort != "" && mc.OutputPort != "" {
-		surface := mcu.NewMidiSurface(mc.InputPort, mc.OutputPort)
-		start(surface.Run)
-		start(mcu.NewAdapter(mc, surface, ctrl.Submit, ctrl.Subscribe().C()).Run)
-	} else {
-		log.Info("no MIDI ports configured, control surface disabled")
-	}
-
-	var restart atomic.Bool
 	app := ui.New(ui.Options{
 		Version:   version,
 		Submit:    ctrl.Submit,
 		Snapshots: ctrl.Subscribe().C(),
-		Devices:   fc.Devices(),
+		Devices:   devices,
 		Store:     store,
 		OnStarted: platform.HideFromDock,
-		Restart: func() {
-			restart.Store(true)
-			cancel()
-		},
+		Apply:     func() { go svc.apply() },
 	})
 	stopUI := context.AfterFunc(ctx, app.Quit)
 	defer stopUI()
 
-	app.Run() // blocks until quit from the tray, a signal or a restart
+	app.Run() // blocks until quit from the tray or a signal
 	cancel()
+	svc.stop()
 	waitTimeout(&wg, shutdownTimeout)
+	mcu.CloseDriver()
 
 	store.Update(func(c *config.Config) { c.SetState(ctrl.Snapshot().State) })
-	if err := store.Save(); err != nil {
-		return err
-	}
-	if restart.Load() {
-		return relaunch()
-	}
-	return nil
+	return store.Save()
 }
 
 // persist copies every state change into the settings store.
@@ -138,28 +112,4 @@ func persist(store *config.Store, sub *controller.Subscription) func(context.Con
 			}
 		}
 	}
-}
-
-func waitTimeout(wg *sync.WaitGroup, d time.Duration) {
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(d):
-		log.Warn("shutdown timed out, exiting anyway")
-	}
-}
-
-func relaunch() error {
-	exe, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("restart: %w", err)
-	}
-	log.Info("restarting", "exe", exe)
-	cmd := exec.Command(exe, os.Args[1:]...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Start()
 }

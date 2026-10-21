@@ -65,7 +65,7 @@ Default mapping (matching the Stream Deck profile):
 | Speaker A–D  | Trim, Touch, Write, F4 |
 | Sub          | Read              |
 
-Every assignment can be changed in the Configuration window. Pressing the select button of
+Every assignment can be changed in the Configuration window. **Save** applies changes at once; only the affected connection (Focusrite Control or the MIDI surface) reconnects. Pressing the select button of
 the volume fader moves the fader to the current volume.
 
 ## Settings file and logs
