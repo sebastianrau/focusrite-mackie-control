@@ -113,9 +113,12 @@ func (s *MidiSurface) Run(ctx context.Context) {
 	defer midi.CloseDriver()
 	failing := false
 	for {
-		err := s.session(ctx)
+		connected, err := s.session(ctx)
 		if ctx.Err() != nil {
 			return
+		}
+		if connected {
+			failing = false
 		}
 		if !failing {
 			log.Info("MIDI surface unavailable, retrying", "in", s.inPort, "out", s.outPort, "err", err)
@@ -133,36 +136,34 @@ func (s *MidiSurface) Run(ctx context.Context) {
 			case <-s.cmds:
 			}
 		}
-		if err == nil {
-			failing = false
-		}
 	}
 }
 
-// session runs one connection to the surface.
-func (s *MidiSurface) session(ctx context.Context) error {
+// session runs one connection to the surface. connected reports whether it
+// got as far as talking to the surface.
+func (s *MidiSurface) session(ctx context.Context) (connected bool, err error) {
 	in, err := midi.FindInPort(s.inPort)
 	if err != nil {
-		return fmt.Errorf("input port %q: %w", s.inPort, err)
+		return false, fmt.Errorf("input port %q: %w", s.inPort, err)
 	}
 	out, err := midi.FindOutPort(s.outPort)
 	if err != nil {
-		return fmt.Errorf("output port %q: %w", s.outPort, err)
+		return false, fmt.Errorf("output port %q: %w", s.outPort, err)
 	}
 	if err := out.Open(); err != nil {
-		return fmt.Errorf("open output: %w", err)
+		return false, fmt.Errorf("open output: %w", err)
 	}
 	defer out.Close()
 	send, err := midi.SendTo(out)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if err := gomcu.Reset(out); err != nil {
-		return fmt.Errorf("reset surface: %w", err)
+		return false, fmt.Errorf("reset surface: %w", err)
 	}
 	for _, m := range gomcu.SetTimeDisplay(displayText) {
 		if err := send(m); err != nil {
-			return err
+			return false, err
 		}
 	}
 
@@ -176,7 +177,7 @@ func (s *MidiSurface) session(ctx context.Context) error {
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("listen: %w", err)
+		return false, fmt.Errorf("listen: %w", err)
 	}
 	defer func() {
 		stop()
@@ -192,14 +193,14 @@ func (s *MidiSurface) session(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return true, ctx.Err()
 		case c := <-s.cmds:
 			if err := send(c.message()); err != nil {
-				return fmt.Errorf("send: %w", err)
+				return true, fmt.Errorf("send: %w", err)
 			}
 		case <-check.C:
 			if !in.IsOpen() || !out.IsOpen() || !portExists(s.inPort, s.outPort) {
-				return errors.New("MIDI port closed")
+				return true, errors.New("MIDI port closed")
 			}
 		}
 	}

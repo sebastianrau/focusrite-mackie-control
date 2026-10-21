@@ -38,8 +38,13 @@ type Adapter struct {
 	// inflight holds values sent per element ID that the device has not
 	// echoed back yet, so a late echo is not mistaken for a user change.
 	inflight map[int][]string
-	snap     domain.Snapshot
-	ready    bool
+	// syncing is set from arrival until the device's first set, which
+	// carries its current values. Nothing is sent before that, so the
+	// device's own state (hardware mute and dim, nicknames) is not
+	// overwritten by a push queued earlier.
+	syncing bool
+	snap    domain.Snapshot
+	ready   bool
 }
 
 func NewAdapter(cfg Config, events <-chan Event, sender Sender, submit func(domain.Command), snaps <-chan domain.Snapshot) *Adapter {
@@ -108,8 +113,8 @@ func (a *Adapter) handle(e Event) {
 			a.active = d
 			a.known = make(map[int]string)
 			a.inflight = make(map[int][]string)
+			a.syncing = true
 			a.reportDevice()
-			a.push()
 		}
 
 	case DeviceRemoved:
@@ -130,13 +135,16 @@ func (a *Adapter) handle(e Event) {
 		}
 		if d == a.active {
 			a.fromDevice(e.Set)
+			a.syncing = false
 			a.reportDevice() // sample rate may have changed; no-op otherwise
+			a.push()         // e.g. new output gains after a hardware dim
 		}
 	}
 }
 
 // fromDevice turns changes made on the interface or in Focusrite Control
-// into commands.
+// into commands. They are applied to the local snapshot at once, so a push
+// before the controller's next snapshot does not undo them.
 func (a *Adapter) fromDevice(set protocol.Set) {
 	levels := a.snap.Levels
 	meterSrc, metering := a.snap.State.MeterSource()
@@ -153,16 +161,16 @@ func (a *Adapter) fromDevice(set protocol.Set) {
 		switch it.ID {
 		case a.cfg.MuteID:
 			if on, err := strconv.ParseBool(it.Value); err == nil {
-				a.submit(domain.SetMute{On: on})
+				a.apply(domain.SetMute{On: on})
 			}
 		case a.cfg.DimID:
 			if on, err := strconv.ParseBool(it.Value); err == nil {
-				a.submit(domain.SetDim{On: on})
+				a.apply(domain.SetDim{On: on})
 			}
 		}
 		for _, id := range domain.Speakers {
 			if out := a.cfg.Outputs[id]; out.NameID != 0 && out.NameID == it.ID {
-				a.submit(domain.RenameSpeaker{ID: id, Name: it.Value})
+				a.apply(domain.RenameSpeaker{ID: id, Name: it.Value})
 			}
 		}
 		if metering {
@@ -175,8 +183,13 @@ func (a *Adapter) fromDevice(set protocol.Set) {
 		}
 	}
 	if metering && levels != a.snap.Levels {
-		a.submit(domain.SetLevels{Levels: levels})
+		a.apply(domain.SetLevels{Levels: levels})
 	}
+}
+
+func (a *Adapter) apply(cmd domain.Command) {
+	a.submit(cmd)
+	a.snap = domain.Apply(a.snap, cmd)
 }
 
 // maxInflight bounds the remembered unechoed values per element. Coalesced
@@ -209,7 +222,7 @@ func parseLevel(v string) float64 {
 
 // push sends the element values that differ from what the device has.
 func (a *Adapter) push() {
-	if a.active == nil || !a.ready {
+	if a.active == nil || !a.ready || a.syncing {
 		return
 	}
 	var changed []protocol.Item

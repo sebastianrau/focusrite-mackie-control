@@ -128,9 +128,14 @@ func (h *harness) takeCmds() []domain.Command {
 	return c
 }
 
-func (h *harness) arrive(t *testing.T) {
+// arrive announces the 18i20 and delivers its initial value dump.
+func (h *harness) arrive(t *testing.T, dump ...protocol.Item) {
 	t.Helper()
 	h.a.handle(DeviceArrived{Device: loadDevice(t, "device-arrival-18i20.xml")})
+	if len(h.out.sets) != 0 {
+		t.Fatal("sent state before the device reported its own")
+	}
+	h.a.handle(DeviceUpdated{Set: protocol.Set{DevID: 3, Items: dump}})
 }
 
 func TestArrivalPushesFullStateOnce(t *testing.T) {
@@ -139,8 +144,8 @@ func TestArrivalPushesFullStateOnce(t *testing.T) {
 	h.arrive(t)
 
 	cmds := h.takeCmds()
-	if len(cmds) != 1 {
-		t.Fatalf("commands = %#v", cmds)
+	if len(cmds) == 0 {
+		t.Fatal("no commands")
 	}
 	dev := cmds[0].(domain.SetDevice).Device
 	if !dev.Present || !dev.ServerConnected || dev.Model != "Scarlett 18i20 (3rd Gen)" {
@@ -162,6 +167,37 @@ func TestArrivalPushesFullStateOnce(t *testing.T) {
 	want := []protocol.Item{protocol.BoolItem(1679, false), protocol.BoolItem(1453, false), protocol.BoolItem(1533, false)}
 	if !slices.Equal(got, want) {
 		t.Errorf("unmute sent %v, want %v", got, want)
+	}
+}
+
+// At startup the device's own values for its controls and names win; the
+// app's speaker selection and volume are pushed. Nothing may flip back.
+func TestStartupReconciliation(t *testing.T) {
+	h := newHarness(t, legacy18i20) // default state: muted
+	h.takeCmds()
+	h.arrive(t,
+		protocol.BoolItem(1679, false),    // hardware mute is off
+		protocol.StringItem(1456, "Main"), // nickname set in Focusrite Control
+		protocol.IntItem(1458, -80),       // output gain: the app's volume wins
+	)
+
+	cmds := h.takeCmds()
+	if !slices.Contains(cmds, domain.Command(domain.SetMute{On: false})) ||
+		!slices.Contains(cmds, domain.Command(domain.RenameSpeaker{ID: domain.SpeakerA, Name: "Main"})) {
+		t.Errorf("commands = %#v", cmds)
+	}
+	sent := map[int]string{}
+	for _, it := range h.out.take() {
+		sent[it.ID] = it.Value
+	}
+	if _, ok := sent[1679]; ok {
+		t.Errorf("overwrote the hardware mute with %q", sent[1679])
+	}
+	if _, ok := sent[1456]; ok {
+		t.Errorf("overwrote the nickname with %q", sent[1456])
+	}
+	if sent[1458] != "-127" || sent[1453] != "false" {
+		t.Errorf("speaker A gain/mute = %q/%q, want -127/false (unmuted now)", sent[1458], sent[1453])
 	}
 }
 
