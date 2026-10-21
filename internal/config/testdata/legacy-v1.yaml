@@ -1,0 +1,86 @@
+midi:
+  MidiInputPort: IN
+  MidiOnputPort: OUT
+  speakerselect:
+    0: 76
+    1: 77
+    2: 75
+    3: 57
+    4: 74
+  mastermuteswitch: 16
+  masterdimswitch: 8
+  mastervolumechannel: 0
+  faderscalelog: false
+focusritedevice:
+  speaker:
+    0:
+      name: 1456
+      mute: 1453
+      outputgain: 1458
+      meterl: 1450
+      meterr: 1460
+    1:
+      name: 1476
+      mute: 1473
+      outputgain: 1478
+      meterl: 1470
+      meterr: 1480
+    2:
+      name: 1496
+      mute: 1493
+      outputgain: 1498
+      meterl: 1490
+      meterr: 1500
+    3:
+      name: 1516
+      mute: 1513
+      outputgain: 1518
+      meterl: 1510
+      meterr: 1520
+    4:
+      name: 1536
+      mute: 1533
+      outputgain: 1538
+      meterl: 1530
+      meterr: 1540
+  master:
+    muteswitch: 1679
+    dimswitch: 1678
+  focusriteserialnumber: P9EAC6K250F325
+monitorcontroller:
+  speaker:
+    0:
+      disabled: false
+      name: Speaker A
+      selected: true
+      type: 0
+      exclusive: true
+    1:
+      disabled: false
+      name: Nearfield
+      selected: false
+      type: 0
+      exclusive: true
+    2:
+      disabled: false
+      name: Speaker C
+      selected: false
+      type: 0
+      exclusive: true
+    3:
+      disabled: true
+      name: Speaker D
+      selected: false
+      type: 0
+      exclusive: true
+    4:
+      disabled: false
+      name: Sub
+      selected: true
+      type: 1
+      exclusive: true
+  master:
+    mute: true
+    dim: false
+    volumedb: -23
+    dimoffset: 20
