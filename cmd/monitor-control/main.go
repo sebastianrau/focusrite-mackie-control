@@ -1,121 +1,115 @@
+// Command monitor-control is a monitor controller for Focusrite interfaces,
+// operated from a Mackie Control surface, a Stream Deck or its own window.
 package main
 
 import (
+	"context"
+	"flag"
+	"fmt"
 	"os"
 	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
-	fcaudioconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/fc-connector"
-	mcuconnector "github.com/sebastianrau/focusrite-mackie-control/pkg/mcu-connector"
-
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/config"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/gui"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/logger"
-	"github.com/sebastianrau/focusrite-mackie-control/pkg/monitorcontroller"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/controller"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/platform"
+	"github.com/sebastianrau/focusrite-mackie-control/internal/ui"
 )
 
-/*
-#cgo CFLAGS: -x objective-c
-#cgo LDFLAGS: -framework Cocoa
-#import <Cocoa/Cocoa.h>
+// version is set at build time via -ldflags "-X main.version=...".
+var version = "dev"
 
-int
-SetActivationPolicy(void) {
-    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
-    return 0;
-}
-*/
-import "C"
+const (
+	autoSaveInterval = 30 * time.Second
+	shutdownTimeout  = 3 * time.Second
+)
 
-// Workaround for hiding app symbol and having only system tray
-func setActivationPolicy() {
-	log.Debugln("Setting ActivationPolicy")
-	C.SetActivationPolicy()
-}
-
-const Version string = "v0.0.1"
-
-var log *logger.CustomLogger = logger.WithPackage("main")
-
-// TODO MUC: Check reconnection
-// TODO Config: add configuration gui
+var log = logging.New("main")
 
 func main() {
-	var (
-		cfg *config.Config
-	)
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, "monitor-control:", err)
+		os.Exit(1)
+	}
+}
 
-	log.Infof("Monitor Controller %v", Version)
-
-	cfg, err := config.Load()
-	go cfg.RunAutoSave()
-
+func run() error {
+	defaultPath, err := config.DefaultPath()
 	if err != nil {
-		log.Errorln("Loading configuration failed. Loading default values")
-		cfg = config.Default()
-		err := cfg.Save()
-		if err != nil {
-			log.Errorln("Configuration could not be stored")
-		}
+		return err
+	}
+	path := flag.String("config", defaultPath, "settings file")
+	flag.Parse()
+	log.Info("starting Monitor Controller", "version", version, "config", *path)
+
+	store, err := config.Open(*path)
+	if err != nil {
+		return err
+	}
+	cfg := store.Get()
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	start := func(run func(context.Context)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			run(ctx)
+		}()
 	}
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
+	ctrl := controller.New(cfg.State())
+	start(ctrl.Run)
+	start(persist(store, ctrl.Subscribe()))
+	start(func(ctx context.Context) { store.AutoSave(ctx, autoSaveInterval) })
 
-	var mainGui *gui.MainGui
+	devices := make(catalog, 1)
+	svc := newServices(ctx, store, ctrl, devices)
+	svc.apply()
 
-	mainGui, err = gui.NewAppWindow(
-		cfg,
-		// On Close
-		func() {
-			err := cfg.Save()
-			if err != nil {
-				log.Error(err.Error())
-			}
-		})
-
-	if err != nil {
-		log.Error(err)
-		os.Exit(-1)
-	}
-
-	mainGui.Lifecycle().SetOnStarted(func() {
-		setActivationPolicy()
+	app := ui.New(ui.Options{
+		Version:   version,
+		Submit:    ctrl.Submit,
+		Snapshots: ctrl.Subscribe().C(),
+		Devices:   devices,
+		Store:     store,
+		OnStarted: platform.HideFromDock,
+		Apply:     func() { go svc.apply() },
 	})
+	stopUI := context.AfterFunc(ctx, app.Quit)
+	defer stopUI()
 
-	mcu := mcuconnector.NewMcuConnector(&cfg.Midi)
-	if mcu == nil {
-		log.Warnf("could not open Midi System")
-	}
+	app.Run() // blocks until quit from the tray or a signal
+	cancel()
+	svc.stop()
+	waitTimeout(&wg, shutdownTimeout)
+	mcu.CloseDriver()
 
-	fc := fcaudioconnector.NewAudioDeviceConnector(&cfg.FocusriteDevice)
-	if fc == nil {
-		log.Errorf("Could not load Audio Connector")
-		os.Exit(-1)
-	}
+	store.Update(func(c *config.Config) { c.SetState(ctrl.Snapshot().State) })
+	return store.Save()
+}
 
-	mc := monitorcontroller.NewController(fc, &cfg.MonitorController)
-	if mc == nil {
-		log.Errorf("Could not load monitor Controller")
-		os.Exit(-3)
-	}
-
-	if mcu != nil {
-		mc.RegisterRemoteController(mcu)
-	}
-
-	if mainGui != nil {
-		mc.RegisterRemoteController(mainGui)
-	}
-
-	go func() {
-		for range interrupt {
-			err := cfg.Save()
-			if err != nil {
-				log.Error(err.Error())
+// persist copies every state change into the settings store.
+func persist(store *config.Store, sub *controller.Subscription) func(context.Context) {
+	return func(ctx context.Context) {
+		var last domain.State
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case s := <-sub.C():
+				if s.State != last {
+					last = s.State
+					store.Update(func(c *config.Config) { c.SetState(s.State) })
+				}
 			}
-			os.Exit(0)
 		}
-	}()
-
-	mainGui.ShowAndRun()
+	}
 }
