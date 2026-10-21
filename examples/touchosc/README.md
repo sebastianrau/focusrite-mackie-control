@@ -4,6 +4,8 @@
 with the volume fader, a stereo level meter, the speaker buttons with their
 names, and Mute and Dim. Buttons and fader follow the app, so changes made
 in the app, on the interface or on a control surface show up in TouchOSC too.
+Speakers disabled in the app are shown grey and cannot be pressed (a small
+script in the layout follows `/monitor/speaker/<x>/enabled`).
 
 ## Setup
 

@@ -10,6 +10,9 @@ import (
 	"compress/zlib"
 	"crypto/rand"
 	"fmt"
+	"maps"
+	"path"
+	"slices"
 	"strings"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
@@ -39,8 +42,28 @@ type node struct {
 	props    []string // extra or overriding <property> elements
 	values   []string // <value> elements
 	messages []string // <osc> elements
+	script   string   // Lua script, run by TouchOSC
 	children []node
 }
+
+// rootScript greys out and locks the button of a disabled speaker. Property
+// bindings cannot follow OSC directly; the root script sees every incoming
+// message first, so it can update the controls by name.
+const rootScript = `-- Disabled speakers: grey, locked button (from /monitor/speaker/<x>/enabled)
+function onReceiveOSC(message, connections)
+  local id = string.match(message[1], '^/monitor/speaker/(%w+)/enabled$')
+  if not id then return end
+  local on = message[2][1].value ~= 0
+  local button = self.children['speaker_' .. id]
+  local name = self.children['speakerName_' .. id]
+  if button then
+    button.interactive = on
+    button.color = on and Color(0.2, 1, 0.2) or Color(0.3, 0.3, 0.3)
+  end
+  if name then
+    name.textColor = on and Color(1, 1, 1) or Color(0.5, 0.5, 0.5)
+  end
+end`
 
 // Layout returns the .tosc file.
 func Layout() ([]byte, error) {
@@ -63,7 +86,7 @@ func Layout() ([]byte, error) {
 func root() node {
 	const top, height = 130, 700
 	g := node{kind: "GROUP", name: "Monitor Controller", frame: frame{0, 0, 600, 900}, color: background,
-		values: []string{value("touch", "false")}}
+		values: []string{value("touch", "false")}, script: rootScript}
 
 	g.children = append(g.children,
 		label("title", frame{20, 10, 560, 40}, white, 24, "Monitor Controller", ""),
@@ -75,9 +98,10 @@ func root() node {
 	)
 	for i, id := range domain.Speakers {
 		f := frame{260, top + i*115, 320, 100}
+		slug := path.Base(osc.SpeakerAddr(id)) // a, b, c, d, sub
 		g.children = append(g.children,
-			toggle("speaker_"+id.String(), f, green, osc.SpeakerAddr(id)),
-			label("speakerName_"+id.String(), f, white, 20, id.String(), osc.SpeakerNameAddr(id)),
+			toggle("speaker_"+slug, f, green, osc.SpeakerAddr(id)),
+			label("speakerName_"+slug, f, white, 20, id.String(), osc.SpeakerNameAddr(id)),
 		)
 	}
 	mute, dim := frame{260, 720, 155, 110}, frame{425, 720, 155, 110}
@@ -164,18 +188,16 @@ func (n node) properties() []string {
 		"shape":           prop("i", "shape", "1"),
 		"visible":         prop("b", "visible", "1"),
 	}
-	order := []string{"background", "color", "cornerRadius", "frame", "grabFocus", "interactive", "locked",
-		"name", "orientation", "outline", "outlineStyle", "pointerPriority", "shape", "visible"}
-	var out []string
-	for _, p := range n.props {
-		key := between(p, "<key><![CDATA[", "]]>")
-		if _, ok := base[key]; ok {
-			base[key] = p // override
-			continue
-		}
-		out = append(out, p)
+	if n.script != "" {
+		base["script"] = fmt.Sprintf("<property type='s'><key><![CDATA[script]]></key><value><![CDATA[%s]]></value></property>", n.script)
 	}
-	for _, k := range order {
+	for _, p := range n.props {
+		base[between(p, "<key><![CDATA[", "]]>")] = p // add or override
+	}
+	// TouchOSC writes properties sorted by key.
+	keys := slices.Sorted(maps.Keys(base))
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
 		out = append(out, base[k])
 	}
 	return out

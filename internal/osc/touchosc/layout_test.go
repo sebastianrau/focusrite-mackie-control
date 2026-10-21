@@ -5,8 +5,12 @@ import (
 	"compress/zlib"
 	"encoding/xml"
 	"io"
+	"path"
+	"slices"
+	"strings"
 	"testing"
 
+	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
 	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
 )
 
@@ -18,8 +22,9 @@ type xmlNode struct {
 }
 
 type xmlProperty struct {
-	Type string `xml:"type,attr"`
-	Key  string `xml:"key"`
+	Type  string `xml:"type,attr"`
+	Key   string `xml:"key"`
+	Value string `xml:"value"`
 }
 
 type xmlOSC struct {
@@ -94,6 +99,52 @@ func TestEveryControlHasTheBasics(t *testing.T) {
 			if keys[k] != 1 {
 				t.Errorf("%s has %d %q properties", n.Type, keys[k], k)
 			}
+		}
+	})
+}
+
+// The root script turns /monitor/speaker/<x>/enabled into a locked, grey
+// button; it must find every speaker button and name by the names it builds.
+func TestDisabledSpeakerScript(t *testing.T) {
+	root := load(t)
+	names := map[string]bool{}
+	for _, c := range root.Children {
+		for _, p := range c.Properties {
+			if p.Key == "name" {
+				names[p.Value] = true
+			}
+		}
+	}
+	for _, id := range domain.Speakers {
+		slug := path.Base(osc.SpeakerAddr(id))
+		for _, n := range []string{"speaker_" + slug, "speakerName_" + slug} {
+			if !names[n] {
+				t.Errorf("no control named %q for the script", n)
+			}
+		}
+		if !osc.Known(osc.SpeakerEnabled(id)) {
+			t.Errorf("app does not send %s", osc.SpeakerEnabled(id))
+		}
+	}
+	var script string
+	for _, p := range root.Properties {
+		if p.Key == "script" {
+			script = p.Value
+		}
+	}
+	if !strings.Contains(script, "/monitor/speaker/(%w+)/enabled") || !strings.Contains(script, "button.interactive = on") {
+		t.Errorf("root script missing or changed:\n%s", script)
+	}
+}
+
+func TestPropertiesSorted(t *testing.T) {
+	walk(load(t), func(n xmlNode) {
+		keys := make([]string, len(n.Properties))
+		for i, p := range n.Properties {
+			keys[i] = p.Key
+		}
+		if !slices.IsSorted(keys) {
+			t.Errorf("%s properties not sorted: %v", n.Type, keys)
 		}
 	})
 }
