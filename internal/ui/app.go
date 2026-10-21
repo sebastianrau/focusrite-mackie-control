@@ -94,13 +94,19 @@ func newApp(fa fyne.App, opts Options) *App {
 }
 
 func (a *App) buildMain() {
+	a.mute = newBlockButton("MUTE", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleMute{}) })
+	a.dim = newBlockButton("DIM", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleDim{}) })
+	a.mute.label.TextSize, a.dim.label.TextSize = 13, 13
+	switches := container.NewGridWithColumns(2, a.mute, a.dim)
+
+	right := container.NewBorder(nil, switches, nil, nil, a.speakerList())
 	a.window.SetContent(container.NewBorder(nil, a.statusBar(), nil, nil,
 		container.New(layout.NewCustomPaddedLayout(4, 10, 10, 10),
-			container.NewBorder(nil, nil, a.channelStrip(), nil, a.speakerList()))))
+			container.NewBorder(nil, nil, a.channelStrip(), nil, right))))
 	a.window.Resize(fyne.NewSize(320, 440))
 }
 
-// channelStrip is the left column: volume, fader, meter, Mute and Dim.
+// channelStrip is the left column: volume, fader and meter.
 func (a *App) channelStrip() fyne.CanvasObject {
 	a.volume = canvas.NewText("", colText)
 	a.volume.TextSize = 30
@@ -117,18 +123,15 @@ func (a *App) channelStrip() fyne.CanvasObject {
 	a.meter = NewMeter()
 	center := container.NewHBox(layout.NewSpacer(), a.fader, newMeterScale(), a.meter, layout.NewSpacer())
 
-	a.mute = newBlockButton("MUTE", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleMute{}) })
-	a.dim = newBlockButton("DIM", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleDim{}) })
-	a.mute.label.TextSize, a.dim.label.TextSize = 13, 13
-
 	bg := canvas.NewRectangle(colPanel)
 	bg.CornerRadius = 14
 	bg.SetMinSize(fyne.NewSize(128, 0))
 	return container.NewStack(bg, container.New(layout.NewCustomPaddedLayout(12, 10, 10, 10),
-		container.NewBorder(header, container.NewVBox(a.mute, a.dim), nil, nil, center)))
+		container.NewBorder(header, nil, nil, nil, center)))
 }
 
-// speakerList is the right column: one row per speaker, the sub apart.
+// speakerList is the right column above Mute and Dim: one row per speaker,
+// the sub apart.
 func (a *App) speakerList() fyne.CanvasObject {
 	list := container.NewVBox(sectionHeading("SPEAKERS"))
 	for _, id := range domain.Speakers {
