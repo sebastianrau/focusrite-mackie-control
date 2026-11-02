@@ -15,7 +15,7 @@ surface, a Stream Deck or any OSC app.
   Exclusive speakers turn the others off; the sub is switched on its own.
 - **Volume, Dim and Mute** for all assigned outputs, with an adjustable dim
   amount.
-- **Level meter** for the selected speakers.
+- **Level meter** for the selected speakers, pre- or post-fader.
 - **Many ways to control it, all in sync:** the app window, the menu bar,
   a Mackie Control (MCU) surface, a Stream Deck, OSC apps such as TouchOSC,
   and the monitor buttons on the interface itself. Press Dim on the
@@ -85,8 +85,9 @@ The app controls the gain, mute and name of the assigned outputs.
 
 ### Main window
 
-- **Channel strip** (left): the volume in dB, with *muted* or *dimmed* below
-  it when active, the volume fader and the level meter.
+- **Channel strip** (left): the volume fader and the level meter with its
+  **PRE/POST** switch, and below them the volume in dB, with *muted* or
+  *dimmed* when active.
 - **Speakers** (right): click a speaker to switch it on or off. The active one
   is outlined in green. Disabled speakers are shown grey.
 - **MUTE** and **DIM**: red and yellow when on.
@@ -114,7 +115,9 @@ macOS the app has no Dock icon; it lives in the menu bar.
 - **Dim** lowers the volume by the dim amount (20 dB by default).
 - **Mute** mutes all outputs.
 - **The meter** shows the levels Focusrite Control reports for the first
-  selected speaker, before the volume is applied.
+  selected speaker. **PRE** (default) shows them before the volume; **POST**
+  applies volume and dim, and the meter is silent while muted. Click the
+  green switch under the meter to change it.
 
 ## Configuration
 
@@ -124,7 +127,7 @@ once; only the connection whose settings changed reconnects.
 | Section | Settings |
 | ------- | -------- |
 | **Monitor Controller** | Dim amount; per speaker *Disabled* and *Exclusive*. |
-| **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim and each speaker. |
+| **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim, the meter's Pre/Post switch and each speaker. |
 | **Focusrite** | The interface, and which stereo output each speaker uses. The monitor Mute and Dim controls of the interface are linked automatically. |
 | **OSC** | OSC server on/off, its port, access from other devices, and targets that always receive the state. |
 
@@ -142,6 +145,7 @@ Default mapping, matching the Stream Deck profile:
 | Volume | Fader 1 |
 | Mute | Mute 1 |
 | Dim | Solo 1 |
+| Meter pre/post | F5 (lit when post) |
 | Speaker A–D | Trim, Touch, Write, F4 |
 | Sub | Read |
 

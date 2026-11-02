@@ -46,6 +46,8 @@ to see the current value. Numbers may be sent as int, float or bool.
 | `/monitor/speaker/{a,b,c,d,sub}/toggle` | – | in |
 | `/monitor/speaker/{a,b,c,d,sub}/name` | string | out |
 | `/monitor/speaker/{a,b,c,d,sub}/enabled` | int 0/1 | out |
+| `/monitor/meter/post` | int 0/1: meters pre-fader (0) or post-fader (1) | in / out |
+| `/monitor/meter/post/toggle` | – | in |
 | `/monitor/meter/left`, `/monitor/meter/right` | float, dBFS | out, ≤ 20/s |
 | `/monitor/meter/left/normalized`, `…/right/normalized` | float 0…1 over −60…0 dB | out, ≤ 20/s |
 | `/monitor/device/connected` | int 0/1 | out |
@@ -62,7 +64,8 @@ Rules:
   the other speakers off, and the app sends their new state. A disabled
   speaker ignores the request.
 - **Meter** values are the levels Focusrite Control reports for the selected
-  speaker's output, before the volume.
+  speaker's output. Pre-fader (default) they are sent as reported; post-fader
+  the volume and dim are applied, and they are silent while muted.
 
 ## Examples
 

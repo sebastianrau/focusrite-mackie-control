@@ -93,8 +93,11 @@ func root() node {
 		label("device", frame{20, 50, 560, 30}, grey, 16, "", osc.AddrDeviceModel),
 		label("volumeDB", frame{20, 95, 140, 30}, white, 16, "", osc.AddrVolume),
 		slider("volume", frame{20, top, 140, height}, fader, true, osc.AddrVolumeNormalized),
-		slider("meterLeft", frame{175, top, 30, height}, green, false, osc.AddrMeterLeftNormalized),
-		slider("meterRight", frame{210, top, 30, height}, green, false, osc.AddrMeterRightNormalized),
+		slider("meterLeft", frame{175, top, 30, height - 60}, green, false, osc.AddrMeterLeftNormalized),
+		slider("meterRight", frame{210, top, 30, height - 60}, green, false, osc.AddrMeterRightNormalized),
+		// meter pre/post fader: lit when post
+		toggle("meterPost", frame{175, top + height - 50, 65, 50}, green, osc.AddrMeterPost),
+		label("meterPostText", frame{175, top + height - 50, 65, 50}, white, 14, "POST", ""),
 	)
 	for i, id := range domain.Speakers {
 		f := frame{260, top + i*115, 320, 100}

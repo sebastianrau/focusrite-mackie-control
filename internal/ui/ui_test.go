@@ -240,3 +240,29 @@ func TestLongNamesAreShortened(t *testing.T) {
 		t.Errorf("label shortened although it fits: %q", b.label.Text)
 	}
 }
+
+func TestPrePostSwitch(t *testing.T) {
+	a, cmds := newTestApp(t)
+	s := domain.Snapshot{State: domain.DefaultState(), Device: connected()}
+	s.State.Master.Mute, s.State.Master.VolumeDB = false, -30
+	s.Levels = domain.Levels{LeftDB: -6, RightDB: -6}
+	a.render(s)
+	if a.prePost.Text() != "PRE" || a.meter.left != -6 {
+		t.Errorf("pre: switch %q, meter %v", a.prePost.Text(), a.meter.left)
+	}
+
+	test.Tap(a.prePost)
+	if len(*cmds) != 1 || (*cmds)[0] != (domain.ToggleMeterPost{}) {
+		t.Fatalf("commands = %#v", *cmds)
+	}
+
+	a.meter.left, a.meter.right = meterMinDB, meterMinDB
+	s.State.Master.MeterPost = true
+	a.render(s)
+	if a.prePost.Text() != "POST" || a.meter.left != -36 {
+		t.Errorf("post: switch %q, meter %v; want POST and -36", a.prePost.Text(), a.meter.left)
+	}
+	if a.prePost.bg.StrokeColor != colGreen || a.prePost.label.Color != colGreen {
+		t.Error("the switch must have a green outline and green text")
+	}
+}

@@ -83,9 +83,9 @@ func TestAddressesAreKnown(t *testing.T) {
 			}
 		}
 	})
-	// device and volume labels, volume, 2 meters, 5 speakers with names, mute, dim
-	if paths != 17 {
-		t.Errorf("found %d OSC bindings, want 17", paths)
+	// device and volume labels, volume, 2 meters, pre/post, 5 speakers with names, mute, dim
+	if paths != 18 {
+		t.Errorf("found %d OSC bindings, want 18", paths)
 	}
 }
 
