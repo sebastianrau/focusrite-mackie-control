@@ -118,6 +118,15 @@ func (c ConfigureSpeaker) apply(s *Snapshot) {
 	}
 }
 
+// SetMeterPost switches the meters between pre-fader and post-fader.
+type SetMeterPost struct{ On bool }
+
+func (c SetMeterPost) apply(s *Snapshot) { s.State.Master.MeterPost = c.On }
+
+type ToggleMeterPost struct{}
+
+func (ToggleMeterPost) apply(s *Snapshot) { s.State.Master.MeterPost = !s.State.Master.MeterPost }
+
 const MaxDimDB = 60
 
 // SetDimDB sets the dim attenuation, clamped to 0..MaxDimDB.

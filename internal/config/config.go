@@ -29,11 +29,12 @@ type Config struct {
 
 // Controller holds the monitor state restored at startup.
 type Controller struct {
-	Mute     bool      `yaml:"mute"`
-	Dim      bool      `yaml:"dim"`
-	VolumeDB int       `yaml:"volume_db"`
-	DimDB    int       `yaml:"dim_db"`
-	Speakers []Speaker `yaml:"speakers"` // A, B, C, D, Sub
+	Mute      bool      `yaml:"mute"`
+	Dim       bool      `yaml:"dim"`
+	VolumeDB  int       `yaml:"volume_db"`
+	DimDB     int       `yaml:"dim_db"`
+	MeterPost bool      `yaml:"meter_post"`
+	Speakers  []Speaker `yaml:"speakers"` // A, B, C, D, Sub
 }
 
 type Speaker struct {
@@ -66,6 +67,7 @@ type MIDI struct {
 	FaderChannel    Channel `yaml:"fader_channel"`
 	MuteKey         Key     `yaml:"mute_key"`
 	DimKey          Key     `yaml:"dim_key"`
+	MeterPostKey    Key     `yaml:"meter_post_key"`
 	SpeakerKeys     []Key   `yaml:"speaker_keys"` // A, B, C, D, Sub
 	LogarithmicFade bool    `yaml:"logarithmic_fader"`
 }
@@ -83,7 +85,8 @@ func Default() Config {
 // State returns the stored monitor state. Missing speakers get defaults.
 func (c Config) State() domain.State {
 	s := domain.DefaultState()
-	s.Master = domain.Master{Mute: c.Controller.Mute, Dim: c.Controller.Dim, VolumeDB: c.Controller.VolumeDB, DimDB: c.Controller.DimDB}
+	s.Master = domain.Master{Mute: c.Controller.Mute, Dim: c.Controller.Dim, VolumeDB: c.Controller.VolumeDB,
+		DimDB: c.Controller.DimDB, MeterPost: c.Controller.MeterPost}
 	for i, spk := range c.Controller.Speakers {
 		if i < domain.NumSpeakers {
 			s.Speakers[i] = domain.Speaker(spk)
@@ -93,7 +96,8 @@ func (c Config) State() domain.State {
 }
 
 func (c *Config) SetState(s domain.State) {
-	c.Controller = Controller{Mute: s.Master.Mute, Dim: s.Master.Dim, VolumeDB: s.Master.VolumeDB, DimDB: s.Master.DimDB}
+	c.Controller = Controller{Mute: s.Master.Mute, Dim: s.Master.Dim, VolumeDB: s.Master.VolumeDB,
+		DimDB: s.Master.DimDB, MeterPost: s.Master.MeterPost}
 	for _, spk := range s.Speakers {
 		c.Controller.Speakers = append(c.Controller.Speakers, Speaker(spk))
 	}
@@ -123,6 +127,7 @@ func (c Config) MCUConfig() mcu.Config {
 		FaderChannel:    gomcu.Channel(c.MIDI.FaderChannel),
 		MuteKey:         gomcu.Switch(c.MIDI.MuteKey),
 		DimKey:          gomcu.Switch(c.MIDI.DimKey),
+		MeterPostKey:    gomcu.Switch(c.MIDI.MeterPostKey),
 		LogarithmicFade: c.MIDI.LogarithmicFade,
 	}
 	def := mcu.DefaultConfig()
@@ -143,6 +148,7 @@ func (c *Config) SetMCU(m mcu.Config) {
 		FaderChannel:    Channel(m.FaderChannel),
 		MuteKey:         Key(m.MuteKey),
 		DimKey:          Key(m.DimKey),
+		MeterPostKey:    Key(m.MeterPostKey),
 		LogarithmicFade: m.LogarithmicFade,
 	}
 	for _, k := range m.SpeakerKeys {

@@ -22,6 +22,7 @@ type blockButton struct {
 	label *canvas.Text // shows text, shortened with "…" when it does not fit
 	text  string
 	align fyne.TextAlign
+	min   fyne.Size
 }
 
 func newBlockButton(text string, align fyne.TextAlign, tapped func()) *blockButton {
@@ -32,6 +33,7 @@ func newBlockButton(text string, align fyne.TextAlign, tapped func()) *blockButt
 		label:   canvas.NewText(text, colTextIdle),
 		text:    text,
 		align:   align,
+		min:     fyne.NewSize(60, 44),
 	}
 	b.bg.CornerRadius = 10
 	b.label.TextSize = 14
@@ -88,7 +90,19 @@ func (b *blockButton) Cursor() desktop.Cursor {
 	return desktop.DefaultCursor
 }
 
-func (b *blockButton) MinSize() fyne.Size { return fyne.NewSize(60, 44) }
+func (b *blockButton) MinSize() fyne.Size { return b.min }
+
+// newTagButton is a small outlined button, like the meter's PRE/POST switch.
+func newTagButton(text string, tapped func()) *blockButton {
+	b := newBlockButton(text, fyne.TextAlignCenter, tapped)
+	b.bg.CornerRadius = 5
+	b.label.TextSize = 10
+	// Wide enough for the longer label in the font actually used.
+	w := fyne.MeasureText("POST", b.label.TextSize, fyne.TextStyle{Bold: true}).Width
+	b.min = fyne.NewSize(max(40, w+14), 20)
+	b.style(color.Transparent, colGreen, colGreen, true)
+	return b
+}
 
 func (b *blockButton) CreateRenderer() fyne.WidgetRenderer {
 	return &blockRenderer{b: b}
@@ -106,7 +120,11 @@ func (r *blockRenderer) Layout(size fyne.Size) {
 		b.key.Resize(ks)
 		x += 20
 	}
-	b.label.Text = fit(b.text, size.Width-x-10, b.label)
+	avail := size.Width - x - 10
+	if b.align == fyne.TextAlignCenter {
+		avail = size.Width - 8 // centred text needs only a small inset
+	}
+	b.label.Text = fit(b.text, avail, b.label)
 	ls := b.label.MinSize()
 	if b.align == fyne.TextAlignCenter {
 		b.label.Move(fyne.NewPos(0, (size.Height-ls.Height)/2))

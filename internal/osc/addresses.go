@@ -23,6 +23,9 @@ const (
 	AddrMeterLeftNormalized  = "/monitor/meter/left/normalized"  // float 0..1 (-60..0 dB), out only
 	AddrMeterRightNormalized = "/monitor/meter/right/normalized" // float 0..1 (-60..0 dB), out only
 
+	AddrMeterPost       = "/monitor/meter/post" // int 0/1: meter after the volume
+	AddrMeterPostToggle = "/monitor/meter/post/toggle"
+
 	AddrDeviceConnected = "/monitor/device/connected" // int 0/1, out only
 	AddrDeviceModel     = "/monitor/device/model"     // string, out only
 
@@ -86,6 +89,7 @@ func stateMessages(s domain.Snapshot) []Message {
 		{AddrVolumeNormalized, []any{normalizeVolume(st.Master.VolumeDB)}},
 		{AddrMute, []any{boolInt(st.Master.Mute)}},
 		{AddrDim, []any{boolInt(st.Master.Dim)}},
+		{AddrMeterPost, []any{boolInt(st.Master.MeterPost)}},
 		{AddrDeviceConnected, []any{boolInt(s.Device.ServerConnected && s.Device.Present)}},
 		{AddrDeviceModel, []any{s.Device.Model}},
 	}
@@ -137,6 +141,14 @@ func command(m Message) (domain.Command, bool) {
 	case AddrDimToggle:
 		if on, ok := m.On(); ok && on {
 			return domain.ToggleDim{}, true
+		}
+	case AddrMeterPost:
+		if on, ok := m.On(); ok && len(m.Args) > 0 {
+			return domain.SetMeterPost{On: on}, true
+		}
+	case AddrMeterPostToggle:
+		if on, ok := m.On(); ok && on {
+			return domain.ToggleMeterPost{}, true
 		}
 	default:
 		id, rest, ok := parseSpeaker(m.Address)

@@ -48,6 +48,7 @@ type App struct {
 	volume   *canvas.Text
 	volBox   *fyne.Container // re-laid out when the number's width changes
 	volNote  *canvas.Text
+	prePost  *blockButton
 	fader    *Fader
 	meter    *Meter
 	speakers [domain.NumSpeakers]*blockButton
@@ -106,7 +107,8 @@ func (a *App) buildMain() {
 	a.window.Resize(fyne.NewSize(320, 440))
 }
 
-// channelStrip is the left column: volume, fader and meter.
+// channelStrip is the left column: fader and meter with the PRE/POST
+// switch, the volume below.
 func (a *App) channelStrip() fyne.CanvasObject {
 	a.volume = canvas.NewText("", colText)
 	a.volume.TextSize = 30
@@ -117,17 +119,23 @@ func (a *App) channelStrip() fyne.CanvasObject {
 	a.volNote.TextSize = 11
 	a.volNote.Alignment = fyne.TextAlignCenter
 	a.volBox = container.NewCenter(container.NewHBox(a.volume, container.NewVBox(layout.NewSpacer(), unit)))
-	header := container.NewVBox(a.volBox, a.volNote)
+	footer := container.NewVBox(a.volBox, a.volNote)
 
 	a.fader = NewFader(func(db int) { a.opts.Submit(domain.SetVolume{DB: db}) })
 	a.meter = NewMeter()
-	center := container.NewHBox(layout.NewSpacer(), a.fader, newMeterScale(), a.meter, layout.NewSpacer())
+	a.prePost = newTagButton("PRE", func() { a.opts.Submit(domain.ToggleMeterPost{}) })
+	// The scale gets the same bottom space as the meter, so both stay aligned.
+	gap := canvas.NewRectangle(color.Transparent)
+	gap.SetMinSize(a.prePost.MinSize())
+	scale := container.NewBorder(nil, gap, nil, nil, newMeterScale())
+	meter := container.NewBorder(nil, container.NewCenter(a.prePost), nil, nil, a.meter)
+	center := container.NewHBox(layout.NewSpacer(), a.fader, scale, meter, layout.NewSpacer())
 
 	bg := canvas.NewRectangle(colPanel)
 	bg.CornerRadius = 14
 	bg.SetMinSize(fyne.NewSize(128, 0))
 	return container.NewStack(bg, container.New(layout.NewCustomPaddedLayout(12, 10, 10, 10),
-		container.NewBorder(header, nil, nil, nil, center)))
+		container.NewBorder(nil, footer, nil, nil, center)))
 }
 
 // speakerList is the right column above Mute and Dim: one row per speaker,
@@ -251,7 +259,9 @@ func (a *App) render(s domain.Snapshot) {
 	}
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
-	a.meter.SetLevels(s.Levels.LeftDB, s.Levels.RightDB)
+	ml := s.MeterLevels()
+	a.meter.SetLevels(ml.LeftDB, ml.RightDB)
+	a.prePost.setText(map[bool]string{false: "PRE", true: "POST"}[st.Master.MeterPost])
 	a.meter.SetDisabled(!active)
 
 	for _, id := range domain.Speakers {

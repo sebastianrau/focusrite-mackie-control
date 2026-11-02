@@ -255,10 +255,10 @@ func (a *Adapter) publishChanges() {
 }
 
 func (a *Adapter) publishMeter() {
-	if !a.ready || a.snap.Levels == a.meter {
+	if !a.ready || a.snap.MeterLevels() == a.meter {
 		return
 	}
-	a.meter = a.snap.Levels
+	a.meter = a.snap.MeterLevels()
 	a.send(a.recipients(), meterMessages(a.meter))
 }
 
@@ -268,7 +268,7 @@ func (a *Adapter) sendAll(to []net.Addr) {
 	if !a.ready {
 		return
 	}
-	a.send(to, append(stateMessages(a.snap), meterMessages(a.snap.Levels)...))
+	a.send(to, append(stateMessages(a.snap), meterMessages(a.snap.MeterLevels())...))
 }
 
 func (a *Adapter) send(to []net.Addr, msgs []Message) {

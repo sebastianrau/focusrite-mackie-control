@@ -207,3 +207,33 @@ func TestSetDimDB(t *testing.T) {
 		}
 	}
 }
+
+func TestMeterLevels(t *testing.T) {
+	s := snap()
+	s.State.Master.Mute = false
+	s.State.Master.VolumeDB = -24
+	s.Levels = Levels{LeftDB: -12, RightDB: -110}
+
+	if got := s.MeterLevels(); got != s.Levels {
+		t.Errorf("pre-fader = %+v, want the reported levels", got)
+	}
+
+	s = Apply(s, ToggleMeterPost{})
+	if got := s.MeterLevels(); got != (Levels{LeftDB: -36, RightDB: SilenceDB}) {
+		t.Errorf("post-fader = %+v, want -36 and floored silence", got)
+	}
+	s.State.Master.Dim, s.State.Master.DimDB = true, 20
+	if got := s.MeterLevels().LeftDB; got != -56 {
+		t.Errorf("post-fader dimmed = %v, want -56", got)
+	}
+	s.State.Master.Mute = true
+	if got := s.MeterLevels(); got != Silence {
+		t.Errorf("post-fader muted = %+v, want silence", got)
+	}
+	if s.Levels.LeftDB != -12 {
+		t.Error("the reported levels must stay untouched")
+	}
+	if Apply(s, SetMeterPost{On: false}).State.Master.MeterPost {
+		t.Error("SetMeterPost(false) did not switch back")
+	}
+}
