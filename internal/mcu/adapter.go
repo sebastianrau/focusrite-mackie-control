@@ -20,6 +20,7 @@ type Config struct {
 	FaderChannel    gomcu.Channel
 	MuteKey         gomcu.Switch
 	DimKey          gomcu.Switch
+	MeterPostKey    gomcu.Switch // switches the meter between pre and post fader
 	SpeakerKeys     [domain.NumSpeakers]gomcu.Switch
 	LogarithmicFade bool
 }
@@ -32,6 +33,7 @@ func DefaultConfig() Config {
 		FaderChannel: gomcu.Channel1,
 		MuteKey:      gomcu.Mute1,
 		DimKey:       gomcu.Solo1,
+		MeterPostKey: gomcu.F5,
 		SpeakerKeys:  [domain.NumSpeakers]gomcu.Switch{gomcu.Trim, gomcu.Touch, gomcu.Write, gomcu.F4, gomcu.Read},
 	}
 }
@@ -110,6 +112,9 @@ func (a *Adapter) keyPressed(key gomcu.Switch) {
 	case a.cfg.DimKey:
 		a.submit(domain.ToggleDim{})
 		return
+	case a.cfg.MeterPostKey:
+		a.submit(domain.ToggleMeterPost{})
+		return
 	case selectKey(a.cfg.FaderChannel):
 		// Pressing the fader's select button pulls it to the current volume.
 		a.sendFader()
@@ -145,6 +150,7 @@ func (a *Adapter) render() {
 	}
 	led(a.cfg.MuteKey, s.Master.Mute, prev.Master.Mute)
 	led(a.cfg.DimKey, s.Master.Dim, prev.Master.Dim)
+	led(a.cfg.MeterPostKey, s.Master.MeterPost, prev.Master.MeterPost)
 	for _, id := range domain.Speakers {
 		led(a.cfg.SpeakerKeys[id], s.Speakers[id].Selected, prev.Speakers[id].Selected)
 	}
@@ -166,7 +172,8 @@ func (a *Adapter) sendMeter() {
 	if !a.connected || !a.ready || a.cfg.FaderChannel == gomcu.Master {
 		return // the master strip has no meter
 	}
-	level := meterLevel(max(a.snap.Levels.LeftDB, a.snap.Levels.RightDB))
+	l := a.snap.MeterLevels()
+	level := meterLevel(max(l.LeftDB, l.RightDB))
 	if level != gomcu.LessThan60 {
 		a.surface.Send(SetMeter{Channel: a.cfg.FaderChannel, Level: level})
 	}

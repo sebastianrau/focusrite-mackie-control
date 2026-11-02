@@ -123,6 +123,8 @@ func TestInputBecomesCommands(t *testing.T) {
 	c.send(AddrMuteToggle, int32(0)) // release of a momentary button: ignored
 	c.send(SpeakerAddr(domain.SpeakerB), int32(1))
 	c.send(SpeakerToggle(domain.Sub), float32(1))
+	c.send(AddrMeterPost, int32(1))
+	c.send(AddrMeterPostToggle, int32(0))   // release: ignored
 	c.send("/monitor/speaker/zz", int32(1)) // unknown speaker: ignored
 	c.send("/something/else")
 
@@ -134,6 +136,7 @@ func TestInputBecomesCommands(t *testing.T) {
 		domain.ToggleMute{},
 		domain.SelectSpeaker{ID: domain.SpeakerB, On: true},
 		domain.ToggleSpeaker{ID: domain.Sub},
+		domain.SetMeterPost{On: true},
 	}
 	got := h.waitCmds(t, len(want))
 	time.Sleep(50 * time.Millisecond) // nothing else may follow
@@ -208,5 +211,24 @@ func TestVolumeScaling(t *testing.T) {
 	}
 	if denormalizeVolume(-1) != domain.MinVolumeDB || denormalizeVolume(2) != domain.MaxVolumeDB {
 		t.Error("out-of-range values must be clamped")
+	}
+}
+
+// With the meter post-fader, OSC sends the levels after the volume.
+func TestMeterFollowsPrePost(t *testing.T) {
+	h := start(t, Config{})
+	c := newClient(t, h.srv)
+	c.send(AddrSubscribe)
+	c.await(AddrDeviceModel)
+
+	s := domain.Snapshot{State: domain.DefaultState(), Device: domain.Device{ServerConnected: true, Present: true}}
+	s.State.Master.Mute, s.State.Master.VolumeDB, s.State.Master.MeterPost = false, -30, true
+	s.Levels = domain.Levels{LeftDB: -6, RightDB: -6}
+	h.snaps <- s
+	if got := c.await(AddrMeterPost); got[0] != int32(1) {
+		t.Errorf("meter post = %v", got)
+	}
+	if got := c.await(AddrMeterLeft); got[0] != float32(-36) {
+		t.Errorf("meter left = %v, want -36 (post-fader)", got)
 	}
 }

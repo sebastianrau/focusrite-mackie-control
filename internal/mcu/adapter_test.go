@@ -32,6 +32,7 @@ var testConfig = Config{
 	FaderChannel: gomcu.Channel3,
 	MuteKey:      gomcu.Rec2,
 	DimKey:       gomcu.Rec3,
+	MeterPostKey: gomcu.Rec4,
 	SpeakerKeys:  [domain.NumSpeakers]gomcu.Switch{gomcu.F1, gomcu.F2, gomcu.F3, gomcu.F4, gomcu.F5},
 }
 
@@ -58,6 +59,7 @@ func TestConnectRendersEverything(t *testing.T) {
 		SetLED{Key: gomcu.Select3, On: true},
 		SetLED{Key: gomcu.Rec2, On: true},  // mute
 		SetLED{Key: gomcu.Rec3, On: false}, // dim
+		SetLED{Key: gomcu.Rec4, On: false}, // pre/post
 		SetLED{Key: gomcu.F1, On: true},
 		SetLED{Key: gomcu.F2, On: false},
 		SetLED{Key: gomcu.F3, On: false},
@@ -166,5 +168,28 @@ func TestDefaultConfigMatchesStreamDeckProfile(t *testing.T) {
 	c := DefaultConfig()
 	if c.MuteKey != gomcu.Mute1 || c.DimKey != gomcu.Solo1 || c.SpeakerKeys[domain.Sub] != gomcu.Read {
 		t.Errorf("default mapping changed: %+v", c)
+	}
+}
+
+func TestMeterPostKey(t *testing.T) {
+	h := newHarness()
+	h.a.handle(Connected{Connected: true})
+	h.surf.take()
+
+	h.a.handle(KeyPressed{Key: gomcu.Rec4})
+	if !slices.Equal(h.cmds, []domain.Command{domain.ToggleMeterPost{}}) {
+		t.Fatalf("commands = %#v", h.cmds)
+	}
+
+	s := h.a.snap
+	s.State.Master.MeterPost, s.State.Master.Mute, s.State.Master.VolumeDB = true, false, -30
+	s.Levels = domain.Levels{LeftDB: -6, RightDB: -6}
+	h.snapshot(s)
+	if got := h.surf.take(); !slices.Contains(got, Command(SetLED{Key: gomcu.Rec4, On: true})) {
+		t.Errorf("pre/post LED not lit: %v", got)
+	}
+	h.a.sendMeter()
+	if got := h.surf.take(); !slices.Equal(got, []Command{SetMeter{Channel: gomcu.Channel3, Level: meterLevel(-36)}}) {
+		t.Errorf("post-fader meter sent %v, want the level at -36 dB", got)
 	}
 }

@@ -60,6 +60,9 @@ type Master struct {
 	VolumeDB int
 	// DimDB is the attenuation applied while Dim is on.
 	DimDB int
+	// MeterPost shows the meter after the volume (post-fader) instead of
+	// the level Focusrite Control reports (pre-fader).
+	MeterPost bool
 }
 
 // State is the persistent part of the controller: what the user set.
@@ -126,6 +129,23 @@ type Device struct {
 	Model        string
 	SerialNumber string
 	SampleRate   string
+}
+
+// MeterLevels is what meters show: the reported levels pre-fader, or with
+// MeterPost the levels after volume and dim, and silence while muted.
+func (s Snapshot) MeterLevels() Levels {
+	m := s.State.Master
+	if !m.MeterPost {
+		return s.Levels
+	}
+	if m.Mute {
+		return Silence
+	}
+	gain := float64(s.State.OutputGainDB())
+	return Levels{
+		LeftDB:  max(s.Levels.LeftDB+gain, SilenceDB),
+		RightDB: max(s.Levels.RightDB+gain, SilenceDB),
+	}
 }
 
 // Snapshot is everything the controller publishes. It is a plain value and

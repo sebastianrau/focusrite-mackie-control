@@ -234,3 +234,21 @@ func TestOSCRoundTrip(t *testing.T) {
 		t.Errorf("osc = %+v, enabled %t", got, on)
 	}
 }
+
+func TestMeterPostIsSaved(t *testing.T) {
+	path := tempPath(t)
+	s, _ := Open(path)
+	st := s.Get().State()
+	if st.Master.MeterPost {
+		t.Fatal("pre-fader must be the default")
+	}
+	st.Master.MeterPost = true
+	s.Update(func(c *Config) { c.SetState(st) })
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s2, _ := Open(path)
+	if !s2.Get().State().Master.MeterPost {
+		t.Error("meter_post was not saved")
+	}
+}
