@@ -266,3 +266,18 @@ func TestPrePostSwitch(t *testing.T) {
 		t.Error("the switch must have a green outline and green text")
 	}
 }
+
+// The PRE/POST switch must show its full label, never "P…".
+func TestPrePostLabelFits(t *testing.T) {
+	test.NewTempApp(t)
+	b := newTagButton("PRE", nil)
+	r := test.WidgetRenderer(b)
+	for _, text := range []string{"PRE", "POST"} {
+		b.setText(text)
+		b.Resize(b.MinSize())
+		r.Layout(b.Size())
+		if b.label.Text != text {
+			t.Errorf("label shows %q, want %q", b.label.Text, text)
+		}
+	}
+}
