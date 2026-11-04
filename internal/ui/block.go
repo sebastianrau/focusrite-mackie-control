@@ -94,14 +94,32 @@ func (b *blockButton) MinSize() fyne.Size { return b.min }
 
 // newTagButton is a small outlined button, like the meter's PRE/POST switch.
 func newTagButton(text string, tapped func()) *blockButton {
-	b := newBlockButton(text, fyne.TextAlignCenter, tapped)
-	b.bg.CornerRadius = 5
-	b.label.TextSize = 10
+	b := newTag(text)
+	b.tapped = tapped
 	// Wide enough for the longer label in the font actually used.
-	w := fyne.MeasureText("POST", b.label.TextSize, fyne.TextStyle{Bold: true}).Width
-	b.min = fyne.NewSize(max(40, w+14), 20)
+	b.min = fyne.NewSize(max(40, b.textWidth("POST")+14), 20)
 	b.style(color.Transparent, colGreen, colGreen, true)
 	return b
+}
+
+// newStatusTag looks like a tag button but only shows a state (Mute, Dim).
+// It is just wide enough for its text, so three tags fit the channel strip.
+func newStatusTag(text string) *blockButton {
+	b := newTag(text)
+	b.enabled = false
+	b.min = fyne.NewSize(b.textWidth(text)+6, 20)
+	return b
+}
+
+func newTag(text string) *blockButton {
+	b := newBlockButton(text, fyne.TextAlignCenter, nil)
+	b.bg.CornerRadius = 5
+	b.label.TextSize = 10
+	return b
+}
+
+func (b *blockButton) textWidth(s string) float32 {
+	return fyne.MeasureText(s, b.label.TextSize, fyne.TextStyle{Bold: true}).Width
 }
 
 func (b *blockButton) CreateRenderer() fyne.WidgetRenderer {
@@ -122,7 +140,7 @@ func (r *blockRenderer) Layout(size fyne.Size) {
 	}
 	avail := size.Width - x - 10
 	if b.align == fyne.TextAlignCenter {
-		avail = size.Width - 8 // centred text needs only a small inset
+		avail = size.Width - 2 // centred text needs only a small inset
 	}
 	b.label.Text = fit(b.text, avail, b.label)
 	ls := b.label.MinSize()

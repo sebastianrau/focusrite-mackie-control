@@ -69,8 +69,11 @@ func TestRenderFollowsState(t *testing.T) {
 	if idle.bg.StrokeWidth != 0 || idle.label.TextStyle.Bold {
 		t.Error("idle speaker must be plain")
 	}
-	if a.volume.Text != "-30" || a.volNote.Text != "" || a.fader.Value != -30 {
-		t.Errorf("volume = %q note %q fader %v", a.volume.Text, a.volNote.Text, a.fader.Value)
+	if a.volume.Text != "-30" || a.fader.Value != -30 {
+		t.Errorf("volume = %q fader %v", a.volume.Text, a.fader.Value)
+	}
+	if a.muteTag.label.Color != colTextDim || a.dimTag.bg.StrokeColor != colTextDim {
+		t.Error("Mute and Dim indicators must be grey when off")
 	}
 	if a.mute.bg.FillColor != colRaised {
 		t.Error("mute shown as on")
@@ -81,13 +84,13 @@ func TestRenderFollowsState(t *testing.T) {
 
 	s.State.Master.Dim = true
 	a.render(s)
-	if a.dim.bg.FillColor != colYellow || a.volNote.Text != "dimmed −20 dB" {
-		t.Errorf("dim: fill %v note %q", a.dim.bg.FillColor, a.volNote.Text)
+	if a.dim.bg.FillColor != colYellow || a.dimTag.bg.StrokeColor != colYellow || a.dimTag.label.Color != colYellow {
+		t.Errorf("dim: fill %v indicator %v", a.dim.bg.FillColor, a.dimTag.bg.StrokeColor)
 	}
 	s.State.Master.Mute = true
 	a.render(s)
-	if a.mute.bg.FillColor != colRed || a.volNote.Text != "muted" {
-		t.Errorf("mute: fill %v note %q", a.mute.bg.FillColor, a.volNote.Text)
+	if a.mute.bg.FillColor != colRed || a.muteTag.bg.StrokeColor != colRedText || a.muteTag.label.Color != colRedText {
+		t.Errorf("mute: fill %v indicator %v", a.mute.bg.FillColor, a.muteTag.bg.StrokeColor)
 	}
 }
 
@@ -99,6 +102,8 @@ func TestInputBecomesCommands(t *testing.T) {
 	test.Tap(a.speakers[domain.SpeakerD]) // disabled: ignored
 	test.Tap(a.mute)
 	test.Tap(a.dim)
+	test.Tap(a.muteTag) // indicators only
+	test.Tap(a.dimTag)
 	a.fader.SetValue(-12)
 
 	want := []domain.Command{
@@ -267,8 +272,8 @@ func TestPrePostSwitch(t *testing.T) {
 	}
 }
 
-// The PRE/POST switch must show its full label, never "P…".
-func TestPrePostLabelFits(t *testing.T) {
+// The tags must show their full label, never "P…".
+func TestTagLabelsFit(t *testing.T) {
 	test.NewTempApp(t)
 	b := newTagButton("PRE", nil)
 	r := test.WidgetRenderer(b)
@@ -279,5 +284,22 @@ func TestPrePostLabelFits(t *testing.T) {
 		if b.label.Text != text {
 			t.Errorf("label shows %q, want %q", b.label.Text, text)
 		}
+	}
+	for _, text := range []string{"MUTE", "DIM"} {
+		b := newStatusTag(text)
+		test.WidgetRenderer(b).Layout(b.MinSize())
+		if b.label.Text != text {
+			t.Errorf("label shows %q, want %q", b.label.Text, text)
+		}
+	}
+}
+
+// Mute, Dim and PRE/POST share one row in the channel strip.
+func TestTagRowFitsStrip(t *testing.T) {
+	test.NewTempApp(t)
+	w := newStatusTag("MUTE").MinSize().Width + newStatusTag("DIM").MinSize().Width +
+		newTagButton("PRE", nil).MinSize().Width + 2*3
+	if w > 128-20 {
+		t.Errorf("tag row is %.0f px, the strip has 108", w)
 	}
 }

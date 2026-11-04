@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"image/color"
 	"strconv"
 
@@ -47,8 +46,9 @@ type App struct {
 
 	volume   *canvas.Text
 	volBox   *fyne.Container // re-laid out when the number's width changes
-	volNote  *canvas.Text
 	prePost  *blockButton
+	muteTag  *blockButton
+	dimTag   *blockButton
 	fader    *Fader
 	meter    *Meter
 	speakers [domain.NumSpeakers]*blockButton
@@ -107,29 +107,25 @@ func (a *App) buildMain() {
 	a.window.Resize(fyne.NewSize(320, 440))
 }
 
-// channelStrip is the left column: fader and meter with the PRE/POST
-// switch, the volume below.
+// channelStrip is the left column: fader and meter, below them the Mute
+// and Dim indicators with the PRE/POST switch, and the volume.
 func (a *App) channelStrip() fyne.CanvasObject {
 	a.volume = canvas.NewText("", colText)
-	a.volume.TextSize = 30
+	a.volume.TextSize = 22
 	a.volume.TextStyle.Bold = true
 	unit := canvas.NewText("dB", colTextDim)
-	unit.TextSize = 13
-	a.volNote = canvas.NewText("", colYellow)
-	a.volNote.TextSize = 11
-	a.volNote.Alignment = fyne.TextAlignCenter
+	unit.TextSize = 11
 	a.volBox = container.NewCenter(container.NewHBox(a.volume, container.NewVBox(layout.NewSpacer(), unit)))
-	footer := container.NewVBox(a.volBox, a.volNote)
+
+	a.muteTag = newStatusTag("MUTE")
+	a.dimTag = newStatusTag("DIM")
+	a.prePost = newTagButton("PRE", func() { a.opts.Submit(domain.ToggleMeterPost{}) })
+	tags := container.NewCenter(container.New(layout.NewCustomPaddedHBoxLayout(3), a.muteTag, a.dimTag, a.prePost))
+	footer := container.NewVBox(tags, a.volBox)
 
 	a.fader = NewFader(func(db int) { a.opts.Submit(domain.SetVolume{DB: db}) })
 	a.meter = NewMeter()
-	a.prePost = newTagButton("PRE", func() { a.opts.Submit(domain.ToggleMeterPost{}) })
-	// The scale gets the same bottom space as the meter, so both stay aligned.
-	gap := canvas.NewRectangle(color.Transparent)
-	gap.SetMinSize(a.prePost.MinSize())
-	scale := container.NewBorder(nil, gap, nil, nil, newMeterScale())
-	meter := container.NewBorder(nil, container.NewCenter(a.prePost), nil, nil, a.meter)
-	center := container.NewHBox(layout.NewSpacer(), a.fader, scale, meter, layout.NewSpacer())
+	center := container.NewHBox(layout.NewSpacer(), a.fader, newMeterScale(), a.meter, layout.NewSpacer())
 
 	bg := canvas.NewRectangle(colPanel)
 	bg.CornerRadius = 14
@@ -249,14 +245,8 @@ func (a *App) render(s domain.Snapshot) {
 	if setText(a.volume, strconv.Itoa(st.Master.VolumeDB), pick(active, colText, colTextDisabled)) {
 		a.volBox.Refresh()
 	}
-	switch {
-	case st.Master.Mute:
-		setText(a.volNote, "muted", colRedText)
-	case st.Master.Dim:
-		setText(a.volNote, fmt.Sprintf("dimmed −%d dB", st.Master.DimDB), colYellow)
-	default:
-		setText(a.volNote, "", colYellow)
-	}
+	styleStatusTag(a.muteTag, st.Master.Mute, active, colRedText)
+	styleStatusTag(a.dimTag, st.Master.Dim, active, colYellow)
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
 	ml := s.MeterLevels()
@@ -314,6 +304,18 @@ func styleSwitch(b *blockButton, on, active bool, fill, text color.Color) {
 		b.style(colRaised, nil, colTextIdle, true)
 	}
 	b.setEnabled(active)
+}
+
+// styleStatusTag outlines an indicator in its colour when on, grey when off.
+func styleStatusTag(b *blockButton, on, active bool, col color.Color) {
+	switch {
+	case !active:
+		b.style(color.Transparent, colTextDisabled, colTextDisabled, true)
+	case on:
+		b.style(color.Transparent, col, col, true)
+	default:
+		b.style(color.Transparent, colTextDim, colTextDim, true)
+	}
 }
 
 func (a *App) setStatus(text string, dot, fg color.Color) {

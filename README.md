@@ -85,9 +85,9 @@ The app controls the gain, mute and name of the assigned outputs.
 
 ### Main window
 
-- **Channel strip** (left): the volume fader and the level meter with its
-  **PRE/POST** switch, and below them the volume in dB, with *muted* or
-  *dimmed* when active.
+- **Channel strip** (left): the volume fader and the level meter, below them
+  the **MUTE** and **DIM** indicators (red and yellow when on), the meter's
+  **PRE/POST** switch and the volume in dB.
 - **Speakers** (right): click a speaker to switch it on or off. The active one
   is outlined in green. Disabled speakers are shown grey.
 - **MUTE** and **DIM**: red and yellow when on.
