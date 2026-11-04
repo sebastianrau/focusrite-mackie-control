@@ -158,3 +158,12 @@ type ToggleScene struct{}
 func (ToggleScene) apply(s *Snapshot) {
 	SelectScene{ID: (s.State.Scene + 1) % SceneID(NumScenes)}.apply(s)
 }
+
+// StoreScene stores the live state in a scene without switching to it.
+type StoreScene struct{ ID SceneID }
+
+func (c StoreScene) apply(s *Snapshot) {
+	if c.ID.Valid() {
+		s.State.Scenes[c.ID] = s.State.CurrentScene()
+	}
+}

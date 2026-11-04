@@ -283,3 +283,14 @@ func TestSceneSkipsDisabledSpeakers(t *testing.T) {
 		t.Error("invalid scene accepted")
 	}
 }
+
+// StoreScene copies the live state into a scene without switching to it.
+func TestStoreScene(t *testing.T) {
+	s := Snapshot{State: DefaultState()}
+	s = Apply(s, SetMute{On: false})
+	s = Apply(s, SetVolume{DB: -20})
+	s = Apply(s, StoreScene{ID: SceneB})
+	if s.State.Scene != SceneA || s.State.Scenes[SceneB] != s.State.CurrentScene() {
+		t.Errorf("scene %v, B = %+v", s.State.Scene, s.State.Scenes[SceneB])
+	}
+}

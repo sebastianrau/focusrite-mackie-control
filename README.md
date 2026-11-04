@@ -122,6 +122,9 @@ macOS the app has no Dock icon; it lives in the menu bar.
   Every change, from the window, the interface, a control surface or OSC,
   goes into the active scene; switching restores the other one. Disabled
   speakers stay off. The meter's PRE/POST setting is not part of a scene.
+  To copy the current setup into the other scene without switching, hold
+  its button for 10 seconds: a bar fills up and the button flashes when it
+  is stored.
 - **The meter** shows the levels Focusrite Control reports for the first
   selected speaker. **PRE** (default) shows them before the volume; **POST**
   applies volume and dim, and the meter is silent while muted. Click the

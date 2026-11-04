@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
@@ -345,5 +346,36 @@ func TestSceneButtons(t *testing.T) {
 	r.Layout(fyne.NewSize(100, 44))
 	if got := sa.letters[domain.Sub].Position().X; got != x {
 		t.Errorf("speaker letters moved with the volume: %v -> %v", x, got)
+	}
+}
+
+// Holding a scene button stores the live state instead of switching, and
+// its release is not a tap.
+func TestSceneLongPressStores(t *testing.T) {
+	a, cmds := newTestApp(t)
+	a.render(domain.Snapshot{State: domain.DefaultState(), Device: connected()})
+	b := a.scenes[domain.SceneB]
+	b.Resize(fyne.NewSize(100, 44))
+
+	// The test driver runs animations to their end at once: the press is a
+	// complete hold.
+	b.MouseDown(&desktop.MouseEvent{})
+	b.MouseUp(&desktop.MouseEvent{})
+	test.Tap(b)
+	if len(*cmds) != 1 || (*cmds)[0] != (domain.StoreScene{ID: domain.SceneB}) {
+		t.Fatalf("commands = %#v", *cmds)
+	}
+	if b.bar.Visible() {
+		t.Error("progress bar left visible")
+	}
+
+	test.Tap(b) // a short press is a tap
+	if len(*cmds) != 2 || (*cmds)[1] != (domain.SelectScene{ID: domain.SceneB}) {
+		t.Errorf("commands = %#v", *cmds)
+	}
+
+	b.showProgress(0.5)
+	if !b.bar.Visible() || b.bar.Size().Width != 42 {
+		t.Errorf("progress bar %v visible %t", b.bar.Size(), b.bar.Visible())
 	}
 }

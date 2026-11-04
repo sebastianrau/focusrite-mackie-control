@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -12,13 +13,24 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
 )
 
+// storeHold is how long a scene button must be held to store the live state
+// in its scene.
+const storeHold = 10 * time.Second
+
 // sceneButton recalls a scene and shows what it holds: the volume, Mute and
 // Dim, and below them the speakers, each letter at a fixed place and green
-// when the speaker is on.
+// when the speaker is on. Holding it stores the live state in the scene; a
+// bar shows the progress and the button flashes when it is done.
 type sceneButton struct {
 	widget.BaseWidget
 	tapped  func()
+	stored  func()
 	enabled bool
+
+	hold  *fyne.Animation
+	held  bool // the press stored the scene, so its release is no tap
+	bar   *canvas.Rectangle
+	flash *canvas.Rectangle
 
 	bg      *canvas.Rectangle
 	key     *canvas.Text
@@ -28,7 +40,7 @@ type sceneButton struct {
 	letters [domain.NumSpeakers]*canvas.Text
 }
 
-func newSceneButton(id domain.SceneID, tapped func()) *sceneButton {
+func newSceneButton(id domain.SceneID, tapped, stored func()) *sceneButton {
 	small := func(s string, c color.Color) *canvas.Text {
 		t := canvas.NewText(s, c)
 		t.TextSize = 9
@@ -38,7 +50,10 @@ func newSceneButton(id domain.SceneID, tapped func()) *sceneButton {
 	}
 	b := &sceneButton{
 		tapped:  tapped,
+		stored:  stored,
 		enabled: true,
+		bar:     canvas.NewRectangle(colGreen),
+		flash:   canvas.NewRectangle(color.Transparent),
 		bg:      canvas.NewRectangle(colPanel),
 		key:     canvas.NewText(string(rune('A'+id)), colTextDim),
 		volume:  canvas.NewText("", colTextIdle),
@@ -46,6 +61,9 @@ func newSceneButton(id domain.SceneID, tapped func()) *sceneButton {
 		dim:     small("D", colYellow),
 	}
 	b.bg.CornerRadius = 10
+	b.flash.CornerRadius = 10
+	b.bar.CornerRadius = 1
+	b.bar.Hide()
 	b.key.TextSize = 12
 	b.volume.TextSize = 14
 	for i := range b.letters {
@@ -116,9 +134,69 @@ func show(o fyne.CanvasObject, on bool) bool {
 }
 
 func (b *sceneButton) Tapped(*fyne.PointEvent) {
+	if b.held {
+		b.held = false
+		return
+	}
 	if b.enabled && b.tapped != nil {
 		b.tapped()
 	}
+}
+
+func (b *sceneButton) MouseDown(*desktop.MouseEvent) {
+	if !b.enabled {
+		return
+	}
+	b.held = false
+	b.stopHold()
+	b.hold = fyne.NewAnimation(storeHold, func(p float32) {
+		b.showProgress(p)
+		if p >= 1 {
+			b.store()
+		}
+	})
+	b.hold.Curve = fyne.AnimationLinear
+	b.hold.Start()
+}
+
+func (b *sceneButton) MouseUp(*desktop.MouseEvent) { b.stopHold() }
+
+func (b *sceneButton) stopHold() {
+	if b.hold != nil {
+		b.hold.Stop()
+		b.hold = nil
+	}
+	b.showProgress(0)
+}
+
+// store runs when the button was held long enough.
+func (b *sceneButton) store() {
+	b.held = true
+	b.hold = nil
+	b.showProgress(0)
+	if b.stored != nil {
+		b.stored()
+	}
+	flash := canvas.NewColorRGBAAnimation(color.NRGBA{R: 0x3d, G: 0xdc, B: 0x84, A: 0x90}, color.Transparent,
+		400*time.Millisecond, func(c color.Color) {
+			b.flash.FillColor = c
+			b.flash.Refresh()
+		})
+	flash.Start()
+}
+
+// showProgress draws the hold bar at fraction p of the width; 0 hides it.
+func (b *sceneButton) showProgress(p float32) {
+	if p <= 0 {
+		if b.bar.Visible() {
+			b.bar.Hide()
+		}
+		return
+	}
+	size := b.Size()
+	b.bar.Move(fyne.NewPos(8, size.Height-5))
+	b.bar.Resize(fyne.NewSize((size.Width-16)*p, 2))
+	b.bar.Show()
 }
 
 func (b *sceneButton) Cursor() desktop.Cursor {
@@ -142,6 +220,7 @@ const (
 func (r *sceneRenderer) Layout(size fyne.Size) {
 	b := r.b
 	b.bg.Resize(size)
+	b.flash.Resize(size)
 	place := func(o fyne.CanvasObject, x, y float32) {
 		s := o.MinSize()
 		o.Move(fyne.NewPos(x, y))
@@ -180,7 +259,7 @@ func (r *sceneRenderer) Refresh() {
 }
 
 func (r *sceneRenderer) Objects() []fyne.CanvasObject {
-	objs := []fyne.CanvasObject{r.b.bg, r.b.key, r.b.volume, r.b.mute, r.b.dim}
+	objs := []fyne.CanvasObject{r.b.bg, r.b.flash, r.b.bar, r.b.key, r.b.volume, r.b.mute, r.b.dim}
 	for _, l := range r.b.letters {
 		objs = append(objs, l)
 	}

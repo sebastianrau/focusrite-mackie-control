@@ -98,7 +98,9 @@ func (a *App) buildMain() {
 	scenes := container.NewGridWithColumns(domain.NumScenes)
 	for i := range a.scenes {
 		id := domain.SceneID(i)
-		a.scenes[i] = newSceneButton(id, func() { a.opts.Submit(domain.SelectScene{ID: id}) })
+		a.scenes[i] = newSceneButton(id,
+			func() { a.opts.Submit(domain.SelectScene{ID: id}) },
+			func() { a.opts.Submit(domain.StoreScene{ID: id}) })
 		scenes.Add(a.scenes[i])
 	}
 
