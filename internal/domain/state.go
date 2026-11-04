@@ -65,10 +65,42 @@ type Master struct {
 	MeterPost bool
 }
 
+// SceneID identifies one of the two monitor scenes.
+type SceneID int
+
+const (
+	SceneA SceneID = iota
+	SceneB
+
+	NumScenes = int(SceneB) + 1
+)
+
+func (id SceneID) Valid() bool { return id >= 0 && int(id) < NumScenes }
+
+func (id SceneID) String() string {
+	if id.Valid() {
+		return fmt.Sprintf("Scene %c", 'A'+rune(id))
+	}
+	return fmt.Sprintf("SceneID(%d)", int(id))
+}
+
+// Scene is what switching between A and B recalls: the selected speakers,
+// Mute, Dim and the volume.
+type Scene struct {
+	Mute     bool
+	Dim      bool
+	VolumeDB int
+	Selected [NumSpeakers]bool
+}
+
 // State is the persistent part of the controller: what the user set.
 type State struct {
 	Master   Master
 	Speakers [NumSpeakers]Speaker
+	// Scene is the active scene. It always mirrors the live state, which
+	// Apply keeps in sync.
+	Scene  SceneID
+	Scenes [NumScenes]Scene
 }
 
 func DefaultState() State {
@@ -81,7 +113,26 @@ func DefaultState() State {
 	s.Speakers[SpeakerA].Selected = true
 	s.Speakers[SpeakerD].Disabled = true
 	s.Speakers[Sub].Selected = true
+	s.Scenes[SceneA] = s.CurrentScene()
+	s.Scenes[SceneB] = s.CurrentScene()
 	return s
+}
+
+// CurrentScene is the live state as a scene.
+func (s State) CurrentScene() Scene {
+	sc := Scene{Mute: s.Master.Mute, Dim: s.Master.Dim, VolumeDB: s.Master.VolumeDB}
+	for _, id := range Speakers {
+		sc.Selected[id] = s.Speakers[id].Selected
+	}
+	return sc
+}
+
+// recall makes sc the live state. Disabled speakers stay off.
+func (s *State) recall(sc Scene) {
+	s.Master.Mute, s.Master.Dim, s.Master.VolumeDB = sc.Mute, sc.Dim, sc.VolumeDB
+	for _, id := range Speakers {
+		s.Speakers[id].Selected = sc.Selected[id] && !s.Speakers[id].Disabled
+	}
 }
 
 // OutputGainDB is the gain every enabled output is set to: the master volume

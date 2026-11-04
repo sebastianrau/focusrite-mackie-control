@@ -26,6 +26,9 @@ const (
 	AddrMeterPost       = "/monitor/meter/post" // int 0/1: meter after the volume
 	AddrMeterPostToggle = "/monitor/meter/post/toggle"
 
+	AddrScene       = "/monitor/scene" // int 0/1: scene A or B
+	AddrSceneToggle = "/monitor/scene/toggle"
+
 	AddrDeviceConnected = "/monitor/device/connected" // int 0/1, out only
 	AddrDeviceModel     = "/monitor/device/model"     // string, out only
 
@@ -90,6 +93,7 @@ func stateMessages(s domain.Snapshot) []Message {
 		{AddrMute, []any{boolInt(st.Master.Mute)}},
 		{AddrDim, []any{boolInt(st.Master.Dim)}},
 		{AddrMeterPost, []any{boolInt(st.Master.MeterPost)}},
+		{AddrScene, []any{int32(st.Scene)}},
 		{AddrDeviceConnected, []any{boolInt(s.Device.ServerConnected && s.Device.Present)}},
 		{AddrDeviceModel, []any{s.Device.Model}},
 	}
@@ -149,6 +153,18 @@ func command(m Message) (domain.Command, bool) {
 	case AddrMeterPostToggle:
 		if on, ok := m.On(); ok && on {
 			return domain.ToggleMeterPost{}, true
+		}
+	case AddrScene:
+		if on, ok := m.On(); ok && len(m.Args) > 0 {
+			id := domain.SceneA
+			if on {
+				id = domain.SceneB
+			}
+			return domain.SelectScene{ID: id}, true
+		}
+	case AddrSceneToggle:
+		if on, ok := m.On(); ok && on {
+			return domain.ToggleScene{}, true
 		}
 	default:
 		id, rest, ok := parseSpeaker(m.Address)

@@ -10,8 +10,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// blockButton is a filled, rounded button whose fill shows its state:
-// Mute, Dim and the speaker rows.
+// blockButton is a rounded button whose fill or outline shows its state:
+// the speaker rows and the tags.
 type blockButton struct {
 	widget.BaseWidget
 	tapped  func()
@@ -92,27 +92,15 @@ func (b *blockButton) Cursor() desktop.Cursor {
 
 func (b *blockButton) MinSize() fyne.Size { return b.min }
 
-// newTagButton is a small outlined button, like the meter's PRE/POST switch.
+// newTagButton is a small outlined button: Mute, Dim and the meter's
+// PRE/POST switch.
+// All tags have the same size, wide enough for the longest label, so they
+// fit side by side in the channel strip.
 func newTagButton(text string, tapped func()) *blockButton {
-	b := newTag(text)
-	b.tapped = tapped
-	b.style(color.Transparent, colGreen, colGreen, true)
-	return b
-}
-
-// newStatusTag looks like a tag button but only shows a state (Mute, Dim).
-func newStatusTag(text string) *blockButton {
-	b := newTag(text)
-	b.enabled = false
-	return b
-}
-
-// newTag makes all tags the same size, wide enough for the longest label,
-// so Mute, Dim and PRE/POST fit side by side in the channel strip.
-func newTag(text string) *blockButton {
-	b := newBlockButton(text, fyne.TextAlignCenter, nil)
+	b := newBlockButton(text, fyne.TextAlignCenter, tapped)
 	b.bg.CornerRadius = 5
 	b.label.TextSize = 9
+	b.style(color.Transparent, colGreen, colGreen, true)
 	var w float32
 	for _, s := range []string{"MUTE", "DIM", "PRE", "POST"} {
 		w = max(w, fyne.MeasureText(s, b.label.TextSize, fyne.TextStyle{Bold: true}).Width)

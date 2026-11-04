@@ -7,7 +7,7 @@ A monitor controller for Focusrite Scarlett interfaces: switch between your
 speakers, set the monitor volume, dim and mute, from your desktop, a control
 surface, a Stream Deck or any OSC app.
 
-<p align="center"><img src="docs/images/main-window.png" width="320" alt="The main window: a channel strip with volume, fader and level meter on the left, the speaker list with Mute and Dim on the right"></p>
+<p align="center"><img src="docs/images/main-window.png" width="320" alt="The main window: a channel strip with fader, level meter, Mute, Dim and PRE/POST on the left, the speaker list and the scenes A and B on the right"></p>
 
 ## Features
 
@@ -15,6 +15,8 @@ surface, a Stream Deck or any OSC app.
   Exclusive speakers turn the others off; the sub is switched on its own.
 - **Volume, Dim and Mute** for all assigned outputs, with an adjustable dim
   amount.
+- **Scenes A and B:** two complete monitor setups (speakers, Mute, Dim,
+  volume), switched with one click.
 - **Level meter** for the selected speakers, pre- or post-fader.
 - **Many ways to control it, all in sync:** the app window, the menu bar,
   a Mackie Control (MCU) surface, a Stream Deck, OSC apps such as TouchOSC,
@@ -86,11 +88,12 @@ The app controls the gain, mute and name of the assigned outputs.
 ### Main window
 
 - **Channel strip** (left): the volume fader and the level meter, below them
-  the **MUTE** and **DIM** indicators (red and yellow when on), the meter's
-  **PRE/POST** switch and the volume in dB.
+  **MUTE** and **DIM** (red and yellow when on), the meter's **PRE/POST**
+  switch and the volume in dB.
 - **Speakers** (right): click a speaker to switch it on or off. The active one
   is outlined in green. Disabled speakers are shown grey.
-- **MUTE** and **DIM**: red and yellow when on.
+- **Scenes A and B** (bottom right): click to switch. Each shows its volume,
+  *M* and *D* for Mute and Dim, and its speakers: green when on.
 - **Status line**: the connected interface. A yellow dot means Focusrite
   Control runs but the interface is missing; a grey dot means Focusrite
   Control is not reachable. The controls are locked until both are there.
@@ -103,7 +106,8 @@ The menu bar icon shows the monitor state at a glance:
 
 <p align="center"><img src="docs/images/menu-bar-icons.png" width="330" alt="Menu bar icon: a fader with its cap up for normal, down for Dim, crossed out for Mute, on a dark and a light menu bar"></p>
 
-Its menu has **Show**, **Dim**, **Mute**, **Configuration** and **Exit**. On
+Its menu has **Show**, **Dim**, **Mute**, **Scene A**, **Scene B**,
+**Configuration** and **Exit**. On
 macOS the app has no Dock icon; it lives in the menu bar.
 
 ### Speakers, volume, Dim and Mute
@@ -114,6 +118,10 @@ macOS the app has no Dock icon; it lives in the menu bar.
 - **Volume** applies to all enabled outputs, from −127 dB to 0 dB.
 - **Dim** lowers the volume by the dim amount (20 dB by default).
 - **Mute** mutes all outputs.
+- **Scenes:** A and B each remember the speakers, Mute, Dim and the volume.
+  Every change, from the window, the interface, a control surface or OSC,
+  goes into the active scene; switching restores the other one. Disabled
+  speakers stay off. The meter's PRE/POST setting is not part of a scene.
 - **The meter** shows the levels Focusrite Control reports for the first
   selected speaker. **PRE** (default) shows them before the volume; **POST**
   applies volume and dim, and the meter is silent while muted. Click the
@@ -127,7 +135,7 @@ once; only the connection whose settings changed reconnects.
 | Section | Settings |
 | ------- | -------- |
 | **Monitor Controller** | Dim amount; per speaker *Disabled* and *Exclusive*. |
-| **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim, the meter's Pre/Post switch and each speaker. |
+| **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim, the meter's Pre/Post switch, Scene A/B and each speaker. |
 | **Focusrite** | The interface, and which stereo output each speaker uses. The monitor Mute and Dim controls of the interface are linked automatically. |
 | **OSC** | OSC server on/off, its port, access from other devices, and targets that always receive the state. |
 
@@ -146,6 +154,7 @@ Default mapping, matching the Stream Deck profile:
 | Mute | Mute 1 |
 | Dim | Solo 1 |
 | Meter pre/post | F5 (lit when post) |
+| Scene A/B | F6 (lit on B) |
 | Speaker A–D | Trim, Touch, Write, F4 |
 | Sub | Read |
 
@@ -156,7 +165,7 @@ select button of the volume fader moves the fader to the current volume.
 
 The app runs an OSC server on UDP port 9000, reachable from this computer
 only unless you allow other devices. Any OSC client can switch speakers, set
-volume, Dim and Mute, and receive the state, the speaker names and the meter.
+volume, Dim and Mute, change the scene, and receive the state, the speaker names and the meter.
 
 - Address space and examples: [docs/osc.md](docs/osc.md)
 - Ready-made TouchOSC layout and setup: [examples/touchosc](examples/touchosc/)
@@ -227,7 +236,7 @@ CI builds and tests on macOS, Windows and Linux. Pushing a tag (for example
 
 | Package | Role |
 | ------- | ---- |
-| `internal/domain` | The state and every rule as pure functions: exclusive speakers, dim, volume limits, meter source. |
+| `internal/domain` | The state and every rule as pure functions: exclusive speakers, dim, volume limits, scenes, meter source. |
 | `internal/controller` | Applies commands one at a time on a single goroutine and publishes each new state as a snapshot. A slow subscriber only gets the latest snapshot and never blocks the others. |
 | `internal/focusrite` | Client and adapter for Focusrite Control; `protocol` is its XML protocol, tested with real messages from the 18i20 and 4i4. |
 | `internal/mcu` | MIDI connection and adapter for Mackie Control surfaces. |

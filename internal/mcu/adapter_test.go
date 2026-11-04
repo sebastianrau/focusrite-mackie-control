@@ -33,6 +33,7 @@ var testConfig = Config{
 	MuteKey:      gomcu.Rec2,
 	DimKey:       gomcu.Rec3,
 	MeterPostKey: gomcu.Rec4,
+	SceneKey:     gomcu.Rec5,
 	SpeakerKeys:  [domain.NumSpeakers]gomcu.Switch{gomcu.F1, gomcu.F2, gomcu.F3, gomcu.F4, gomcu.F5},
 }
 
@@ -60,6 +61,7 @@ func TestConnectRendersEverything(t *testing.T) {
 		SetLED{Key: gomcu.Rec2, On: true},  // mute
 		SetLED{Key: gomcu.Rec3, On: false}, // dim
 		SetLED{Key: gomcu.Rec4, On: false}, // pre/post
+		SetLED{Key: gomcu.Rec5, On: false}, // scene B
 		SetLED{Key: gomcu.F1, On: true},
 		SetLED{Key: gomcu.F2, On: false},
 		SetLED{Key: gomcu.F3, On: false},
@@ -191,5 +193,25 @@ func TestMeterPostKey(t *testing.T) {
 	h.a.sendMeter()
 	if got := h.surf.take(); !slices.Equal(got, []Command{SetMeter{Channel: gomcu.Channel3, Level: meterLevel(-36)}}) {
 		t.Errorf("post-fader meter sent %v, want the level at -36 dB", got)
+	}
+}
+
+func TestSceneKey(t *testing.T) {
+	h := newHarness()
+	h.a.handle(Connected{Connected: true})
+	h.surf.take()
+
+	h.a.handle(KeyPressed{Key: gomcu.Rec5})
+	if !slices.Equal(h.cmds, []domain.Command{domain.ToggleScene{}}) {
+		t.Fatalf("commands = %#v", h.cmds)
+	}
+	s := h.a.snap
+	s.State.Scene = domain.SceneB
+	h.snapshot(s)
+	if got := h.surf.take(); !slices.Contains(got, Command(SetLED{Key: gomcu.Rec5, On: true})) {
+		t.Errorf("scene LED not lit on B: %v", got)
+	}
+	if DefaultConfig().SceneKey != gomcu.F6 {
+		t.Error("default scene key must be F6")
 	}
 }

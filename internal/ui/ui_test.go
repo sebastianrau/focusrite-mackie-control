@@ -36,7 +36,7 @@ func TestRenderWithoutInterface(t *testing.T) {
 	a, _ := newTestApp(t)
 	a.render(domain.Snapshot{State: domain.DefaultState(), Levels: domain.Silence})
 
-	if a.speakers[domain.SpeakerA].enabled || a.mute.enabled || !a.fader.Disabled() {
+	if a.speakers[domain.SpeakerA].enabled || a.mute.enabled || a.scenes[domain.SceneA].enabled || !a.fader.Disabled() {
 		t.Error("controls must be locked without an interface")
 	}
 	if a.status.Text != infoNoServer || a.dot.FillColor != colTextDisabled {
@@ -72,11 +72,8 @@ func TestRenderFollowsState(t *testing.T) {
 	if a.volume.Text != "-30" || a.fader.Value != -30 {
 		t.Errorf("volume = %q fader %v", a.volume.Text, a.fader.Value)
 	}
-	if a.muteTag.label.Color != colTextDim || a.dimTag.bg.StrokeColor != colTextDim {
-		t.Error("Mute and Dim indicators must be grey when off")
-	}
-	if a.mute.bg.FillColor != colRaised {
-		t.Error("mute shown as on")
+	if a.mute.label.Color != colTextDim || a.dim.bg.StrokeColor != colTextDim {
+		t.Error("Mute and Dim must be grey when off")
 	}
 	if a.status.Text != "Scarlett 18i20 (3rd Gen)" || a.dot.FillColor != colGreen {
 		t.Errorf("status = %q", a.status.Text)
@@ -84,13 +81,13 @@ func TestRenderFollowsState(t *testing.T) {
 
 	s.State.Master.Dim = true
 	a.render(s)
-	if a.dim.bg.FillColor != colYellow || a.dimTag.bg.StrokeColor != colYellow || a.dimTag.label.Color != colYellow {
-		t.Errorf("dim: fill %v indicator %v", a.dim.bg.FillColor, a.dimTag.bg.StrokeColor)
+	if a.dim.bg.StrokeColor != colYellow || a.dim.label.Color != colYellow {
+		t.Errorf("dim: outline %v", a.dim.bg.StrokeColor)
 	}
 	s.State.Master.Mute = true
 	a.render(s)
-	if a.mute.bg.FillColor != colRed || a.muteTag.bg.StrokeColor != colRedText || a.muteTag.label.Color != colRedText {
-		t.Errorf("mute: fill %v indicator %v", a.mute.bg.FillColor, a.muteTag.bg.StrokeColor)
+	if a.mute.bg.StrokeColor != colRedText || a.mute.label.Color != colRedText {
+		t.Errorf("mute: outline %v", a.mute.bg.StrokeColor)
 	}
 }
 
@@ -102,14 +99,14 @@ func TestInputBecomesCommands(t *testing.T) {
 	test.Tap(a.speakers[domain.SpeakerD]) // disabled: ignored
 	test.Tap(a.mute)
 	test.Tap(a.dim)
-	test.Tap(a.muteTag) // indicators only
-	test.Tap(a.dimTag)
+	test.Tap(a.scenes[domain.SceneB])
 	a.fader.SetValue(-12)
 
 	want := []domain.Command{
 		domain.ToggleSpeaker{ID: domain.SpeakerB},
 		domain.ToggleMute{},
 		domain.ToggleDim{},
+		domain.SelectScene{ID: domain.SceneB},
 		domain.SetVolume{DB: -12},
 	}
 	if len(*cmds) != len(want) {
@@ -286,7 +283,7 @@ func TestTagLabelsFit(t *testing.T) {
 		}
 	}
 	for _, text := range []string{"MUTE", "DIM"} {
-		b := newStatusTag(text)
+		b := newTagButton(text, nil)
 		test.WidgetRenderer(b).Layout(b.MinSize())
 		if b.label.Text != text {
 			t.Errorf("label shows %q, want %q", b.label.Text, text)
@@ -298,10 +295,55 @@ func TestTagLabelsFit(t *testing.T) {
 func TestTagRowFitsStrip(t *testing.T) {
 	test.NewTempApp(t)
 	tag := newTagButton("PRE", nil).MinSize()
-	if newStatusTag("MUTE").MinSize() != tag || newStatusTag("DIM").MinSize() != tag {
+	if newTagButton("MUTE", nil).MinSize() != tag || newTagButton("DIM", nil).MinSize() != tag {
 		t.Error("all tags must be the same size")
 	}
 	if w := 3*tag.Width + 2*3; w > 128-20 {
 		t.Errorf("tag row is %.0f px, the strip has 108", w)
+	}
+}
+
+// A scene button shows the volume, Mute and Dim, and the speakers at fixed
+// places: green when on, hidden when disabled.
+func TestSceneButtons(t *testing.T) {
+	a, _ := newTestApp(t)
+	s := domain.Snapshot{State: domain.DefaultState(), Device: connected()}
+	s.State.Scenes[domain.SceneB] = domain.Scene{Dim: true, VolumeDB: -12,
+		Selected: [domain.NumSpeakers]bool{domain.SpeakerC: true}}
+	s.State.Master.Mute, s.State.Master.VolumeDB = false, -24
+	s.State.Scenes[domain.SceneA] = s.State.CurrentScene()
+	a.render(s)
+
+	sa, sb := a.scenes[domain.SceneA], a.scenes[domain.SceneB]
+	if sa.bg.StrokeColor != colGreen || sb.bg.StrokeColor != nil {
+		t.Error("only the active scene must be outlined")
+	}
+	if sa.volume.Text != "-24" || sb.volume.Text != "-12" {
+		t.Errorf("volumes %q %q", sa.volume.Text, sb.volume.Text)
+	}
+	if sa.mute.Visible() || sa.dim.Visible() || sb.mute.Visible() || !sb.dim.Visible() {
+		t.Error("M and D must show Mute and Dim of their scene")
+	}
+	for i, l := range sb.letters {
+		on := domain.SpeakerID(i) == domain.SpeakerC
+		if (l.Color == colGreen) != on {
+			t.Errorf("scene B letter %s green %t", l.Text, l.Color == colGreen)
+		}
+	}
+	if sa.letters[domain.SpeakerA].Color != colGreen || sa.letters[domain.Sub].Color != colGreen {
+		t.Error("scene A must show A and S on")
+	}
+	if sa.letters[domain.SpeakerD].Visible() || !sa.letters[domain.SpeakerC].Visible() {
+		t.Error("only the disabled speaker D must be hidden")
+	}
+	r := test.WidgetRenderer(sa)
+	r.Layout(fyne.NewSize(100, 44))
+	x := sa.letters[domain.Sub].Position().X
+	s.State.Scenes[domain.SceneA].VolumeDB = -127
+	s.State.Master.VolumeDB = -127
+	a.render(s)
+	r.Layout(fyne.NewSize(100, 44))
+	if got := sa.letters[domain.Sub].Position().X; got != x {
+		t.Errorf("speaker letters moved with the volume: %v -> %v", x, got)
 	}
 }

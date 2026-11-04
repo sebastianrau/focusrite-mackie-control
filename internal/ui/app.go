@@ -47,13 +47,12 @@ type App struct {
 	volume   *canvas.Text
 	volBox   *fyne.Container // re-laid out when the number's width changes
 	prePost  *blockButton
-	muteTag  *blockButton
-	dimTag   *blockButton
 	fader    *Fader
 	meter    *Meter
 	speakers [domain.NumSpeakers]*blockButton
-	mute     *blockButton
+	mute     *blockButton // tags in the channel strip
 	dim      *blockButton
+	scenes   [domain.NumScenes]*sceneButton
 	dot      *canvas.Rectangle
 	status   *canvas.Text
 	statBox  *fyne.Container
@@ -61,6 +60,7 @@ type App struct {
 	tray      *fyne.Menu
 	trayMute  *fyne.MenuItem
 	trayDim   *fyne.MenuItem
+	trayScene [domain.NumScenes]*fyne.MenuItem
 	trayState fyne.Resource
 
 	stop chan struct{}
@@ -95,20 +95,22 @@ func newApp(fa fyne.App, opts Options) *App {
 }
 
 func (a *App) buildMain() {
-	a.mute = newBlockButton("MUTE", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleMute{}) })
-	a.dim = newBlockButton("DIM", fyne.TextAlignCenter, func() { a.opts.Submit(domain.ToggleDim{}) })
-	a.mute.label.TextSize, a.dim.label.TextSize = 13, 13
-	switches := container.NewGridWithColumns(2, a.mute, a.dim)
+	scenes := container.NewGridWithColumns(domain.NumScenes)
+	for i := range a.scenes {
+		id := domain.SceneID(i)
+		a.scenes[i] = newSceneButton(id, func() { a.opts.Submit(domain.SelectScene{ID: id}) })
+		scenes.Add(a.scenes[i])
+	}
 
-	right := container.NewBorder(nil, switches, nil, nil, a.speakerList())
+	right := container.NewBorder(nil, scenes, nil, nil, a.speakerList())
 	a.window.SetContent(container.NewBorder(nil, a.statusBar(), nil, nil,
 		container.New(layout.NewCustomPaddedLayout(4, 10, 10, 10),
 			container.NewBorder(nil, nil, a.channelStrip(), nil, right))))
 	a.window.Resize(fyne.NewSize(320, 440))
 }
 
-// channelStrip is the left column: fader and meter, below them the Mute
-// and Dim indicators with the PRE/POST switch, and the volume.
+// channelStrip is the left column: fader and meter, below them the Mute,
+// Dim and PRE/POST switches, and the volume.
 func (a *App) channelStrip() fyne.CanvasObject {
 	a.volume = canvas.NewText("", colText)
 	a.volume.TextSize = 22
@@ -117,10 +119,10 @@ func (a *App) channelStrip() fyne.CanvasObject {
 	unit.TextSize = 11
 	a.volBox = container.NewCenter(container.NewHBox(a.volume, container.NewVBox(layout.NewSpacer(), unit)))
 
-	a.muteTag = newStatusTag("MUTE")
-	a.dimTag = newStatusTag("DIM")
+	a.mute = newTagButton("MUTE", func() { a.opts.Submit(domain.ToggleMute{}) })
+	a.dim = newTagButton("DIM", func() { a.opts.Submit(domain.ToggleDim{}) })
 	a.prePost = newTagButton("PRE", func() { a.opts.Submit(domain.ToggleMeterPost{}) })
-	tags := container.NewCenter(container.New(layout.NewCustomPaddedHBoxLayout(3), a.muteTag, a.dimTag, a.prePost))
+	tags := container.NewCenter(container.New(layout.NewCustomPaddedHBoxLayout(3), a.mute, a.dim, a.prePost))
 	footer := container.NewVBox(tags, a.volBox)
 
 	a.fader = NewFader(func(db int) { a.opts.Submit(domain.SetVolume{DB: db}) })
@@ -178,6 +180,10 @@ func (a *App) buildTray() {
 	}
 	a.trayMute = fyne.NewMenuItem("Mute", func() { a.opts.Submit(domain.SetMute{On: !a.trayMute.Checked}) })
 	a.trayDim = fyne.NewMenuItem("Dim", func() { a.opts.Submit(domain.SetDim{On: !a.trayDim.Checked}) })
+	for i := range a.trayScene {
+		id := domain.SceneID(i)
+		a.trayScene[i] = fyne.NewMenuItem(id.String(), func() { a.opts.Submit(domain.SelectScene{ID: id}) })
+	}
 	exit := fyne.NewMenuItem("Exit", a.fyne.Quit)
 	exit.IsQuit = true
 	a.tray = fyne.NewMenu(appTitle,
@@ -185,6 +191,9 @@ func (a *App) buildTray() {
 		fyne.NewMenuItemSeparator(),
 		a.trayDim,
 		a.trayMute,
+		fyne.NewMenuItemSeparator(),
+		a.trayScene[domain.SceneA],
+		a.trayScene[domain.SceneB],
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Configuration", a.settings.show),
 		fyne.NewMenuItemSeparator(),
@@ -245,8 +254,8 @@ func (a *App) render(s domain.Snapshot) {
 	if setText(a.volume, strconv.Itoa(st.Master.VolumeDB), pick(active, colText, colTextDisabled)) {
 		a.volBox.Refresh()
 	}
-	styleStatusTag(a.muteTag, st.Master.Mute, active, colRedText)
-	styleStatusTag(a.dimTag, st.Master.Dim, active, colYellow)
+	styleTag(a.mute, st.Master.Mute, active, colRedText)
+	styleTag(a.dim, st.Master.Dim, active, colYellow)
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
 	ml := s.MeterLevels()
@@ -272,8 +281,9 @@ func (a *App) render(s domain.Snapshot) {
 		}
 		row.setEnabled(active && !spk.Disabled)
 	}
-	styleSwitch(a.mute, st.Master.Mute, active, colRed, color.White)
-	styleSwitch(a.dim, st.Master.Dim, active, colYellow, colDark)
+	for i, b := range a.scenes {
+		b.set(st.Scenes[i], st.Speakers, st.Scene == domain.SceneID(i), active)
+	}
 
 	switch {
 	case !s.Device.ServerConnected:
@@ -286,28 +296,18 @@ func (a *App) render(s domain.Snapshot) {
 
 	if a.tray != nil {
 		a.setTrayIcon(trayIconFor(st.Master.Mute, st.Master.Dim))
-		if a.trayMute.Checked != st.Master.Mute || a.trayDim.Checked != st.Master.Dim {
+		sceneB := st.Scene == domain.SceneB
+		if a.trayMute.Checked != st.Master.Mute || a.trayDim.Checked != st.Master.Dim || a.trayScene[domain.SceneB].Checked != sceneB {
 			a.trayMute.Checked, a.trayDim.Checked = st.Master.Mute, st.Master.Dim
+			a.trayScene[domain.SceneA].Checked, a.trayScene[domain.SceneB].Checked = !sceneB, sceneB
 			a.tray.Refresh()
 		}
 	}
 	a.settings.stateChanged(s)
 }
 
-func styleSwitch(b *blockButton, on, active bool, fill, text color.Color) {
-	switch {
-	case !active:
-		b.style(colRaised, nil, colTextDisabled, true)
-	case on:
-		b.style(fill, nil, text, true)
-	default:
-		b.style(colRaised, nil, colTextIdle, true)
-	}
-	b.setEnabled(active)
-}
-
-// styleStatusTag outlines an indicator in its colour when on, grey when off.
-func styleStatusTag(b *blockButton, on, active bool, col color.Color) {
+// styleTag outlines a Mute or Dim tag in its colour when on, grey when off.
+func styleTag(b *blockButton, on, active bool, col color.Color) {
 	switch {
 	case !active:
 		b.style(color.Transparent, colTextDisabled, colTextDisabled, true)
@@ -316,6 +316,7 @@ func styleStatusTag(b *blockButton, on, active bool, col color.Color) {
 	default:
 		b.style(color.Transparent, colTextDim, colTextDim, true)
 	}
+	b.setEnabled(active)
 }
 
 func (a *App) setStatus(text string, dot, fg color.Color) {

@@ -36,6 +36,9 @@ func TestScreenshots(t *testing.T) {
 	}
 	s.State.Speakers[domain.SpeakerA].Selected = false
 	s.State.Speakers[domain.SpeakerB].Selected = true
+	s.State.Scenes[domain.SceneA] = s.State.CurrentScene()
+	s.State.Scenes[domain.SceneB] = domain.Scene{Dim: true, VolumeDB: -12,
+		Selected: [domain.NumSpeakers]bool{domain.SpeakerC: true}}
 	a.render(s)
 	a.meter.left, a.meter.right = -9, -11
 	a.meter.Refresh()

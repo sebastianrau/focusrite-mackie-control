@@ -6,9 +6,13 @@ type Command interface {
 	apply(s *Snapshot)
 }
 
-// Apply returns the snapshot that results from applying cmd to s.
+// Apply returns the snapshot that results from applying cmd to s. Every
+// change is stored in the active scene as well.
 func Apply(s Snapshot, cmd Command) Snapshot {
 	cmd.apply(&s)
+	if s.State.Scene.Valid() {
+		s.State.Scenes[s.State.Scene] = s.State.CurrentScene()
+	}
 	return s
 }
 
@@ -133,3 +137,24 @@ const MaxDimDB = 60
 type SetDimDB struct{ DB int }
 
 func (c SetDimDB) apply(s *Snapshot) { s.State.Master.DimDB = min(max(c.DB, 0), MaxDimDB) }
+
+// SelectScene switches to a scene and recalls it.
+type SelectScene struct{ ID SceneID }
+
+func (c SelectScene) apply(s *Snapshot) {
+	if !c.ID.Valid() {
+		return
+	}
+	s.State.Scene = c.ID
+	s.State.recall(s.State.Scenes[c.ID])
+	if _, ok := s.State.MeterSource(); !ok {
+		s.Levels = Silence
+	}
+}
+
+// ToggleScene switches between scene A and B.
+type ToggleScene struct{}
+
+func (ToggleScene) apply(s *Snapshot) {
+	SelectScene{ID: (s.State.Scene + 1) % SceneID(NumScenes)}.apply(s)
+}

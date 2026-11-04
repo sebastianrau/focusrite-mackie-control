@@ -35,6 +35,17 @@ type Controller struct {
 	DimDB     int       `yaml:"dim_db"`
 	MeterPost bool      `yaml:"meter_post"`
 	Speakers  []Speaker `yaml:"speakers"` // A, B, C, D, Sub
+	Scene     string    `yaml:"scene"`    // active scene: "A" or "B"
+	Scenes    []Scene   `yaml:"scenes"`   // A, B
+}
+
+// Scene is a stored monitor scene. Files written before scenes existed
+// get the stored state in both scenes.
+type Scene struct {
+	Mute     bool   `yaml:"mute"`
+	Dim      bool   `yaml:"dim"`
+	VolumeDB int    `yaml:"volume_db"`
+	Speakers []bool `yaml:"speakers"` // selected: A, B, C, D, Sub
 }
 
 type Speaker struct {
@@ -68,6 +79,7 @@ type MIDI struct {
 	MuteKey         Key     `yaml:"mute_key"`
 	DimKey          Key     `yaml:"dim_key"`
 	MeterPostKey    Key     `yaml:"meter_post_key"`
+	SceneKey        Key     `yaml:"scene_key"`
 	SpeakerKeys     []Key   `yaml:"speaker_keys"` // A, B, C, D, Sub
 	LogarithmicFade bool    `yaml:"logarithmic_fader"`
 }
@@ -92,6 +104,21 @@ func (c Config) State() domain.State {
 			s.Speakers[i] = domain.Speaker(spk)
 		}
 	}
+	if c.Controller.Scene == "B" {
+		s.Scene = domain.SceneB
+	}
+	for i := range s.Scenes {
+		s.Scenes[i] = s.CurrentScene()
+		if i < len(c.Controller.Scenes) {
+			sc := c.Controller.Scenes[i]
+			s.Scenes[i].Mute, s.Scenes[i].Dim, s.Scenes[i].VolumeDB = sc.Mute, sc.Dim, sc.VolumeDB
+			for j := range s.Scenes[i].Selected {
+				s.Scenes[i].Selected[j] = j < len(sc.Speakers) && sc.Speakers[j]
+			}
+		}
+	}
+	// The live state belongs to the active scene.
+	s.Scenes[s.Scene] = s.CurrentScene()
 	return s
 }
 
@@ -100,6 +127,10 @@ func (c *Config) SetState(s domain.State) {
 		DimDB: s.Master.DimDB, MeterPost: s.Master.MeterPost}
 	for _, spk := range s.Speakers {
 		c.Controller.Speakers = append(c.Controller.Speakers, Speaker(spk))
+	}
+	c.Controller.Scene = string(rune('A' + s.Scene))
+	for _, sc := range s.Scenes {
+		c.Controller.Scenes = append(c.Controller.Scenes, Scene{Mute: sc.Mute, Dim: sc.Dim, VolumeDB: sc.VolumeDB, Speakers: sc.Selected[:]})
 	}
 }
 
@@ -128,6 +159,7 @@ func (c Config) MCUConfig() mcu.Config {
 		MuteKey:         gomcu.Switch(c.MIDI.MuteKey),
 		DimKey:          gomcu.Switch(c.MIDI.DimKey),
 		MeterPostKey:    gomcu.Switch(c.MIDI.MeterPostKey),
+		SceneKey:        gomcu.Switch(c.MIDI.SceneKey),
 		LogarithmicFade: c.MIDI.LogarithmicFade,
 	}
 	def := mcu.DefaultConfig()
@@ -149,6 +181,7 @@ func (c *Config) SetMCU(m mcu.Config) {
 		MuteKey:         Key(m.MuteKey),
 		DimKey:          Key(m.DimKey),
 		MeterPostKey:    Key(m.MeterPostKey),
+		SceneKey:        Key(m.SceneKey),
 		LogarithmicFade: m.LogarithmicFade,
 	}
 	for _, k := range m.SpeakerKeys {
