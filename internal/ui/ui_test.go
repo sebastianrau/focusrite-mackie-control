@@ -349,8 +349,8 @@ func TestSceneButtons(t *testing.T) {
 	}
 }
 
-// Holding a scene button stores the live state instead of switching, and
-// its release is not a tap.
+// Holding the inactive scene's button stores the live state instead of
+// switching, and its release is not a tap.
 func TestSceneLongPressStores(t *testing.T) {
 	a, cmds := newTestApp(t)
 	a.render(domain.Snapshot{State: domain.DefaultState(), Device: connected()})
@@ -369,6 +369,12 @@ func TestSceneLongPressStores(t *testing.T) {
 		t.Error("progress bar left visible")
 	}
 
+	b.pressed = time.Now().Add(-2 * time.Second) // released before the hold ended
+	test.Tap(b)
+	if len(*cmds) != 1 {
+		t.Errorf("an aborted hold switched: %#v", *cmds)
+	}
+
 	test.Tap(b) // a short press is a tap
 	if len(*cmds) != 2 || (*cmds)[1] != (domain.SelectScene{ID: domain.SceneB}) {
 		t.Errorf("commands = %#v", *cmds)
@@ -377,5 +383,17 @@ func TestSceneLongPressStores(t *testing.T) {
 	b.showProgress(0.5)
 	if !b.bar.Visible() || b.bar.Size().Width != 42 {
 		t.Errorf("progress bar %v visible %t", b.bar.Size(), b.bar.Visible())
+	}
+}
+
+// Holding the active scene's button stores nothing.
+func TestActiveSceneHoldDoesNothing(t *testing.T) {
+	a, cmds := newTestApp(t)
+	a.render(domain.Snapshot{State: domain.DefaultState(), Device: connected()})
+	b := a.scenes[domain.SceneA]
+	b.MouseDown(&desktop.MouseEvent{})
+	b.MouseUp(&desktop.MouseEvent{})
+	if len(*cmds) != 0 || b.bar.Visible() {
+		t.Errorf("commands = %#v, bar %t", *cmds, b.bar.Visible())
 	}
 }

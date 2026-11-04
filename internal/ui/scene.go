@@ -13,24 +13,32 @@ import (
 	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
 )
 
-// storeHold is how long a scene button must be held to store the live state
-// in its scene.
-const storeHold = 10 * time.Second
+const (
+	// storeHold is how long the inactive scene's button must be held to
+	// store the live state in that scene.
+	storeHold = 5 * time.Second
+	// tapMax is the longest press that still switches the scene. A longer
+	// one that is released early does nothing.
+	tapMax = 500 * time.Millisecond
+)
 
 // sceneButton recalls a scene and shows what it holds: the volume, Mute and
 // Dim, and below them the speakers, each letter at a fixed place and green
-// when the speaker is on. Holding it stores the live state in the scene; a
-// bar shows the progress and the button flashes when it is done.
+// when the speaker is on. Holding the inactive scene's button stores the
+// live state in it; a bar shows the progress and the button flashes when it
+// is done.
 type sceneButton struct {
 	widget.BaseWidget
 	tapped  func()
 	stored  func()
 	enabled bool
+	current bool // the active scene: holding it does nothing
 
-	hold  *fyne.Animation
-	held  bool // the press stored the scene, so its release is no tap
-	bar   *canvas.Rectangle
-	flash *canvas.Rectangle
+	hold    *fyne.Animation
+	pressed time.Time // start of the press, zero without one
+	held    bool      // the press stored the scene, so its release is no tap
+	bar     *canvas.Rectangle
+	flash   *canvas.Rectangle
 
 	bg      *canvas.Rectangle
 	key     *canvas.Text
@@ -83,7 +91,7 @@ func sceneLetter(id domain.SpeakerID) string {
 // set shows sc. It redraws only what changed: render runs for every meter
 // update.
 func (b *sceneButton) set(sc domain.Scene, speakers [domain.NumSpeakers]domain.Speaker, current, active bool) {
-	b.enabled = active
+	b.enabled, b.current = active, current
 	changed := false
 	fill, stroke, width := colPanel, color.Color(nil), float32(0)
 	if current && active {
@@ -134,7 +142,9 @@ func show(o fyne.CanvasObject, on bool) bool {
 }
 
 func (b *sceneButton) Tapped(*fyne.PointEvent) {
-	if b.held {
+	long := !b.pressed.IsZero() && time.Since(b.pressed) > tapMax
+	b.pressed = time.Time{}
+	if b.held || long {
 		b.held = false
 		return
 	}
@@ -148,8 +158,15 @@ func (b *sceneButton) MouseDown(*desktop.MouseEvent) {
 		return
 	}
 	b.held = false
+	b.pressed = time.Now()
 	b.stopHold()
+	if b.current {
+		return
+	}
 	b.hold = fyne.NewAnimation(storeHold, func(p float32) {
+		if time.Duration(float32(storeHold)*p) < tapMax {
+			p = 0 // still a tap: no bar yet
+		}
 		b.showProgress(p)
 		if p >= 1 {
 			b.store()
