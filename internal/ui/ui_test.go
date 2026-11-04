@@ -294,12 +294,14 @@ func TestTagLabelsFit(t *testing.T) {
 	}
 }
 
-// Mute, Dim and PRE/POST share one row in the channel strip.
+// Mute, Dim and PRE/POST are the same size and share one row in the strip.
 func TestTagRowFitsStrip(t *testing.T) {
 	test.NewTempApp(t)
-	w := newStatusTag("MUTE").MinSize().Width + newStatusTag("DIM").MinSize().Width +
-		newTagButton("PRE", nil).MinSize().Width + 2*3
-	if w > 128-20 {
+	tag := newTagButton("PRE", nil).MinSize()
+	if newStatusTag("MUTE").MinSize() != tag || newStatusTag("DIM").MinSize() != tag {
+		t.Error("all tags must be the same size")
+	}
+	if w := 3*tag.Width + 2*3; w > 128-20 {
 		t.Errorf("tag row is %.0f px, the strip has 108", w)
 	}
 }

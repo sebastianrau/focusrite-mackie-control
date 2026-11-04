@@ -96,30 +96,29 @@ func (b *blockButton) MinSize() fyne.Size { return b.min }
 func newTagButton(text string, tapped func()) *blockButton {
 	b := newTag(text)
 	b.tapped = tapped
-	// Wide enough for the longer label in the font actually used.
-	b.min = fyne.NewSize(max(40, b.textWidth("POST")+14), 20)
 	b.style(color.Transparent, colGreen, colGreen, true)
 	return b
 }
 
 // newStatusTag looks like a tag button but only shows a state (Mute, Dim).
-// It is just wide enough for its text, so three tags fit the channel strip.
 func newStatusTag(text string) *blockButton {
 	b := newTag(text)
 	b.enabled = false
-	b.min = fyne.NewSize(b.textWidth(text)+6, 20)
 	return b
 }
 
+// newTag makes all tags the same size, wide enough for the longest label,
+// so Mute, Dim and PRE/POST fit side by side in the channel strip.
 func newTag(text string) *blockButton {
 	b := newBlockButton(text, fyne.TextAlignCenter, nil)
 	b.bg.CornerRadius = 5
-	b.label.TextSize = 10
+	b.label.TextSize = 9
+	var w float32
+	for _, s := range []string{"MUTE", "DIM", "PRE", "POST"} {
+		w = max(w, fyne.MeasureText(s, b.label.TextSize, fyne.TextStyle{Bold: true}).Width)
+	}
+	b.min = fyne.NewSize(w+8, 20)
 	return b
-}
-
-func (b *blockButton) textWidth(s string) float32 {
-	return fyne.MeasureText(s, b.label.TextSize, fyne.TextStyle{Bold: true}).Width
 }
 
 func (b *blockButton) CreateRenderer() fyne.WidgetRenderer {
