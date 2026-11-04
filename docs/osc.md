@@ -48,6 +48,8 @@ to see the current value. Numbers may be sent as int, float or bool.
 | `/monitor/speaker/{a,b,c,d,sub}/enabled` | int 0/1 | out |
 | `/monitor/meter/post` | int 0/1: meters pre-fader (0) or post-fader (1) | in / out |
 | `/monitor/meter/post/toggle` | – | in |
+| `/monitor/scene` | int 0/1: scene A (0) or B (1) | in / out |
+| `/monitor/scene/toggle` | – | in |
 | `/monitor/meter/left`, `/monitor/meter/right` | float, dBFS | out, ≤ 20/s |
 | `/monitor/meter/left/normalized`, `…/right/normalized` | float 0…1 over −60…0 dB | out, ≤ 20/s |
 | `/monitor/device/connected` | int 0/1 | out |

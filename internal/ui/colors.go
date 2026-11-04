@@ -14,11 +14,9 @@ var (
 	colTextDisabled = hex(0x5c636b)
 	colGreen        = hex(0x3ddc84)
 	colGreenBg      = hex(0x1d3326)
-	colRed          = hex(0xe5484d)
 	colRedText      = hex(0xff8a8d)
 	colYellow       = hex(0xffe14d)
 	colOrange       = hex(0xff9f43)
-	colDark         = hex(0x1a1a1a) // text on yellow
 )
 
 func hex(v uint32) color.NRGBA {

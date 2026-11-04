@@ -87,6 +87,8 @@ func parse(buf []byte) (cfg Config, migrated bool, err error) {
 		return l.migrate(), true, nil
 	case Version:
 		cfg = Default()
+		// Without scenes in the file, both start from the stored state.
+		cfg.Controller.Scene, cfg.Controller.Scenes = "", nil
 		dec := yaml.NewDecoder(bytes.NewReader(buf))
 		dec.KnownFields(true)
 		if err := dec.Decode(&cfg); err != nil {

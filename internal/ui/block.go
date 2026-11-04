@@ -10,8 +10,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// blockButton is a filled, rounded button whose fill shows its state:
-// Mute, Dim and the speaker rows.
+// blockButton is a rounded button whose fill or outline shows its state:
+// the speaker rows and the tags.
 type blockButton struct {
 	widget.BaseWidget
 	tapped  func()
@@ -92,15 +92,20 @@ func (b *blockButton) Cursor() desktop.Cursor {
 
 func (b *blockButton) MinSize() fyne.Size { return b.min }
 
-// newTagButton is a small outlined button, like the meter's PRE/POST switch.
+// newTagButton is a small outlined button: Mute, Dim and the meter's
+// PRE/POST switch.
+// All tags have the same size, wide enough for the longest label, so they
+// fit side by side in the channel strip.
 func newTagButton(text string, tapped func()) *blockButton {
 	b := newBlockButton(text, fyne.TextAlignCenter, tapped)
 	b.bg.CornerRadius = 5
-	b.label.TextSize = 10
-	// Wide enough for the longer label in the font actually used.
-	w := fyne.MeasureText("POST", b.label.TextSize, fyne.TextStyle{Bold: true}).Width
-	b.min = fyne.NewSize(max(40, w+14), 20)
+	b.label.TextSize = 9
 	b.style(color.Transparent, colGreen, colGreen, true)
+	var w float32
+	for _, s := range []string{"MUTE", "DIM", "PRE", "POST"} {
+		w = max(w, fyne.MeasureText(s, b.label.TextSize, fyne.TextStyle{Bold: true}).Width)
+	}
+	b.min = fyne.NewSize(w+8, 20)
 	return b
 }
 
@@ -122,7 +127,7 @@ func (r *blockRenderer) Layout(size fyne.Size) {
 	}
 	avail := size.Width - x - 10
 	if b.align == fyne.TextAlignCenter {
-		avail = size.Width - 8 // centred text needs only a small inset
+		avail = size.Width - 2 // centred text needs only a small inset
 	}
 	b.label.Text = fit(b.text, avail, b.label)
 	ls := b.label.MinSize()

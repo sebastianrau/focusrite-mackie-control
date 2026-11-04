@@ -187,6 +187,7 @@ func (s *settingsWindow) midiSection() fyne.CanvasObject {
 		widget.NewLabel("Mute:"), key(&m.MuteKey),
 		widget.NewLabel("Dim:"), key(&m.DimKey),
 		widget.NewLabel("Pre/Post:"), key(&m.MeterPostKey),
+		widget.NewLabel("Scene A/B:"), key(&m.SceneKey),
 		heading("Speaker:"), layout.NewSpacer(),
 	)
 	for i := range m.SpeakerKeys {

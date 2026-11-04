@@ -98,6 +98,9 @@ func root() node {
 		// meter pre/post fader: lit when post
 		toggle("meterPost", frame{175, top + height - 50, 65, 50}, green, osc.AddrMeterPost),
 		label("meterPostText", frame{175, top + height - 50, 65, 50}, white, 14, "POST", ""),
+		// scene A/B: lit on B
+		toggle("scene", frame{425, 85, 155, 40}, green, osc.AddrScene),
+		label("sceneText", frame{425, 85, 155, 40}, white, 16, "Scene B", ""),
 	)
 	for i, id := range domain.Speakers {
 		f := frame{260, top + i*115, 320, 100}

@@ -52,6 +52,9 @@ func TestRoundTrip(t *testing.T) {
 	state := domain.DefaultState()
 	state.Master.VolumeDB = -17
 	state.Speakers[domain.SpeakerC] = domain.Speaker{Name: "Cans", Selected: true}
+	state.Scene = domain.SceneB
+	state.Scenes[domain.SceneA].VolumeDB = -30
+	state.Scenes[domain.SceneB] = state.CurrentScene()
 	fc := focusrite.Config{SerialNumber: "X1", MuteID: 7, Outputs: [domain.NumSpeakers]focusrite.Output{{NameID: 1, MuteID: 2, GainID: 3, MeterLeftID: 4, MeterRightID: 5}}}
 	mc := mcu.DefaultConfig()
 	mc.FaderChannel = gomcu.Master
@@ -250,5 +253,31 @@ func TestMeterPostIsSaved(t *testing.T) {
 	s2, _ := Open(path)
 	if !s2.Get().State().Master.MeterPost {
 		t.Error("meter_post was not saved")
+	}
+}
+
+func TestScenesAreSaved(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.yaml")
+	s, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := s.Get().State()
+	if st.Scenes[domain.SceneB] != st.CurrentScene() {
+		t.Error("without stored scenes, both must start from the stored state")
+	}
+	st.Scene = domain.SceneB
+	st.Scenes[domain.SceneA] = domain.Scene{Dim: true, VolumeDB: -30, Selected: [domain.NumSpeakers]bool{domain.SpeakerC: true}}
+	s.Update(func(c *Config) { c.SetState(st) })
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := s2.Get().State()
+	if got.Scene != domain.SceneB || got.Scenes != st.Scenes {
+		t.Errorf("scenes = %v %+v, want %v %+v", got.Scene, got.Scenes, st.Scene, st.Scenes)
 	}
 }

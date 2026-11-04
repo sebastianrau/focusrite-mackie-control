@@ -237,3 +237,60 @@ func TestMeterLevels(t *testing.T) {
 		t.Error("SetMeterPost(false) did not switch back")
 	}
 }
+
+// Every change lands in the active scene; switching recalls the other one.
+func TestScenes(t *testing.T) {
+	s := Snapshot{State: DefaultState()}
+	s = Apply(s, SetMute{On: false})
+	s = Apply(s, SetVolume{DB: -24})
+	if s.State.Scenes[SceneA].VolumeDB != -24 || s.State.Scenes[SceneB].VolumeDB != MinVolumeDB {
+		t.Fatalf("scenes = %+v", s.State.Scenes)
+	}
+
+	s = Apply(s, ToggleScene{})
+	if s.State.Scene != SceneB || !s.State.Master.Mute || s.State.Master.VolumeDB != MinVolumeDB {
+		t.Fatalf("scene B not recalled: %+v", s.State.Master)
+	}
+	s = Apply(s, SelectSpeaker{ID: SpeakerB, On: true})
+	s = Apply(s, SetDim{On: true})
+	s = Apply(s, SetVolume{DB: -12})
+
+	s = Apply(s, SelectScene{ID: SceneA})
+	m := s.State.Master
+	if m.Mute || m.Dim || m.VolumeDB != -24 || !s.State.Speakers[SpeakerA].Selected || s.State.Speakers[SpeakerB].Selected {
+		t.Errorf("scene A not recalled: %+v", s.State)
+	}
+	s = Apply(s, SelectScene{ID: SceneB})
+	if !s.State.Master.Dim || s.State.Master.VolumeDB != -12 || !s.State.Speakers[SpeakerB].Selected {
+		t.Errorf("scene B not recalled: %+v", s.State)
+	}
+	if s.State.Master.MeterPost {
+		t.Error("PRE/POST is not part of a scene")
+	}
+}
+
+// A speaker disabled after a scene was stored stays off when it is recalled.
+func TestSceneSkipsDisabledSpeakers(t *testing.T) {
+	s := Snapshot{State: DefaultState()}
+	s = Apply(s, SelectSpeaker{ID: SpeakerC, On: true})
+	s = Apply(s, ToggleScene{})
+	s = Apply(s, ConfigureSpeaker{ID: SpeakerC, Disabled: true, Exclusive: true})
+	s = Apply(s, ToggleScene{})
+	if s.State.Speakers[SpeakerC].Selected {
+		t.Error("disabled speaker selected by a scene")
+	}
+	if s = Apply(s, SelectScene{ID: 7}); s.State.Scene != SceneA {
+		t.Error("invalid scene accepted")
+	}
+}
+
+// StoreScene copies the live state into a scene without switching to it.
+func TestStoreScene(t *testing.T) {
+	s := Snapshot{State: DefaultState()}
+	s = Apply(s, SetMute{On: false})
+	s = Apply(s, SetVolume{DB: -20})
+	s = Apply(s, StoreScene{ID: SceneB})
+	if s.State.Scene != SceneA || s.State.Scenes[SceneB] != s.State.CurrentScene() {
+		t.Errorf("scene %v, B = %+v", s.State.Scene, s.State.Scenes[SceneB])
+	}
+}

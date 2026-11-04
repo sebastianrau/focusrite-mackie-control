@@ -124,7 +124,9 @@ func TestInputBecomesCommands(t *testing.T) {
 	c.send(SpeakerAddr(domain.SpeakerB), int32(1))
 	c.send(SpeakerToggle(domain.Sub), float32(1))
 	c.send(AddrMeterPost, int32(1))
-	c.send(AddrMeterPostToggle, int32(0))   // release: ignored
+	c.send(AddrMeterPostToggle, int32(0)) // release: ignored
+	c.send(AddrScene, int32(1))
+	c.send(AddrSceneToggle, int32(1))
 	c.send("/monitor/speaker/zz", int32(1)) // unknown speaker: ignored
 	c.send("/something/else")
 
@@ -137,6 +139,8 @@ func TestInputBecomesCommands(t *testing.T) {
 		domain.SelectSpeaker{ID: domain.SpeakerB, On: true},
 		domain.ToggleSpeaker{ID: domain.Sub},
 		domain.SetMeterPost{On: true},
+		domain.SelectScene{ID: domain.SceneB},
+		domain.ToggleScene{},
 	}
 	got := h.waitCmds(t, len(want))
 	time.Sleep(50 * time.Millisecond) // nothing else may follow
