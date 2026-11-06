@@ -154,7 +154,7 @@ func TestMeterSegments(t *testing.T) {
 	test.NewTempApp(t)
 	m := NewMeter()
 	r := m.CreateRenderer().(*meterRenderer)
-	m.left, m.right = -3, meterMinDB
+	m.left, m.right = -3, m.floor
 	r.Refresh()
 
 	lit := func(ch int) (n int, top color.Color) {
@@ -179,6 +179,60 @@ func TestMeterSegments(t *testing.T) {
 	r.Refresh()
 	if n, _ := lit(0); n != 0 {
 		t.Error("a disabled meter must be dark")
+	}
+}
+
+// A lower floor spreads the 30 segments over a wider range, and the state
+// sets it on meter and scale.
+func TestMeterFloor(t *testing.T) {
+	a, _ := newTestApp(t)
+	s := domain.Snapshot{State: domain.DefaultState(), Device: connected()}
+	s.State.Master.MeterFloorDB = -96
+	s.Levels = domain.Levels{LeftDB: -93, RightDB: -127}
+	a.render(s)
+
+	m := a.meter
+	if m.floor != -96 || a.scale.floor != -96 {
+		t.Fatalf("floor meter %v, scale %v; want -96", m.floor, a.scale.floor)
+	}
+	if n := m.litSegments(m.left); n != 1 {
+		t.Errorf("-93 dB lights %d segments at -96 dB range, want 1", n)
+	}
+	if n := m.litSegments(m.right); n != 0 {
+		t.Errorf("silence lights %d segments", n)
+	}
+	s.State.Master.MeterFloorDB = -60
+	a.render(s)
+	if m.left != -60 {
+		t.Errorf("level %v not clamped to the new floor", m.left)
+	}
+}
+
+// The scale labels of every range start at 0, end at the floor and do not
+// overlap in the smallest window.
+func TestMeterScales(t *testing.T) {
+	a, _ := newTestApp(t)
+	a.render(domain.Snapshot{State: domain.DefaultState(), Device: connected()})
+	a.window.Resize(a.window.Content().MinSize())
+	height := a.scale.Size().Height
+	for _, floor := range domain.MeterFloors {
+		sc := newMeterScale()
+		sc.SetFloor(float64(floor))
+		r := test.TempWidgetRenderer(t, sc).(*scaleRenderer)
+		r.Layout(fyne.NewSize(18, height))
+		labels := meterScale(float64(floor))
+		if labels[0] != 0 || labels[len(labels)-1] != float64(floor) {
+			t.Errorf("%d dB: scale %v", floor, labels)
+		}
+		if len(r.labels) != len(labels) {
+			t.Fatalf("%d dB: %d labels for %d values", floor, len(r.labels), len(labels))
+		}
+		for i := 1; i < len(r.labels); i++ {
+			prev, cur := r.labels[i-1], r.labels[i]
+			if prev.Position().Y+prev.MinSize().Height > cur.Position().Y {
+				t.Errorf("%d dB: labels %s and %s overlap at %.0f px", floor, prev.Text, cur.Text, height)
+			}
+		}
 	}
 }
 
@@ -216,12 +270,12 @@ func TestMeterRedrawsOnlyOnChange(t *testing.T) {
 	}
 	m.Resume()
 	m.SetLevels(-1, -1)
-	if m.litL != litSegments(-1) {
-		t.Errorf("resumed meter shows %d segments, want %d", m.litL, litSegments(-1))
+	if m.litL != m.litSegments(-1) {
+		t.Errorf("resumed meter shows %d segments, want %d", m.litL, m.litSegments(-1))
 	}
 
-	if litSegments(0) != meterSegments || litSegments(meterMinDB) != 0 || litSegments(-31) != 15 {
-		t.Errorf("litSegments: 0 dB %d, -60 dB %d, -31 dB %d", litSegments(0), litSegments(meterMinDB), litSegments(-31))
+	if m.litSegments(0) != meterSegments || m.litSegments(m.floor) != 0 || m.litSegments(-31) != 15 {
+		t.Errorf("litSegments: 0 dB %d, -60 dB %d, -31 dB %d", m.litSegments(0), m.litSegments(m.floor), m.litSegments(-31))
 	}
 }
 
@@ -259,7 +313,7 @@ func TestPrePostSwitch(t *testing.T) {
 		t.Fatalf("commands = %#v", *cmds)
 	}
 
-	a.meter.left, a.meter.right = meterMinDB, meterMinDB
+	a.meter.left, a.meter.right = a.meter.floor, a.meter.floor
 	s.State.Master.MeterPost = true
 	a.render(s)
 	if a.prePost.Text() != "POST" || a.meter.left != -36 {

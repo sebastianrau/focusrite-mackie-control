@@ -129,7 +129,8 @@ macOS the app has no Dock icon; it lives in the menu bar.
 - **The meter** shows the levels Focusrite Control reports for the first
   selected speaker. **PRE** (default) shows them before the volume; **POST**
   applies volume and dim, and the meter is silent while muted. Click the
-  green switch under the meter to change it.
+  green switch under the meter to change it. The meter range (-40, -60,
+  -80, -96 or -127 dB up to 0 dB, default -60) is set in the configuration.
 
 ## Configuration
 
@@ -138,7 +139,7 @@ once; only the connection whose settings changed reconnects.
 
 | Section | Settings |
 | ------- | -------- |
-| **Monitor Controller** | Dim amount; per speaker *Disabled* and *Exclusive*. |
+| **Monitor Controller** | Dim amount, meter range; per speaker *Disabled* and *Exclusive*. |
 | **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim, the meter's Pre/Post switch, Scene A/B and each speaker. |
 | **Focusrite** | The interface, and which stereo output each speaker uses. The monitor Mute and Dim controls of the interface are linked automatically. |
 | **OSC** | OSC server on/off, its port, access from other devices, and targets that always receive the state. |

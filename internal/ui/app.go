@@ -49,6 +49,7 @@ type App struct {
 	prePost  *blockButton
 	fader    *Fader
 	meter    *Meter
+	scale    *meterScaleWidget
 	speakers [domain.NumSpeakers]*blockButton
 	mute     *blockButton // tags in the channel strip
 	dim      *blockButton
@@ -129,7 +130,8 @@ func (a *App) channelStrip() fyne.CanvasObject {
 
 	a.fader = NewFader(func(db int) { a.opts.Submit(domain.SetVolume{DB: db}) })
 	a.meter = NewMeter()
-	center := container.NewHBox(layout.NewSpacer(), a.fader, newMeterScale(), a.meter, layout.NewSpacer())
+	a.scale = newMeterScale()
+	center := container.NewHBox(layout.NewSpacer(), a.fader, a.scale, a.meter, layout.NewSpacer())
 
 	bg := canvas.NewRectangle(colPanel)
 	bg.CornerRadius = 14
@@ -260,6 +262,9 @@ func (a *App) render(s domain.Snapshot) {
 	styleTag(a.dim, st.Master.Dim, active, colYellow)
 	a.fader.SetDB(st.Master.VolumeDB)
 	a.fader.SetDisabled(!active)
+	floor := float64(domain.ValidMeterFloor(st.Master.MeterFloorDB))
+	a.scale.SetFloor(floor)
+	a.meter.SetFloor(floor)
 	ml := s.MeterLevels()
 	a.meter.SetLevels(ml.LeftDB, ml.RightDB)
 	a.prePost.setText(map[bool]string{false: "PRE", true: "POST"}[st.Master.MeterPost])

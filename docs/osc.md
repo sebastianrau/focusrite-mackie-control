@@ -51,7 +51,7 @@ to see the current value. Numbers may be sent as int, float or bool.
 | `/monitor/scene` | int 0/1: scene A (0) or B (1) | in / out |
 | `/monitor/scene/toggle` | – | in |
 | `/monitor/meter/left`, `/monitor/meter/right` | float, dBFS | out, ≤ 20/s |
-| `/monitor/meter/left/normalized`, `…/right/normalized` | float 0…1 over −60…0 dB | out, ≤ 20/s |
+| `/monitor/meter/left/normalized`, `…/right/normalized` | float 0…1 over the meter range (default −60…0 dB, set in the configuration) | out, ≤ 20/s |
 | `/monitor/device/connected` | int 0/1 | out |
 | `/monitor/device/model` | string | out |
 | `/monitor/sync` | – | in |
