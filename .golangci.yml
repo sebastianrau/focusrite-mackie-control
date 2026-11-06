@@ -18,4 +18,4 @@ formatters:
   settings:
     goimports:
       local-prefixes:
-        - github.com/sebastianrau/focusrite-mackie-control
+        - github.com/sebastianrau/sweetspot

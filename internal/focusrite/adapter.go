@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite/protocol"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite/protocol"
 )
 
 // Sender delivers sets to Focusrite Control. *Client implements it.

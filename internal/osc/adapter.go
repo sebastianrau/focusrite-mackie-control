@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/logging"
 )
 
 var log = logging.New("osc")

@@ -8,14 +8,14 @@ import (
 
 	"github.com/sebastianrau/gomcu"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite"
+	"github.com/sebastianrau/sweetspot/internal/mcu"
+	"github.com/sebastianrau/sweetspot/internal/osc"
 )
 
 func tempPath(t *testing.T) string {
-	return filepath.Join(t.TempDir(), "sub", "monitor-controller.yaml")
+	return filepath.Join(t.TempDir(), "sub", "sweetspot.yaml")
 }
 
 func writeFile(t *testing.T, path string, data []byte) {
@@ -303,5 +303,42 @@ func TestMeterFloorIsSaved(t *testing.T) {
 	c.Controller.MeterFloorDB = -55
 	if got := c.State().Master.MeterFloorDB; got != domain.DefaultMeterFloorDB {
 		t.Errorf("unknown floor -55 -> %d, want default", got)
+	}
+}
+
+// The settings of Monitor Controller are copied once; an existing file
+// is never overwritten.
+func TestAdoptOldSettings(t *testing.T) {
+	dir := t.TempDir()
+	from, to := oldPath(dir), filepath.Join(dir, "Sweetspot", "sweetspot.yaml")
+	if err := adopt(from, to); err != nil {
+		t.Fatalf("no old file: %v", err)
+	}
+	if _, err := os.Stat(to); err == nil {
+		t.Fatal("created a file without old settings")
+	}
+	if err := os.MkdirAll(filepath.Dir(from), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(from, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := adopt(from, to); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(to); string(b) != "old" {
+		t.Fatalf("new file = %q", b)
+	}
+	if err := os.WriteFile(to, []byte("new"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := adopt(from, to); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(to); string(b) != "new" {
+		t.Error("existing settings were overwritten")
+	}
+	if _, err := os.Stat(from); err != nil {
+		t.Error("the old file must stay")
 	}
 }

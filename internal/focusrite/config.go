@@ -4,8 +4,8 @@ import (
 	"cmp"
 	"slices"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite/protocol"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite/protocol"
 )
 
 // Output maps a speaker to a stereo output pair by Focusrite element IDs.

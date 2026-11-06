@@ -8,10 +8,10 @@ import (
 	"github.com/sebastianrau/gomcu"
 	"gopkg.in/yaml.v3"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite"
+	"github.com/sebastianrau/sweetspot/internal/mcu"
+	"github.com/sebastianrau/sweetspot/internal/osc"
 )
 
 // Version is the current file format. Files without a version are from

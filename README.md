@@ -1,7 +1,7 @@
-# Monitor Controller <img src="logo.png" width="96" align="right" alt="Monitor Controller logo">
+# Sweetspot <img src="logo.png" width="96" align="right" alt="Sweetspot logo">
 
-[![ci](https://github.com/sebastianrau/focusrite-mackie-control/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianrau/focusrite-mackie-control/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/sebastianrau/focusrite-mackie-control)](https://github.com/sebastianrau/focusrite-mackie-control/releases/latest)
+[![ci](https://github.com/sebastianrau/sweetspot/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianrau/sweetspot/actions/workflows/ci.yml)
+[![release](https://img.shields.io/github/v/release/sebastianrau/sweetspot)](https://github.com/sebastianrau/sweetspot/releases/latest)
 
 A monitor controller for Focusrite Scarlett interfaces: switch between your
 speakers, set the monitor volume, dim and mute, from your desktop, a control
@@ -38,13 +38,13 @@ Tested with the Scarlett 4i4 (3rd Gen) and Scarlett 18i20 (3rd Gen).
 ### Install
 
 Download the archive for your system from the
-[latest release](https://github.com/sebastianrau/focusrite-mackie-control/releases/latest):
+[latest release](https://github.com/sebastianrau/sweetspot/releases/latest):
 
 | System | Archive | Install |
 | ------ | ------- | ------- |
-| macOS (Apple silicon) | `…_darwin_arm64.zip` | Unpack and move **Monitor Controller** to *Applications*. |
+| macOS (Apple silicon) | `…_darwin_arm64.zip` | Unpack and move **Sweetspot** to *Applications*. |
 | macOS (Intel) | `…_darwin_amd64.zip` | Same as above. |
-| Windows | `…_windows_amd64.zip` | Unpack and start **Monitor Controller.exe**. |
+| Windows | `…_windows_amd64.zip` | Unpack and start **Sweetspot.exe**. |
 | Linux | `…_linux_amd64.tar.xz` | Unpack and run `sudo make install` (or `make user-install` for your account only). |
 
 The app is not signed with an Apple or Microsoft developer certificate, so
@@ -54,17 +54,17 @@ SmartScreen prompt with *More info → Run anyway*. On macOS, see below.
 ### First start on macOS
 
 Downloaded apps carry a quarantine flag, and macOS only opens apps from
-unknown developers after you confirm. Start Monitor Controller once; when
+unknown developers after you confirm. Start Sweetspot once; when
 macOS says it cannot verify the app:
 
 1. Open *System Settings → Privacy & Security*.
-2. Scroll to *Security*, click **Open Anyway** next to Monitor Controller and
+2. Scroll to *Security*, click **Open Anyway** next to Sweetspot and
    confirm.
 
 Or remove the quarantine flag in Terminal:
 
 ```sh
-xattr -dr com.apple.quarantine "/Applications/Monitor Controller.app"
+xattr -dr com.apple.quarantine "/Applications/Sweetspot.app"
 ```
 
 Releases up to 0.4.0 lack a complete bundle signature, so macOS reports them
@@ -74,8 +74,8 @@ fixes that too.
 ### First start
 
 1. Start Focusrite Control and connect the interface.
-2. Start Monitor Controller. Focusrite Control asks you to allow the new
-   remote device **Monitor Controller**: allow it.
+2. Start Sweetspot. Focusrite Control asks you to allow the new
+   remote device **Sweetspot**: allow it.
 3. With no interface configured yet, the app takes the first one it finds
    and assigns its stereo outputs in order: outputs 1–2 to speaker A, 3–4 to
    B, 5–6 to C, 7–8 to D and 9–10 to the sub. You can change this in the
@@ -139,7 +139,7 @@ once; only the connection whose settings changed reconnects.
 
 | Section | Settings |
 | ------- | -------- |
-| **Monitor Controller** | Dim amount, meter range; per speaker *Disabled* and *Exclusive*. |
+| **Monitor** | Dim amount, meter range; per speaker *Disabled* and *Exclusive*. |
 | **Midi** | MIDI input and output port, the fader channel, and the keys for Mute, Dim, the meter's Pre/Post switch, Scene A/B and each speaker. |
 | **Focusrite** | The interface, and which stereo output each speaker uses. The monitor Mute and Dim controls of the interface are linked automatically. |
 | **OSC** | OSC server on/off, its port, access from other devices, and targets that always receive the state. |
@@ -179,19 +179,19 @@ volume, Dim and Mute, change the scene, and receive the state, the speaker names
 
 | Symptom | What to check |
 | ------- | ------------- |
-| macOS: *Monitor Controller is damaged* or *cannot be opened* | Remove the quarantine flag, see [First start on macOS](#first-start-on-macos). |
+| macOS: *Sweetspot is damaged* or *cannot be opened* | Remove the quarantine flag, see [First start on macOS](#first-start-on-macos). |
 | Status *No Focusrite Control connection* | Focusrite Control must run on the same computer. The app retries every few seconds. |
 | Status *No device connected* | The interface is off or not selected under **Configuration → Focusrite**. |
-| Nothing happens on the interface | Allow **Monitor Controller** as a remote device in Focusrite Control. |
+| Nothing happens on the interface | Allow **Sweetspot** as a remote device in Focusrite Control. |
 | Control surface or Stream Deck does not react | The MIDI ports under **Configuration → Midi** must exist and must not be *none*. The app reconnects when the ports appear. |
 | OSC client gets no updates | Add the client as a target, or let it send `/monitor/subscribe`. Clients on other devices need *Allow other devices*. |
 | OSC port in use | Another program uses the port: choose another one under **Configuration → OSC**. |
 
 **Logs:** the app logs to stderr. On macOS, start it from a terminal to see
-them, with more detail when `MONITOR_CONTROL_LOG=debug` is set:
+them, with more detail when `SWEETSPOT_LOG=debug` is set:
 
 ```sh
-MONITOR_CONTROL_LOG=debug "/Applications/Monitor Controller.app/Contents/MacOS/monitor-control"
+SWEETSPOT_LOG=debug "/Applications/Sweetspot.app/Contents/MacOS/sweetspot"
 ```
 
 ## Settings file
@@ -200,12 +200,14 @@ The settings are a YAML file in your configuration folder:
 
 | System | Path |
 | ------ | ---- |
-| macOS | `~/Library/Application Support/Monitor-Controller/monitor-controller.yaml` |
-| Windows | `%AppData%\Monitor-Controller\monitor-controller.yaml` |
-| Linux | `~/.config/Monitor-Controller/monitor-controller.yaml` |
+| macOS | `~/Library/Application Support/Sweetspot/sweetspot.yaml` |
+| Windows | `%AppData%\Sweetspot\sweetspot.yaml` |
+| Linux | `~/.config/Sweetspot/sweetspot.yaml` |
 
-Files from 0.1.x are converted on first start. A file that cannot be read is
-renamed to `monitor-controller.yaml.broken`, and the app starts with
+Files from 0.1.x are converted on first start. Sweetspot was called
+Monitor Controller up to 0.7.0; on first start it copies the settings from
+the old `Monitor-Controller` folder, which stays as it is. A file that cannot be read is
+renamed to `sweetspot.yaml.broken`, and the app starts with
 defaults. To try something without touching your settings, start the app
 with `-config <file>`.
 
@@ -248,7 +250,7 @@ CI builds and tests on macOS, Windows and Linux. Pushing a tag (for example
 | `internal/osc` | OSC codec, server and adapter; `touchosc` generates the TouchOSC layout (`cmd/touchosc-layout`). |
 | `internal/ui` | The Fyne window, menu bar and Configuration window. |
 | `internal/config` | Settings file, migration and saving. |
-| `cmd/monitor-control` | Wires everything together and restarts connections when settings change. |
+| `cmd/sweetspot` | Wires everything together and restarts connections when settings change. |
 
 The adapters translate between snapshots and devices: they send only what
 changed and turn device input into commands.

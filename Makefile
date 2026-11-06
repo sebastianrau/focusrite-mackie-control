@@ -1,9 +1,9 @@
-APP_NAME  := Monitor Controller
-APP_ID    := com.github.sebastianrau.focusrite-mackie-control
+APP_NAME  := Sweetspot
+APP_ID    := com.github.sebastianrau.sweetspot
 # fyne package leaves the macOS category empty; it is set after packaging.
 MACOS_CATEGORY := public.app-category.music
-BIN       := monitor-control
-CMD       := ./cmd/monitor-control
+BIN       := sweetspot
+CMD       := ./cmd/sweetspot
 BUILD_DIR := build
 DIST_DIR  := dist
 
@@ -84,8 +84,8 @@ screenshots: ## Regenerate the README images in docs/images
 	SCREENSHOTS=$(CURDIR)/docs/images go test -count=1 -run TestScreenshots ./internal/ui
 
 streamdeck-icons: ## Rebuild the Stream Deck icon pack
-	cd streamdeck && rm -f "Monitor Control Icons.streamDeckIconPack" && \
-		zip -qr "Monitor Control Icons.streamDeckIconPack" com.github.sebastianraufocusrite-mackie-control.sdIconPack -x "*.DS_Store"
+	cd streamdeck && rm -f "Sweetspot Icons.streamDeckIconPack" && \
+		zip -qr "Sweetspot Icons.streamDeckIconPack" com.github.sebastianraufocusrite-mackie-control.sdIconPack -x "*.DS_Store"
 
 clean: ## Remove build output
 	rm -rf $(BUILD_DIR) $(DIST_DIR)

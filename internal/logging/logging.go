@@ -8,7 +8,7 @@ import (
 
 // EnvLevel names the environment variable that sets the log level
 // (debug, info, warn, error). The default is info.
-const EnvLevel = "MONITOR_CONTROL_LOG"
+const EnvLevel = "SWEETSPOT_LOG"
 
 var handler slog.Handler
 

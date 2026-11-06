@@ -12,10 +12,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/sebastianrau/gomcu"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
+	"github.com/sebastianrau/sweetspot/internal/config"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite"
+	"github.com/sebastianrau/sweetspot/internal/mcu"
 )
 
 const none = "none"
@@ -68,7 +68,7 @@ func (s *settingsWindow) show() {
 	s.buildFocusrite()
 
 	sections := widget.NewAccordion(
-		widget.NewAccordionItem("Monitor Controller", s.monitorSection()),
+		widget.NewAccordionItem("Monitor", s.monitorSection()),
 		widget.NewAccordionItem("Midi:", s.midiSection()),
 		widget.NewAccordionItem("Focusrite:", s.focusrite),
 		widget.NewAccordionItem("OSC:", s.oscSection()),

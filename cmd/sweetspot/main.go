@@ -1,4 +1,4 @@
-// Command monitor-control is a monitor controller for Focusrite interfaces,
+// Command sweetspot is a monitor controller for Focusrite interfaces,
 // operated from a Mackie Control surface, a Stream Deck or its own window.
 package main
 
@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/controller"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/platform"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/ui"
+	"github.com/sebastianrau/sweetspot/internal/config"
+	"github.com/sebastianrau/sweetspot/internal/controller"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/logging"
+	"github.com/sebastianrau/sweetspot/internal/mcu"
+	"github.com/sebastianrau/sweetspot/internal/platform"
+	"github.com/sebastianrau/sweetspot/internal/ui"
 )
 
 // version is set at build time via -ldflags "-X main.version=...".
@@ -33,7 +33,7 @@ var log = logging.New("main")
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, "monitor-control:", err)
+		fmt.Fprintln(os.Stderr, "sweetspot:", err)
 		os.Exit(1)
 	}
 }
@@ -45,7 +45,12 @@ func run() error {
 	}
 	path := flag.String("config", defaultPath, "settings file")
 	flag.Parse()
-	log.Info("starting Monitor Controller", "version", version, "config", *path)
+	log.Info("starting Sweetspot", "version", version, "config", *path)
+	if *path == defaultPath {
+		if err := config.AdoptOldSettings(); err != nil {
+			log.Warn("could not take over the settings of Monitor Controller", "err", err)
+		}
+	}
 
 	store, err := config.Open(*path)
 	if err != nil {

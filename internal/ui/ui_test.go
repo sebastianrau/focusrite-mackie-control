@@ -11,8 +11,8 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/config"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 func newTestApp(t *testing.T) (*App, *[]domain.Command) {

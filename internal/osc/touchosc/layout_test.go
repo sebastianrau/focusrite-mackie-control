@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/osc"
 )
 
 type xmlNode struct {

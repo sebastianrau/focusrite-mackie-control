@@ -5,8 +5,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite/protocol"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite/protocol"
 )
 
 // legacy18i20 is the hard-coded default of earlier versions, which was made

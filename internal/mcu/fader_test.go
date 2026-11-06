@@ -5,7 +5,7 @@ import (
 
 	"github.com/sebastianrau/gomcu"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 func TestFaderEnds(t *testing.T) {
