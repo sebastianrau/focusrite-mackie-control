@@ -15,8 +15,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/osc"
 )
 
 type rgba struct{ r, g, b, a float64 }
@@ -85,11 +85,11 @@ func Layout() ([]byte, error) {
 
 func root() node {
 	const top, height = 130, 700
-	g := node{kind: "GROUP", name: "Monitor Controller", frame: frame{0, 0, 600, 900}, color: background,
+	g := node{kind: "GROUP", name: "Sweetspot", frame: frame{0, 0, 600, 900}, color: background,
 		values: []string{value("touch", "false")}, script: rootScript}
 
 	g.children = append(g.children,
-		label("title", frame{20, 10, 560, 40}, white, 24, "Monitor Controller", ""),
+		label("title", frame{20, 10, 560, 40}, white, 24, "Sweetspot", ""),
 		label("device", frame{20, 50, 560, 30}, grey, 16, "", osc.AddrDeviceModel),
 		label("volumeDB", frame{20, 95, 140, 30}, white, 16, "", osc.AddrVolume),
 		slider("volume", frame{20, top, 140, height}, fader, true, osc.AddrVolumeNormalized),

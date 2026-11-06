@@ -13,7 +13,7 @@ import (
 	"gitlab.com/gomidi/midi/v2/drivers"
 	_ "gitlab.com/gomidi/midi/v2/drivers/rtmididrv" // registers the MIDI driver
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
+	"github.com/sebastianrau/sweetspot/internal/logging"
 )
 
 var log = logging.New("mcu")

@@ -9,7 +9,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 const (

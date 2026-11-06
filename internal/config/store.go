@@ -14,19 +14,60 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
+	"github.com/sebastianrau/sweetspot/internal/logging"
 )
 
 var log = logging.New("config")
 
-// DefaultPath is the settings file in the user's config directory. It is the
-// same location earlier releases used.
+// DefaultPath is the settings file in the user's config directory.
 func DefaultPath() (string, error) {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "Monitor-Controller", "monitor-controller.yaml"), nil
+	return filepath.Join(dir, "Sweetspot", "sweetspot.yaml"), nil
+}
+
+// oldPath is where releases up to 0.7.0, named Monitor Controller, kept
+// the settings.
+func oldPath(configDir string) string {
+	return filepath.Join(configDir, "Monitor-Controller", "monitor-controller.yaml")
+}
+
+// AdoptOldSettings copies the settings of Monitor Controller, the app's
+// earlier name, to DefaultPath when that file does not exist yet. The old
+// file stays where it is.
+func AdoptOldSettings() error {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+	path, err := DefaultPath()
+	if err != nil {
+		return err
+	}
+	return adopt(oldPath(dir), path)
+}
+
+func adopt(from, to string) error {
+	if _, err := os.Stat(to); !errors.Is(err, fs.ErrNotExist) {
+		return err // present (nil) or not checkable
+	}
+	buf, err := os.ReadFile(from)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(to, buf, 0o600); err != nil {
+		return err
+	}
+	log.Info("took over the settings of Monitor Controller", "from", from, "to", to)
+	return nil
 }
 
 // Store holds the settings and writes them back when they change. It is safe

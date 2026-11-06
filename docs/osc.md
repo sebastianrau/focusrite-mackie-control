@@ -1,6 +1,6 @@
 # OSC interface
 
-Monitor Controller runs an OSC server, so any OSC client can operate it and
+Sweetspot runs an OSC server, so any OSC client can operate it and
 show its state: TouchOSC, Open Stage Control, a DAW, a script. A ready-made
 TouchOSC layout is in [`examples/touchosc/`](../examples/touchosc/).
 

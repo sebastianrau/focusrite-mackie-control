@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/controller"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/controller"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 // The full loop with the real controller: selecting speaker B over OSC

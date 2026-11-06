@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite/protocol"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/logging"
+	"github.com/sebastianrau/sweetspot/internal/focusrite/protocol"
+	"github.com/sebastianrau/sweetspot/internal/logging"
 )
 
 var log = logging.New("focusrite")
@@ -20,7 +20,7 @@ var log = logging.New("focusrite")
 const (
 	// Focusrite Control remembers approved clients by hostname and key, so
 	// these must stay stable across versions.
-	clientHostname = "Monitor Controller"
+	clientHostname = "Sweetspot"
 	clientKey      = "123456789"
 
 	retryDelay        = 5 * time.Second

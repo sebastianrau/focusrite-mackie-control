@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 // legacyConfig is the unversioned file written by releases up to 0.1.x

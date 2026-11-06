@@ -1,4 +1,4 @@
-module github.com/sebastianrau/focusrite-mackie-control
+module github.com/sebastianrau/sweetspot
 
 go 1.25
 

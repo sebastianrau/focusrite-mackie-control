@@ -12,14 +12,14 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
+	"github.com/sebastianrau/sweetspot/internal/config"
+	"github.com/sebastianrau/sweetspot/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/focusrite"
 )
 
 const (
-	appID        = "com.github.sebastianrau.focusrite-mackie-control"
-	appTitle     = "Monitor Controller"
+	appID        = "com.github.sebastianrau.sweetspot"
+	appTitle     = "Sweetspot"
 	infoNoDevice = "No device connected"
 	infoNoServer = "No Focusrite Control connection"
 )

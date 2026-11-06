@@ -7,7 +7,7 @@ import (
 	"github.com/sebastianrau/gomcu"
 	"gitlab.com/gomidi/midi/v2"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 type fakeSurface struct{ sent []Command }

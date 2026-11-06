@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 // client is a test OSC peer on localhost.

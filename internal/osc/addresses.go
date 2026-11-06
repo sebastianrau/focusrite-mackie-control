@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 // The address space. Every state address works both ways: clients send it to

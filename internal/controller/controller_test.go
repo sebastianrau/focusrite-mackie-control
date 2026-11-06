@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 func start(t *testing.T) *Controller {

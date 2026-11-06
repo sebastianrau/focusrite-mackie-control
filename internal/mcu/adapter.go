@@ -6,7 +6,7 @@ import (
 
 	"github.com/sebastianrau/gomcu"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/domain"
+	"github.com/sebastianrau/sweetspot/internal/domain"
 )
 
 // meterRefresh is how often the level meter is resent. MCU meters decay on

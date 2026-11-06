@@ -3,7 +3,7 @@
 ## Parameters
 
 Licensor:             Sebastian Rau
-Licensed Works:       focusrite-mackie-control project
+Licensed Works:       Sweetspot project
 Change Date:          10 (ten) years from the date the Licensed Work is published (23rd February 2025)
 
 ## 1. Definitions
@@ -36,4 +36,4 @@ This license is governed by the laws of **Germany**.
 
 ---
 
-This LICENSE.md file is specifically created for the [focusrite-mackie-control](https://github.com/sebastianrau/focusrite-mackie-control/) project.
+This LICENSE.md file is specifically created for the [Sweetspot](https://github.com/sebastianrau/sweetspot/) project.

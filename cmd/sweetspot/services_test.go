@@ -7,10 +7,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/config"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/mcu"
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc"
+	"github.com/sebastianrau/sweetspot/internal/config"
+	"github.com/sebastianrau/sweetspot/internal/focusrite"
+	"github.com/sebastianrau/sweetspot/internal/mcu"
+	"github.com/sebastianrau/sweetspot/internal/osc"
 )
 
 // fakeServices records starts and stops instead of opening connections.

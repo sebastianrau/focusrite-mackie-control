@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/focusrite/protocol"
+	"github.com/sebastianrau/sweetspot/internal/focusrite/protocol"
 )
 
 // fakeServer plays Focusrite Control on a local TCP port.

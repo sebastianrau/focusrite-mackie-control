@@ -1,12 +1,12 @@
 // Command touchosc-layout writes the TouchOSC demo layout for the monitor
-// controller: go run ./cmd/touchosc-layout examples/touchosc/monitor-controller.tosc
+// controller: go run ./cmd/touchosc-layout examples/touchosc/sweetspot.tosc
 package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/sebastianrau/focusrite-mackie-control/internal/osc/touchosc"
+	"github.com/sebastianrau/sweetspot/internal/osc/touchosc"
 )
 
 func main() {
