@@ -294,3 +294,20 @@ func TestStoreScene(t *testing.T) {
 		t.Errorf("scene %v, B = %+v", s.State.Scene, s.State.Scenes[SceneB])
 	}
 }
+
+func TestMeterFloor(t *testing.T) {
+	s := Snapshot{State: DefaultState()}
+	if s.State.Master.MeterFloorDB != DefaultMeterFloorDB {
+		t.Errorf("default floor = %d", s.State.Master.MeterFloorDB)
+	}
+	for _, db := range MeterFloors {
+		if got := Apply(s, SetMeterFloorDB{DB: db}).State.Master.MeterFloorDB; got != db {
+			t.Errorf("floor %d -> %d", db, got)
+		}
+	}
+	for _, db := range []int{0, -50, -200, 10} {
+		if got := Apply(s, SetMeterFloorDB{DB: db}).State.Master.MeterFloorDB; got != DefaultMeterFloorDB {
+			t.Errorf("invalid floor %d -> %d, want default", db, got)
+		}
+	}
+}

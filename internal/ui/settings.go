@@ -118,9 +118,24 @@ func (s *settingsWindow) monitorSection() fyne.CanvasObject {
 	}
 	showDim()
 
+	floorName := func(db int) string { return fmt.Sprintf("%d … 0 dB", db) }
+	var floors []string
+	for _, db := range domain.MeterFloors {
+		floors = append(floors, floorName(db))
+	}
+	meterRange := newSelect(floors, func(v string) {
+		for _, db := range domain.MeterFloors {
+			if floorName(db) == v {
+				s.monitor.Master.MeterFloorDB = db
+			}
+		}
+	})
+	meterRange.Selected = floorName(domain.ValidMeterFloor(s.monitor.Master.MeterFloorDB))
+
 	form := container.New(layout.NewFormLayout(),
 		heading("Master:"), layout.NewSpacer(),
 		dimLabel, dim,
+		widget.NewLabel("Meter range:"), meterRange,
 		heading("Speaker:"), layout.NewSpacer(),
 	)
 	for _, id := range domain.Speakers {
@@ -332,6 +347,9 @@ func (s *settingsWindow) save() {
 	}
 	if s.monitor.Master.DimDB != s.live.Master.DimDB {
 		s.opts.Submit(domain.SetDimDB{DB: s.monitor.Master.DimDB})
+	}
+	if s.monitor.Master.MeterFloorDB != s.live.Master.MeterFloorDB {
+		s.opts.Submit(domain.SetMeterFloorDB{DB: s.monitor.Master.MeterFloorDB})
 	}
 	s.opts.Store.Update(func(c *config.Config) {
 		c.Focusrite = s.draft.Focusrite

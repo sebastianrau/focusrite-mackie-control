@@ -138,6 +138,27 @@ type SetDimDB struct{ DB int }
 
 func (c SetDimDB) apply(s *Snapshot) { s.State.Master.DimDB = min(max(c.DB, 0), MaxDimDB) }
 
+// MeterFloors are the selectable meter ranges, in dB below full scale.
+var MeterFloors = []int{-40, -60, -80, -96, -127}
+
+const DefaultMeterFloorDB = -60
+
+// ValidMeterFloor returns db if it is one of MeterFloors, else the default.
+func ValidMeterFloor(db int) int {
+	for _, f := range MeterFloors {
+		if f == db {
+			return db
+		}
+	}
+	return DefaultMeterFloorDB
+}
+
+// SetMeterFloorDB sets the lowest level meters show. Values outside
+// MeterFloors select the default.
+type SetMeterFloorDB struct{ DB int }
+
+func (c SetMeterFloorDB) apply(s *Snapshot) { s.State.Master.MeterFloorDB = ValidMeterFloor(c.DB) }
+
 // SelectScene switches to a scene and recalls it.
 type SelectScene struct{ ID SceneID }
 

@@ -49,6 +49,7 @@ type Adapter struct {
 	ready   bool
 	sent    map[string]string // last value sent per address
 	meter   domain.Levels     // last levels sent
+	floor   int               // meter range floor the last levels were sent with
 }
 
 type subscriber struct {
@@ -255,11 +256,12 @@ func (a *Adapter) publishChanges() {
 }
 
 func (a *Adapter) publishMeter() {
-	if !a.ready || a.snap.MeterLevels() == a.meter {
+	floor := a.snap.State.Master.MeterFloorDB
+	if !a.ready || (a.snap.MeterLevels() == a.meter && floor == a.floor) {
 		return
 	}
-	a.meter = a.snap.MeterLevels()
-	a.send(a.recipients(), meterMessages(a.meter))
+	a.meter, a.floor = a.snap.MeterLevels(), floor
+	a.send(a.recipients(), meterMessages(a.meter, floor))
 }
 
 // sendAll sends the complete state, including the meter, to the given
@@ -268,7 +270,7 @@ func (a *Adapter) sendAll(to []net.Addr) {
 	if !a.ready {
 		return
 	}
-	a.send(to, append(stateMessages(a.snap), meterMessages(a.snap.MeterLevels())...))
+	a.send(to, append(stateMessages(a.snap), meterMessages(a.snap.MeterLevels(), a.snap.State.Master.MeterFloorDB)...))
 }
 
 func (a *Adapter) send(to []net.Addr, msgs []Message) {

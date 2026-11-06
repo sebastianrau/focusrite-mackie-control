@@ -63,6 +63,8 @@ type Master struct {
 	// MeterPost shows the meter after the volume (post-fader) instead of
 	// the level Focusrite Control reports (pre-fader).
 	MeterPost bool
+	// MeterFloorDB is the lowest level meters show, one of MeterFloors.
+	MeterFloorDB int
 }
 
 // SceneID identifies one of the two monitor scenes.
@@ -105,7 +107,7 @@ type State struct {
 
 func DefaultState() State {
 	s := State{
-		Master: Master{Mute: true, VolumeDB: MinVolumeDB, DimDB: 20},
+		Master: Master{Mute: true, VolumeDB: MinVolumeDB, DimDB: 20, MeterFloorDB: DefaultMeterFloorDB},
 	}
 	for _, id := range Speakers {
 		s.Speakers[id] = Speaker{Name: id.String(), Exclusive: true}

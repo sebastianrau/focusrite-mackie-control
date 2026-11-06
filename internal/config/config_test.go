@@ -281,3 +281,27 @@ func TestScenesAreSaved(t *testing.T) {
 		t.Errorf("scenes = %v %+v, want %v %+v", got.Scene, got.Scenes, st.Scene, st.Scenes)
 	}
 }
+
+// Files without meter_floor_db, or with an unknown value, get the default.
+func TestMeterFloorIsSaved(t *testing.T) {
+	path := tempPath(t)
+	s, _ := Open(path)
+	st := s.Get().State()
+	if st.Master.MeterFloorDB != domain.DefaultMeterFloorDB {
+		t.Fatalf("default floor = %d", st.Master.MeterFloorDB)
+	}
+	st.Master.MeterFloorDB = -96
+	s.Update(func(c *Config) { c.SetState(st) })
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	s2, _ := Open(path)
+	if got := s2.Get().State().Master.MeterFloorDB; got != -96 {
+		t.Errorf("floor = %d, want -96", got)
+	}
+	var c Config
+	c.Controller.MeterFloorDB = -55
+	if got := c.State().Master.MeterFloorDB; got != domain.DefaultMeterFloorDB {
+		t.Errorf("unknown floor -55 -> %d, want default", got)
+	}
+}

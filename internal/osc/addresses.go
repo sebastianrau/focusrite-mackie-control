@@ -20,8 +20,8 @@ const (
 
 	AddrMeterLeft            = "/monitor/meter/left"             // float dBFS, out only
 	AddrMeterRight           = "/monitor/meter/right"            // float dBFS, out only
-	AddrMeterLeftNormalized  = "/monitor/meter/left/normalized"  // float 0..1 (-60..0 dB), out only
-	AddrMeterRightNormalized = "/monitor/meter/right/normalized" // float 0..1 (-60..0 dB), out only
+	AddrMeterLeftNormalized  = "/monitor/meter/left/normalized"  // float 0..1 over the meter range, out only
+	AddrMeterRightNormalized = "/monitor/meter/right/normalized" // float 0..1 over the meter range, out only
 
 	AddrMeterPost       = "/monitor/meter/post" // int 0/1: meter after the volume
 	AddrMeterPostToggle = "/monitor/meter/post/toggle"
@@ -62,8 +62,6 @@ func parseSpeaker(addr string) (id domain.SpeakerID, rest string, ok bool) {
 	return 0, "", false
 }
 
-const meterFloorDB = -60.0
-
 func normalizeVolume(db int) float32 {
 	return float32(db-domain.MinVolumeDB) / float32(domain.MaxVolumeDB-domain.MinVolumeDB)
 }
@@ -73,8 +71,10 @@ func denormalizeVolume(v float64) int {
 	return domain.MinVolumeDB + int(math.Round(v*float64(domain.MaxVolumeDB-domain.MinVolumeDB)))
 }
 
-func normalizeMeter(db float64) float32 {
-	return float32((min(max(db, meterFloorDB), 0) - meterFloorDB) / -meterFloorDB)
+// normalizeMeter maps a level to 0..1 over the meter range floor..0 dB.
+func normalizeMeter(db float64, floor int) float32 {
+	f := float64(domain.ValidMeterFloor(floor))
+	return float32((min(max(db, f), 0) - f) / -f)
 }
 
 func boolInt(b bool) int32 {
@@ -108,12 +108,14 @@ func stateMessages(s domain.Snapshot) []Message {
 	return msgs
 }
 
-func meterMessages(l domain.Levels) []Message {
+// meterMessages describes the levels; the normalized ones use the meter
+// range floor.
+func meterMessages(l domain.Levels, floor int) []Message {
 	return []Message{
 		{AddrMeterLeft, []any{float32(l.LeftDB)}},
 		{AddrMeterRight, []any{float32(l.RightDB)}},
-		{AddrMeterLeftNormalized, []any{normalizeMeter(l.LeftDB)}},
-		{AddrMeterRightNormalized, []any{normalizeMeter(l.RightDB)}},
+		{AddrMeterLeftNormalized, []any{normalizeMeter(l.LeftDB, floor)}},
+		{AddrMeterRightNormalized, []any{normalizeMeter(l.RightDB, floor)}},
 	}
 }
 
@@ -192,7 +194,7 @@ func Known(addr string) bool {
 	case AddrSync, AddrSubscribe, AddrUnsubscribe:
 		return true
 	}
-	for _, m := range append(stateMessages(domain.Snapshot{}), meterMessages(domain.Silence)...) {
+	for _, m := range append(stateMessages(domain.Snapshot{}), meterMessages(domain.Silence, domain.DefaultMeterFloorDB)...) {
 		if m.Address == addr {
 			return true
 		}

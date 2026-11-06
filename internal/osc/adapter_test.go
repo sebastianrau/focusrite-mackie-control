@@ -236,3 +236,44 @@ func TestMeterFollowsPrePost(t *testing.T) {
 		t.Errorf("meter left = %v, want -36 (post-fader)", got)
 	}
 }
+
+// The normalized meter covers the configured range, and a new range is sent
+// even when the levels stay the same.
+func TestMeterNormalizedFollowsFloor(t *testing.T) {
+	if got := normalizeMeter(-48, -96); got != 0.5 {
+		t.Errorf("-48 dB over -96..0 = %v, want 0.5", got)
+	}
+	if got := normalizeMeter(-30, 0); got != 0.5 {
+		t.Errorf("-30 dB with an unset floor = %v, want 0.5 (default -60)", got)
+	}
+	if normalizeMeter(-200, -127) != 0 || normalizeMeter(3, -40) != 1 {
+		t.Error("out-of-range levels must be clamped")
+	}
+
+	h := start(t, Config{})
+	c := newClient(t, h.srv)
+	c.send(AddrSubscribe)
+	c.await(AddrDeviceModel)
+
+	s := domain.Snapshot{State: domain.DefaultState(), Device: domain.Device{ServerConnected: true, Present: true}}
+	s.State.Master.Mute = false
+	s.State.Speakers[domain.SpeakerA].Selected = true
+	s.Levels = domain.Levels{LeftDB: -30, RightDB: -30}
+	h.snaps <- s
+	awaitNormalized(t, c, 0.5) // over -60..0
+	s.State.Master.MeterFloorDB = -40
+	h.snaps <- s
+	awaitNormalized(t, c, 0.25) // same level over -40..0
+}
+
+// awaitNormalized skips meter messages sent before the snapshot arrived.
+func awaitNormalized(t *testing.T, c *client, want float32) {
+	t.Helper()
+	var got []any
+	for range 20 {
+		if got = c.await(AddrMeterLeftNormalized); got[0] == want {
+			return
+		}
+	}
+	t.Errorf("normalized = %v, want %v", got, want)
+}

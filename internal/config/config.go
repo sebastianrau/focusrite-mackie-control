@@ -29,14 +29,16 @@ type Config struct {
 
 // Controller holds the monitor state restored at startup.
 type Controller struct {
-	Mute      bool      `yaml:"mute"`
-	Dim       bool      `yaml:"dim"`
-	VolumeDB  int       `yaml:"volume_db"`
-	DimDB     int       `yaml:"dim_db"`
-	MeterPost bool      `yaml:"meter_post"`
-	Speakers  []Speaker `yaml:"speakers"` // A, B, C, D, Sub
-	Scene     string    `yaml:"scene"`    // active scene: "A" or "B"
-	Scenes    []Scene   `yaml:"scenes"`   // A, B
+	Mute      bool `yaml:"mute"`
+	Dim       bool `yaml:"dim"`
+	VolumeDB  int  `yaml:"volume_db"`
+	DimDB     int  `yaml:"dim_db"`
+	MeterPost bool `yaml:"meter_post"`
+	// MeterFloorDB is the meter range; files without it get the default.
+	MeterFloorDB int       `yaml:"meter_floor_db"`
+	Speakers     []Speaker `yaml:"speakers"` // A, B, C, D, Sub
+	Scene        string    `yaml:"scene"`    // active scene: "A" or "B"
+	Scenes       []Scene   `yaml:"scenes"`   // A, B
 }
 
 // Scene is a stored monitor scene. Files written before scenes existed
@@ -98,7 +100,8 @@ func Default() Config {
 func (c Config) State() domain.State {
 	s := domain.DefaultState()
 	s.Master = domain.Master{Mute: c.Controller.Mute, Dim: c.Controller.Dim, VolumeDB: c.Controller.VolumeDB,
-		DimDB: c.Controller.DimDB, MeterPost: c.Controller.MeterPost}
+		DimDB: c.Controller.DimDB, MeterPost: c.Controller.MeterPost,
+		MeterFloorDB: domain.ValidMeterFloor(c.Controller.MeterFloorDB)}
 	for i, spk := range c.Controller.Speakers {
 		if i < domain.NumSpeakers {
 			s.Speakers[i] = domain.Speaker(spk)
@@ -124,7 +127,7 @@ func (c Config) State() domain.State {
 
 func (c *Config) SetState(s domain.State) {
 	c.Controller = Controller{Mute: s.Master.Mute, Dim: s.Master.Dim, VolumeDB: s.Master.VolumeDB,
-		DimDB: s.Master.DimDB, MeterPost: s.Master.MeterPost}
+		DimDB: s.Master.DimDB, MeterPost: s.Master.MeterPost, MeterFloorDB: s.Master.MeterFloorDB}
 	for _, spk := range s.Speakers {
 		c.Controller.Speakers = append(c.Controller.Speakers, Speaker(spk))
 	}
